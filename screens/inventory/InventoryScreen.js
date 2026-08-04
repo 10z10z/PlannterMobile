@@ -4,6 +4,7 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import FertilizersTab from './FertilizersTab';
 import SeedsTab from './SeedsTab';
 import ContainersTab from './ContainersTab';
+import TraysTab from './TraysTab';
 import MediumsTab from './MediumsTab';
 import GrowLightsTab from './GrowLightsTab';
 
@@ -20,6 +21,7 @@ export default function InventoryScreen() {
         <Tab.Screen name="Fertilizers" component={FertilizersTab} />
         <Tab.Screen name="Seeds" component={SeedsTab} />
         <Tab.Screen name="Containers" component={ContainersTab} />
+        <Tab.Screen name="Trays" component={TraysTab} />
         <Tab.Screen name="Mediums" component={MediumsTab} />
         <Tab.Screen name="Lights" component={GrowLightsTab} />
       </Tab.Navigator>

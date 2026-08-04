@@ -5,8 +5,9 @@ import { formatLength, lengthUnit } from '../lib/units';
 import { hasColorTemp, lightTypeLabel, spectrumLabel } from '../lib/growLights';
 
 /**
- * `inUse` is summed from the growspace assignments, so the free count reflects
- * what is actually hanging rather than a number kept by hand.
+ * `inUse` is summed from the growspace and germination-station assignments, so
+ * the free count reflects what is actually hanging rather than a number kept by
+ * hand.
  */
 export default function GrowLightCard({ light, inUse, onPress, onDelete }) {
   const { system } = useUnits();
@@ -73,7 +74,7 @@ export default function GrowLightCard({ light, inUse, onPress, onDelete }) {
         )}
         {inUse > light.quantity && (
           <Text variant="bodySmall" style={styles.warning}>
-            {inUse - light.quantity} more assigned to growspaces than owned
+            {inUse - light.quantity} more assigned than owned
           </Text>
         )}
       </Card.Content>

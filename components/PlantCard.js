@@ -31,6 +31,9 @@ export default function PlantCard({ plant, onPress }) {
       />
       <Card.Content>
         <Text variant="bodyMedium">{dueText}</Text>
+        {plant.seedling_count > 1 && (
+          <Text variant="bodySmall">{plant.seedling_count} seedlings in one container</Text>
+        )}
       </Card.Content>
     </Card>
   );

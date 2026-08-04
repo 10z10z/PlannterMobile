@@ -8,6 +8,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import GrowspacesStack from './GrowspacesStack';
 import ComingSoonScreen from '../screens/ComingSoonScreen';
+import GerminationStationsScreen from '../screens/germination/GerminationStationsScreen';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
 import NpkCalculatorScreen from '../screens/calculator/NpkCalculatorScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -38,10 +39,9 @@ function AppTabs() {
       />
       <Tab.Screen
         name="Germination"
+        component={GerminationStationsScreen}
         options={{ tabBarIcon: tabIcon('sprout-outline') }}
-      >
-        {() => <ComingSoonScreen title="Germination Station" icon="sprout-outline" />}
-      </Tab.Screen>
+      />
       <Tab.Screen
         name="Plants"
         options={{ tabBarIcon: tabIcon('leaf') }}
