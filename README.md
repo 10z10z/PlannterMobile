@@ -30,8 +30,8 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
    npm install
    ```
 2. Create a free project at [supabase.com](https://supabase.com), then run
-   `supabase/schema.sql` and each file in `supabase/migrations/` (in order) in
-   its SQL Editor to set up the tables, storage bucket, and RLS policies.
+   `supabase/migrations/0001_init.sql` in its SQL Editor to set up the tables,
+   storage bucket, and RLS policies.
 3. Copy your Supabase Project URL and anon public key (Project Settings → API)
    into a `.env` file at the project root:
    ```
@@ -47,12 +47,12 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 ## Project structure
 
 ```
-lib/            Supabase client, local notification scheduling
-contexts/       Auth state (React Context)
-navigation/      Root navigator (auth stack vs. app stack)
-screens/         Login/Signup, Growspaces list/detail, Plant detail
-components/      Reusable list item cards
-supabase/        SQL schema for the Supabase backend
+lib/            Supabase client, storage uploads, unit conversion, notifications
+contexts/       Auth, theme and unit-preference providers
+navigation/     Root navigator (auth stack vs. bottom tabs)
+screens/        Login/Signup, Growspaces, Plant detail, Inventory, Settings
+components/     Reusable cards, image picker, nutrient and date inputs
+supabase/       Database migrations
 ```
 
 ## Roadmap
