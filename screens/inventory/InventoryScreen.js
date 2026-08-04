@@ -1,22 +1,12 @@
 import { StyleSheet, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import ComingSoonScreen from '../ComingSoonScreen';
 import FertilizersTab from './FertilizersTab';
+import SeedsTab from './SeedsTab';
+import ContainersTab from './ContainersTab';
+import MediumsTab from './MediumsTab';
 
 const Tab = createMaterialTopTabNavigator();
-
-function SeedsTab() {
-  return <ComingSoonScreen title="Seed Packs" icon="seed-outline" />;
-}
-
-function ContainersTab() {
-  return <ComingSoonScreen title="Containers" icon="cup-outline" />;
-}
-
-function MediumsTab() {
-  return <ComingSoonScreen title="Growing Mediums" icon="grain" />;
-}
 
 export default function InventoryScreen() {
   return (

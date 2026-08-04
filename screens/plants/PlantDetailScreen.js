@@ -6,6 +6,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { cancelWateringReminder, scheduleWateringReminder } from '../../lib/notifications';
 import ImagePickerField from '../../components/ImagePickerField';
+import ContainerPicker from '../../components/ContainerPicker';
+import { useUnits } from '../../contexts/UnitsContext';
+import { formatVolume } from '../../lib/units';
+import { materialLabel } from '../../lib/containers';
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -17,6 +21,7 @@ function formatDate(iso) {
 
 export default function PlantDetailScreen({ route, navigation }) {
   const { plantId } = route.params;
+  const { system } = useUnits();
   const [plant, setPlant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editVisible, setEditVisible] = useState(false);
@@ -24,6 +29,7 @@ export default function PlantDetailScreen({ route, navigation }) {
   const [species, setSpecies] = useState('');
   const [intervalDays, setIntervalDays] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
+  const [containerId, setContainerId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,7 +37,7 @@ export default function PlantDetailScreen({ route, navigation }) {
     setLoading(true);
     const { data, error } = await supabase
       .from('plants')
-      .select('*')
+      .select('*, containers(material, volume_liters)')
       .eq('id', plantId)
       .single();
     if (!error) setPlant(data);
@@ -49,6 +55,7 @@ export default function PlantDetailScreen({ route, navigation }) {
     setSpecies(plant.species || '');
     setIntervalDays(String(plant.watering_interval_days));
     setImageUrl(plant.image_url);
+    setContainerId(plant.container_id);
     setError('');
     setEditVisible(true);
   };
@@ -71,9 +78,10 @@ export default function PlantDetailScreen({ route, navigation }) {
         species: species.trim() || null,
         watering_interval_days: interval,
         image_url: imageUrl,
+        container_id: containerId,
       })
       .eq('id', plantId)
-      .select()
+      .select('*, containers(material, volume_liters)')
       .single();
     setSaving(false);
     if (error) {
@@ -119,6 +127,12 @@ export default function PlantDetailScreen({ route, navigation }) {
       <View style={styles.infoBlock}>
         <Text variant="bodyMedium">Watering interval: every {plant.watering_interval_days} days</Text>
         <Text variant="bodyMedium">Last watered: {formatDate(plant.last_watered_at)}</Text>
+        {!!plant.containers && (
+          <Text variant="bodyMedium">
+            Container: {formatVolume(plant.containers.volume_liters, system)}{' '}
+            {materialLabel(plant.containers.material)}
+          </Text>
+        )}
       </View>
 
       <Button mode="outlined" onPress={openEditDialog} style={styles.actionButton}>
@@ -147,6 +161,7 @@ export default function PlantDetailScreen({ route, navigation }) {
               keyboardType="number-pad"
               style={styles.input}
             />
+            <ContainerPicker value={containerId} onChange={setContainerId} />
             {!!error && <Text style={styles.errorText}>{error}</Text>}
           </Dialog.Content>
           <Dialog.Actions>

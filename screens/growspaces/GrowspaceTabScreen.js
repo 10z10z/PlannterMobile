@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { scheduleWateringReminder } from '../../lib/notifications';
 import PlantCard from '../../components/PlantCard';
 import ImagePickerField from '../../components/ImagePickerField';
+import ContainerPicker from '../../components/ContainerPicker';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
@@ -19,6 +20,7 @@ export default function GrowspaceTabScreen({ route }) {
   const [species, setSpecies] = useState('');
   const [intervalDays, setIntervalDays] = useState('7');
   const [imageUrl, setImageUrl] = useState(null);
+  const [containerId, setContainerId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,6 +46,7 @@ export default function GrowspaceTabScreen({ route }) {
     setSpecies('');
     setIntervalDays('7');
     setImageUrl(null);
+    setContainerId(null);
     setError('');
     setDialogVisible(true);
   };
@@ -68,6 +71,7 @@ export default function GrowspaceTabScreen({ route }) {
         watering_interval_days: interval,
         last_watered_at: nowIso,
         image_url: imageUrl,
+        container_id: containerId,
         user_id: session.user.id,
         growspace_id: growspaceId,
       })
@@ -132,6 +136,7 @@ export default function GrowspaceTabScreen({ route }) {
               keyboardType="number-pad"
               style={styles.input}
             />
+            <ContainerPicker value={containerId} onChange={setContainerId} />
             {!!error && <Text style={styles.errorText}>{error}</Text>}
           </Dialog.Content>
           <Dialog.Actions>
