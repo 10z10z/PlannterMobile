@@ -9,6 +9,7 @@ import SignupScreen from '../screens/auth/SignupScreen';
 import GrowspacesStack from './GrowspacesStack';
 import ComingSoonScreen from '../screens/ComingSoonScreen';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
+import NpkCalculatorScreen from '../screens/calculator/NpkCalculatorScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
@@ -54,10 +55,9 @@ function AppTabs() {
       />
       <Tab.Screen
         name="NPK"
+        component={NpkCalculatorScreen}
         options={{ tabBarIcon: tabIcon('calculator-variant-outline'), title: 'NPK Calc' }}
-      >
-        {() => <ComingSoonScreen title="NPK Calculator" icon="calculator-variant-outline" />}
-      </Tab.Screen>
+      />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}

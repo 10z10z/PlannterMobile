@@ -12,6 +12,12 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 - Inventory across four tabs: fertilizers (NPK/micronutrient specs, foliar and
   fertigation doses), seed packs, containers and growing mediums
 - Container occupancy derived from plant assignments — "8/10 in use, 2 free"
+- NPK calculator fed by the fertilizer inventory: mix several products with a
+  dose slider each, and read the resulting ppm against growth-stage target
+  bands for macros and micronutrients
+- Per-fertilizer contribution shown as colour-coded segments in every bar
+- Reverse calculation — what a tank that has already been poured delivered
+- Source water accounted for, from a hardness reading or a water report's Ca/Mg
 - Metric/imperial unit preference — values are stored metric and converted for display
 - Row-level security in Supabase — each user only sees their own data
 
@@ -50,7 +56,7 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 lib/            Supabase client, storage uploads, unit conversion, notifications
 contexts/       Auth, theme and unit-preference providers
 navigation/     Root navigator (auth stack vs. bottom tabs)
-screens/        Login/Signup, Growspaces, Plant detail, Inventory, Settings
+screens/        Login/Signup, Growspaces, Plant detail, Inventory, NPK calculator, Settings
 components/     Reusable cards, image picker, nutrient and date inputs
 supabase/       Database migrations
 ```
@@ -58,4 +64,3 @@ supabase/       Database migrations
 ## Roadmap
 
 - Germination station — germinate a seed pack into a plant
-- NPK calculator, fed by the fertilizer inventory
