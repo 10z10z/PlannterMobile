@@ -2,10 +2,12 @@ import { StyleSheet, View } from 'react-native';
 import { Appbar, Button, SegmentedButtons, Text } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useThemePreference } from '../contexts/ThemeContext';
+import { useUnits } from '../contexts/UnitsContext';
 
 export default function SettingsScreen() {
   const { signOut, session } = useAuth();
   const { preference, setThemePreference } = useThemePreference();
+  const { system, setUnitSystem } = useUnits();
 
   return (
     <View style={styles.container}>
@@ -22,6 +24,17 @@ export default function SettingsScreen() {
             { value: 'system', label: 'System' },
             { value: 'light', label: 'Light' },
             { value: 'dark', label: 'Dark' },
+          ]}
+          style={styles.segmented}
+        />
+
+        <Text variant="labelLarge" style={styles.sectionLabel}>Units</Text>
+        <SegmentedButtons
+          value={system}
+          onValueChange={setUnitSystem}
+          buttons={[
+            { value: 'metric', label: 'Metric (L, ml/L)' },
+            { value: 'imperial', label: 'Imperial (gal, ml/gal)' },
           ]}
           style={styles.segmented}
         />

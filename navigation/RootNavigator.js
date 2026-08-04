@@ -8,6 +8,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import GrowspacesStack from './GrowspacesStack';
 import ComingSoonScreen from '../screens/ComingSoonScreen';
+import InventoryScreen from '../screens/inventory/InventoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
@@ -47,11 +48,10 @@ function AppTabs() {
         {() => <ComingSoonScreen title="Plants" icon="leaf" />}
       </Tab.Screen>
       <Tab.Screen
-        name="Fertilizers"
-        options={{ tabBarIcon: tabIcon('flask-outline') }}
-      >
-        {() => <ComingSoonScreen title="Fertilizers & Containers" icon="flask-outline" />}
-      </Tab.Screen>
+        name="Inventory"
+        component={InventoryScreen}
+        options={{ tabBarIcon: tabIcon('package-variant-closed') }}
+      />
       <Tab.Screen
         name="NPK"
         options={{ tabBarIcon: tabIcon('calculator-variant-outline'), title: 'NPK Calc' }}
