@@ -5,6 +5,7 @@ import FertilizersTab from './FertilizersTab';
 import SeedsTab from './SeedsTab';
 import ContainersTab from './ContainersTab';
 import MediumsTab from './MediumsTab';
+import GrowLightsTab from './GrowLightsTab';
 
 const Tab = createMaterialTopTabNavigator();
 
@@ -20,6 +21,7 @@ export default function InventoryScreen() {
         <Tab.Screen name="Seeds" component={SeedsTab} />
         <Tab.Screen name="Containers" component={ContainersTab} />
         <Tab.Screen name="Mediums" component={MediumsTab} />
+        <Tab.Screen name="Lights" component={GrowLightsTab} />
       </Tab.Navigator>
     </View>
   );

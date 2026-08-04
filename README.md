@@ -9,8 +9,11 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 - Create growspaces and organize plants within them
 - Track each plant's watering interval and last-watered date
 - Local notification reminders when a plant is due for watering
-- Inventory across four tabs: fertilizers (NPK/micronutrient specs, foliar and
-  fertigation doses), seed packs, containers and growing mediums
+- Inventory across five tabs: fertilizers (NPK/micronutrient specs, foliar and
+  fertigation doses), seed packs, containers, growing mediums and grow lights
+- Grow lights with type, wattage, colour temperature and optional spec-sheet
+  figures (PPF, efficacy, PPFD at distance, coverage, beam angle, IP rating),
+  tracked by quantity and how many are assigned to growspaces
 - Container occupancy derived from plant assignments — "8/10 in use, 2 free"
 - NPK calculator fed by the fertilizer inventory: mix several products with a
   dose slider each, and read the resulting ppm against growth-stage target
@@ -35,9 +38,9 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
    ```
    npm install
    ```
-2. Create a free project at [supabase.com](https://supabase.com), then run
-   `supabase/migrations/0001_init.sql` in its SQL Editor to set up the tables,
-   storage bucket, and RLS policies.
+2. Create a free project at [supabase.com](https://supabase.com), then run the
+   files in `supabase/migrations/` in filename order in its SQL Editor to set up
+   the tables, storage bucket, and RLS policies.
 3. Copy your Supabase Project URL and anon public key (Project Settings → API)
    into a `.env` file at the project root:
    ```
