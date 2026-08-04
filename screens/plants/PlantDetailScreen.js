@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Button, Dialog, Portal, Text, TextInput } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { cancelWateringReminder, scheduleWateringReminder } from '../../lib/notifications';
+import ImagePickerField from '../../components/ImagePickerField';
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -21,6 +23,7 @@ export default function PlantDetailScreen({ route, navigation }) {
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('');
   const [intervalDays, setIntervalDays] = useState('');
+  const [imageUrl, setImageUrl] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,6 +48,7 @@ export default function PlantDetailScreen({ route, navigation }) {
     setName(plant.name);
     setSpecies(plant.species || '');
     setIntervalDays(String(plant.watering_interval_days));
+    setImageUrl(plant.image_url);
     setError('');
     setEditVisible(true);
   };
@@ -66,6 +70,7 @@ export default function PlantDetailScreen({ route, navigation }) {
         name: name.trim(),
         species: species.trim() || null,
         watering_interval_days: interval,
+        image_url: imageUrl,
       })
       .eq('id', plantId)
       .select()
@@ -96,6 +101,14 @@ export default function PlantDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      {plant.image_url ? (
+        <Image source={{ uri: plant.image_url }} style={styles.heroImage} />
+      ) : (
+        <View style={styles.heroPlaceholder}>
+          <MaterialCommunityIcons name="leaf" size={48} color="#888" />
+        </View>
+      )}
+
       <Text variant="headlineMedium">{plant.name}</Text>
       {!!plant.species && (
         <Text variant="bodyLarge" style={styles.species}>
@@ -119,6 +132,7 @@ export default function PlantDetailScreen({ route, navigation }) {
         <Dialog visible={editVisible} onDismiss={() => setEditVisible(false)}>
           <Dialog.Title>Edit Plant</Dialog.Title>
           <Dialog.Content>
+            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
             <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
             <TextInput
               label="Species (optional)"
@@ -154,6 +168,21 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  heroPlaceholder: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 16,
+    backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
   },

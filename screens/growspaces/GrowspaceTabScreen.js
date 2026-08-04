@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { scheduleWateringReminder } from '../../lib/notifications';
 import PlantCard from '../../components/PlantCard';
+import ImagePickerField from '../../components/ImagePickerField';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
@@ -17,6 +18,7 @@ export default function GrowspaceTabScreen({ route }) {
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('');
   const [intervalDays, setIntervalDays] = useState('7');
+  const [imageUrl, setImageUrl] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -41,6 +43,7 @@ export default function GrowspaceTabScreen({ route }) {
     setName('');
     setSpecies('');
     setIntervalDays('7');
+    setImageUrl(null);
     setError('');
     setDialogVisible(true);
   };
@@ -64,6 +67,7 @@ export default function GrowspaceTabScreen({ route }) {
         species: species.trim() || null,
         watering_interval_days: interval,
         last_watered_at: nowIso,
+        image_url: imageUrl,
         user_id: session.user.id,
         growspace_id: growspaceId,
       })
@@ -113,6 +117,7 @@ export default function GrowspaceTabScreen({ route }) {
         <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
           <Dialog.Title>New Plant</Dialog.Title>
           <Dialog.Content>
+            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
             <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
             <TextInput
               label="Species (optional)"

@@ -21,7 +21,13 @@ export default function PlantCard({ plant, onPress }) {
       <Card.Title
         title={plant.name}
         subtitle={plant.species || undefined}
-        left={(props) => <Avatar.Icon {...props} icon="leaf" />}
+        left={(props) =>
+          plant.image_url ? (
+            <Avatar.Image {...props} source={{ uri: plant.image_url }} />
+          ) : (
+            <Avatar.Icon {...props} icon="leaf" />
+          )
+        }
       />
       <Card.Content>
         <Text variant="bodyMedium">{dueText}</Text>
