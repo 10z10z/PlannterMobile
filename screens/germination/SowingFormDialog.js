@@ -16,15 +16,20 @@ import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume } from '../../lib/units';
 import { materialLabel } from '../../lib/containers';
 import { fetchTraysWithUsage, trayGridLabel } from '../../lib/trays';
-import { createSowing } from '../../lib/germination';
+import { createSowing, originalSeedsPerCell } from '../../lib/germination';
 import DateField, { toDateString } from '../../components/DateField';
 
 /**
  * Sowing a seed pack into a tray or a single container. The seeds are taken out
  * of the pack on save, so the form shows what the sowing will cost against
  * what's left before it's committed.
+ *
+ * `template` is an existing sowing to copy, for sowing the same thing again. It
+ * fills the form in rather than saving straight away: the seed pack may have run
+ * low and the tray may be in use since, and both are worth seeing before
+ * committing. Everything is still editable, and the date resets to today.
  */
-export default function SowingFormDialog({ visible, onDismiss, onSaved, stationId }) {
+export default function SowingFormDialog({ visible, onDismiss, onSaved, stationId, template }) {
   const { session } = useAuth();
   const { system } = useUnits();
 
@@ -46,10 +51,10 @@ export default function SowingFormDialog({ visible, onDismiss, onSaved, stationI
   useEffect(() => {
     if (!visible) return;
     setSeedPack(null);
-    setTarget('tray');
+    setTarget(template?.container_id ? 'container' : 'tray');
     setTray(null);
     setContainer(null);
-    setSeedsPerCell('1');
+    setSeedsPerCell(template ? String(originalSeedsPerCell(template.grid)) : '1');
     setSownOn(toDateString(new Date()));
     setError('');
 
@@ -58,11 +63,21 @@ export default function SowingFormDialog({ visible, onDismiss, onSaved, stationI
       fetchTraysWithUsage().catch(() => []),
       supabase.from('containers').select('*').order('volume_liters'),
     ]).then(([packs, trayRows, containerRows]) => {
-      setSeedPacks(packs.data ?? []);
+      const packRows = packs.data ?? [];
+      const containerList = containerRows.data ?? [];
+      setSeedPacks(packRows);
       setTrays(trayRows);
-      setContainers(containerRows.data ?? []);
+      setContainers(containerList);
+
+      // Resolved once the lists are in, and only to rows that still exist —
+      // a pack or tray deleted since the original sowing simply comes up blank
+      // rather than preselecting something that isn't there.
+      if (!template) return;
+      setSeedPack(packRows.find((pack) => pack.id === template.seed_pack_id) ?? null);
+      setTray(trayRows.find((entry) => entry.id === template.tray_id) ?? null);
+      setContainer(containerList.find((entry) => entry.id === template.container_id) ?? null);
     });
-  }, [visible]);
+  }, [visible, template]);
 
   const perCell = parseInt(seedsPerCell, 10);
   const cellCount = target === 'tray' ? (tray ? tray.grid_rows * tray.grid_cols : null) : 1;
@@ -111,7 +126,7 @@ export default function SowingFormDialog({ visible, onDismiss, onSaved, stationI
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
-        <Dialog.Title>New Sowing</Dialog.Title>
+        <Dialog.Title>{template ? 'Sow again' : 'New Sowing'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Text variant="labelLarge" style={styles.label}>

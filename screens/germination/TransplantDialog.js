@@ -6,12 +6,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume } from '../../lib/units';
 import { fetchContainersWithUsage, materialLabel } from '../../lib/containers';
-import { transplant } from '../../lib/germination';
+import { germinatedCells, transplant } from '../../lib/germination';
 
 /**
- * Moves germinated seedlings into a growspace, from one held cell or from a
- * whole sowing. Several seedlings can share a container — the split is even, and
- * each container becomes one plant carrying its seedling count.
+ * Moves germinated seedlings into a growspace, from one held cell, a selection
+ * of cells, or a whole sowing. Several seedlings can share a container — the
+ * split is even, and each container becomes one plant carrying its count.
  */
 export default function TransplantDialog({ visible, sowing, cells, onDismiss, onDone }) {
   const { session } = useAuth();
@@ -30,6 +30,16 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
   const [error, setError] = useState('');
 
   const available = (cells ?? []).reduce((sum, cell) => sum + cell.germinated, 0);
+
+  // Names where the seedlings came from, so a partial move can't be mistaken for
+  // emptying the tray.
+  const ready = germinatedCells(sowing?.grid);
+  const source =
+    cells?.length === 1
+      ? 'this cell'
+      : cells?.length === ready.length
+        ? 'this sowing'
+        : `the ${cells?.length} selected cells`;
 
   useEffect(() => {
     if (!visible) return;
@@ -113,9 +123,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Text variant="bodyMedium">
-              {`${available} seedling${available === 1 ? '' : 's'} ready in ${
-                cells?.length === 1 ? 'this cell' : 'this sowing'
-              }.`}
+              {`${available} seedling${available === 1 ? '' : 's'} ready in ${source}.`}
             </Text>
 
             <TextInput

@@ -17,6 +17,8 @@ import SowingFormDialog from './SowingFormDialog';
 import CellDialog from './CellDialog';
 import BatchGerminationDialog from './BatchGerminationDialog';
 import TransplantDialog from './TransplantDialog';
+import ThinDialog from './ThinDialog';
+import MoveSowingDialog from './MoveSowingDialog';
 import StationFormDialog from './StationFormDialog';
 
 export default function StationTabScreen({ route }) {
@@ -28,6 +30,8 @@ export default function StationTabScreen({ route }) {
   const [lights, setLights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formVisible, setFormVisible] = useState(false);
+  // The sowing the form is copying, when it was opened by "Sow this again".
+  const [template, setTemplate] = useState(null);
   const [editVisible, setEditVisible] = useState(false);
   // { sowing, cell } while a tapped cell is being marked.
   const [activeCell, setActiveCell] = useState(null);
@@ -35,6 +39,10 @@ export default function StationTabScreen({ route }) {
   const [batchSowing, setBatchSowing] = useState(null);
   // { sowing, cells } — one cell from the cell dialog, or a whole sowing.
   const [transplanting, setTransplanting] = useState(null);
+  // The sowing being thinned down to one seedling per cell.
+  const [thinning, setThinning] = useState(null);
+  // The sowing being moved to another station.
+  const [moving, setMoving] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
 
   const load = useCallback(async () => {
@@ -60,9 +68,10 @@ export default function StationTabScreen({ route }) {
     }, [load])
   );
 
-  const transplantSowing = (sowing) => {
-    const cells = sowing.grid.flat().filter((cell) => cell && cell.germinated > 0);
-    if (cells.length) setTransplanting({ sowing, cells });
+  // The card hands over the cells it means: everything ready by default, or just
+  // the ones picked in selection mode.
+  const transplantCells = (sowing, cells) => {
+    if (cells?.length) setTransplanting({ sowing, cells });
   };
 
   const lightsSummary = lights
@@ -70,7 +79,8 @@ export default function StationTabScreen({ route }) {
     .join(' · ');
 
   // Only the conditions that were actually filled in, so a windowsill with no
-  // thermostat doesn't read as a row of blanks.
+  // thermostat doesn't read as a row of blanks. The lights get a row of their
+  // own below this one.
   const stationSummary = [
     station ? environmentLabel(station.environment) : null,
     station?.temp_c !== null && station?.temp_c !== undefined
@@ -79,7 +89,6 @@ export default function StationTabScreen({ route }) {
     station?.humidity_pct !== null && station?.humidity_pct !== undefined
       ? `${station.humidity_pct}% RH`
       : null,
-    lights.length ? lightsSummary : 'No lights',
   ]
     .filter(Boolean)
     .join(' · ');
@@ -100,14 +109,29 @@ export default function StationTabScreen({ route }) {
         onRefresh={load}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
-          <List.Item
-            title={station?.name ?? 'Station'}
-            description={stationSummary}
-            left={(props) => <List.Icon {...props} icon="thermometer" />}
-            right={(props) => <List.Icon {...props} icon="pencil-outline" />}
-            onPress={() => setEditVisible(true)}
-            style={styles.stationRow}
-          />
+          <View>
+            <List.Item
+              title={station?.name ?? 'Station'}
+              description={stationSummary}
+              left={(props) => <List.Icon {...props} icon="thermometer" />}
+              right={(props) => <List.Icon {...props} icon="pencil-outline" />}
+              onPress={() => setEditVisible(true)}
+            />
+            {/* The lights get their own row so a station's lighting reads at a
+                glance instead of trailing off the end of the conditions. */}
+            <List.Item
+              title={lights.length ? lightsSummary : 'No lights'}
+              left={(props) => (
+                <List.Icon
+                  {...props}
+                  icon={lights.length ? 'lightbulb-on-outline' : 'lightbulb-off-outline'}
+                />
+              )}
+              titleStyle={!lights.length ? styles.mutedTitle : undefined}
+              onPress={() => setEditVisible(true)}
+              style={styles.stationRow}
+            />
+          </View>
         }
         ListEmptyComponent={
           !loading && (
@@ -121,17 +145,31 @@ export default function StationTabScreen({ route }) {
             sowing={item}
             onCellPress={(cell) => setActiveCell({ sowing: item, cell })}
             onHold={() => setBatchSowing(item)}
-            onTransplant={() => transplantSowing(item)}
+            onTransplant={(cells) => transplantCells(item, cells)}
+            onThin={() => setThinning(item)}
+            onDuplicate={() => {
+              setTemplate(item);
+              setFormVisible(true);
+            }}
+            onMove={() => setMoving(item)}
             onDelete={() => setPendingDelete(item)}
           />
         )}
       />
 
-      <FAB icon="plus" style={styles.fab} onPress={() => setFormVisible(true)} />
+      <FAB
+        icon="plus"
+        style={styles.fab}
+        onPress={() => {
+          setTemplate(null);
+          setFormVisible(true);
+        }}
+      />
 
       <SowingFormDialog
         visible={formVisible}
         stationId={stationId}
+        template={template}
         onDismiss={() => setFormVisible(false)}
         onSaved={() => {
           setFormVisible(false);
@@ -187,6 +225,28 @@ export default function StationTabScreen({ route }) {
         }}
       />
 
+      <ThinDialog
+        visible={!!thinning}
+        sowing={thinning}
+        onDismiss={() => setThinning(null)}
+        onDone={() => {
+          setThinning(null);
+          load();
+        }}
+      />
+
+      <MoveSowingDialog
+        visible={!!moving}
+        sowing={moving}
+        stationId={stationId}
+        onDismiss={() => setMoving(null)}
+        onDone={() => {
+          setMoving(null);
+          // The sowing now belongs to another tab, so it drops off this list.
+          load();
+        }}
+      />
+
       <Portal>
         <Dialog visible={!!pendingDelete} onDismiss={() => setPendingDelete(null)}>
           <Dialog.Title>Delete sowing</Dialog.Title>
@@ -214,6 +274,9 @@ const styles = StyleSheet.create({
   },
   stationRow: {
     marginBottom: 8,
+  },
+  mutedTitle: {
+    opacity: 0.6,
   },
   emptyText: {
     textAlign: 'center',

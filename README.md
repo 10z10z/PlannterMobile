@@ -19,13 +19,20 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
   seed pack into a tray or a single container
 - Sowing subtracts the seeds it uses from the pack, and draws the tray as a grid
   of cells reading "germinated / sown", with days since each cell came up
-- Tap a cell to record how many of its seeds germinated, or hold the card to
-  mark a whole tray at once; anything above zero tints the cell green
+- Tap a cell to record how many of its seeds germinated, or mark a whole tray at
+  once; anything above zero tints the cell green
+- Hold a cell to start a selection and pick out the cells to transplant, for
+  moving part of a tray and leaving the rest to grow on
+- Thin a sowing down to its strongest seedling per cell, after a confirmation
+  naming how many seedlings and unsprouted seeds it will remove
+- Sowings can be sown again from their own settings, or moved to another
+  germination station with their grid and germination dates intact
 - Grow lights assigned to a station, set when it's created and edited from the
   station's own header along with its name, environment and conditions — a light
   group's "in use" count sums its growspaces and its germination stations
-- Transplant a cell or a whole sowing into a growspace — several seedlings can
-  share a container, and each container becomes a plant on its watering schedule
+- Transplant a cell, a selection of cells, or a whole sowing into a growspace —
+  several seedlings can share a container, and each container becomes a plant on
+  its watering schedule
 - Grow lights with type, wattage, colour temperature and optional spec-sheet
   figures (PPF, efficacy, PPFD at distance, coverage, beam angle, IP rating),
   tracked by quantity and how many are assigned to growspaces and germination
