@@ -93,16 +93,16 @@ export default function CalendarScreen({ navigation, route }) {
   const load = useCallback(async () => {
     setLoading(true);
     const range = monthRange(month);
-    try {
-      const [activity, plans] = await Promise.all([
-        fetchActivity(range),
-        fetchScheduled(range),
-      ]);
-      setEntries(activity);
-      setScheduled(plans);
-    } catch {
-      // Leave the month as it was; changing month or reopening retries.
-    }
+    // Settled apart rather than together: what was done and what is planned are
+    // two different reads, and one of them failing shouldn't empty the month of
+    // the other. Whichever fails keeps what it had, and changing month or
+    // reopening retries.
+    const [activity, plans] = await Promise.allSettled([
+      fetchActivity(range),
+      fetchScheduled(range),
+    ]);
+    if (activity.status === "fulfilled") setEntries(activity.value);
+    if (plans.status === "fulfilled") setScheduled(plans.value);
     setLoading(false);
   }, [month]);
 
