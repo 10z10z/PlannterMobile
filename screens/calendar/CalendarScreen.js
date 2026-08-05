@@ -9,6 +9,7 @@ import ScreenTitle from "../../components/ScreenTitle";
 import { formatDateString, toDateString } from "../../components/DateField";
 import {
   fetchActivity,
+  fromDateString,
   groupByDay,
   kindIcon,
   kindLabel,
@@ -51,9 +52,13 @@ const FILTERS_KEY = "calendarFilters";
  * knew, and saying so is more honest than implying it was written down at the
  * time.
  */
-export default function CalendarScreen({ navigation }) {
-  const [month, setMonth] = useState(() => monthOf(new Date()));
-  const [selected, setSelected] = useState(() => toDateString(new Date()));
+export default function CalendarScreen({ navigation, route }) {
+  // Opened on a particular day when something was tapped to get here — the
+  // dashboard hands over the day the job or the entry belongs to.
+  const opensOn = route?.params?.date ?? toDateString(new Date());
+
+  const [month, setMonth] = useState(() => monthOf(fromDateString(opensOn)));
+  const [selected, setSelected] = useState(opensOn);
   const [entries, setEntries] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [loading, setLoading] = useState(true);

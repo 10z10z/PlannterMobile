@@ -10,7 +10,7 @@ import GrowspaceFormDialog from './GrowspaceFormDialog';
 
 const Tab = createMaterialTopTabNavigator();
 
-export default function GrowspacesOverviewScreen({ navigation }) {
+export default function GrowspacesOverviewScreen({ navigation, route }) {
   const [growspaces, setGrowspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -32,6 +32,20 @@ export default function GrowspacesOverviewScreen({ navigation }) {
   );
 
   const openDialog = () => setDialogVisible(true);
+
+  /**
+   * The growspace the dashboard asked for, if it is one we have.
+   *
+   * The tabs mount only once the growspaces have loaded, which is after the
+   * navigation that asked for one has already happened — so the request is read
+   * back off the route here rather than relied on to arrive in time. Checked
+   * against the loaded list, since naming an initial route that doesn't exist
+   * would leave the navigator with nothing to show.
+   */
+  const asked = route?.params?.screen;
+  const initialRouteName = growspaces.some((growspace) => growspace.id === asked)
+    ? asked
+    : undefined;
 
   return (
     <View style={styles.container}>
@@ -55,7 +69,7 @@ export default function GrowspacesOverviewScreen({ navigation }) {
         </View>
       ) : (
         !loading && (
-          <Tab.Navigator>
+          <Tab.Navigator initialRouteName={initialRouteName}>
             {growspaces.map((growspace) => (
               <Tab.Screen
                 key={growspace.id}

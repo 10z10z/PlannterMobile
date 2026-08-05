@@ -6,6 +6,11 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 ## Features
 
 - Email/password authentication
+- A dashboard as the landing page, in the order the app is opened with: what is
+  overdue, what is due today, what is coming in the next week, then each
+  growspace with its plant count, indoor or outdoor, temperature, humidity and
+  photoperiod, then what was done lately. A job can be ticked off from here;
+  everything else is a way into the screen that does it properly
 - Growspaces in swipeable tabs, indoor or outdoor, with the temperature and
   humidity they're kept at and the grow lights hanging over them — an outdoor
   space records its hours of direct sun instead, or as well, for a greenhouse
@@ -133,7 +138,7 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 lib/            Supabase client, storage uploads, unit conversion, notifications, colour schemes
 contexts/       Auth, theme and unit-preference providers
 navigation/     Root navigator (auth stack vs. bottom tabs)
-screens/        Login/Signup, Growspaces, Plant detail, Germination, Inventory, NPK calculator, Settings
+screens/        Login/Signup, Dashboard, Growspaces, Plant detail, Germination, Inventory, NPK calculator, Calendar, Settings
 components/     Reusable cards, image picker, nutrient and date inputs
 supabase/       Database migrations
 ```

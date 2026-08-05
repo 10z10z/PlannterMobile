@@ -7,7 +7,7 @@ import ScreenTitle from '../components/ScreenTitle';
 import SchemePicker from '../components/SchemePicker';
 import WeatherSettings from './WeatherSettings';
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }) {
   const { signOut, session } = useAuth();
   const { preference, setThemePreference, isDark, scheme, setColorScheme } =
     useThemePreference();
@@ -16,6 +16,9 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header>
+        {/* Settings is pushed from the dashboard rather than being a tab of its
+            own, so it carries the way back out. */}
+        {navigation?.canGoBack() && <Appbar.BackAction onPress={() => navigation.goBack()} />}
         <Appbar.Content title={<ScreenTitle icon="cog-outline" label="Settings" />} />
       </Appbar.Header>
 
