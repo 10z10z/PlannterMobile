@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { daysSince, setCellGerminated } from '../../lib/germination';
 
 /**
@@ -57,7 +58,7 @@ export default function CellDialog({ visible, cell, onDismiss, onSaved, onTransp
             <>
               <View style={styles.row}>
                 <IconButton icon="minus" mode="outlined" onPress={() => step(-1)} />
-                <TextInput
+                <TextField
                   label="Germinated"
                   value={germinated}
                   onChangeText={setGerminated}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { Button, Dialog, HelperText, Menu, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Menu, Portal, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -126,14 +127,14 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
               {`${available} seedling${available === 1 ? '' : 's'} ready in ${source}.`}
             </Text>
 
-            <TextInput
+            <TextField
               label="Seedlings to move"
               value={seedlings}
               onChangeText={setSeedlings}
               keyboardType="number-pad"
               style={[styles.input, styles.spacedInput]}
             />
-            <TextInput
+            <TextField
               label="Containers to use"
               value={containerCount}
               onChangeText={setContainerCount}
@@ -202,7 +203,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
               )}
             </Menu>
 
-            <TextInput
+            <TextField
               label="Plant name"
               value={name}
               onChangeText={setName}

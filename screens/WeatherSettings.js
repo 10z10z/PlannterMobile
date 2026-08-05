@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, HelperText, List, Text, TextInput } from 'react-native-paper';
+import { ActivityIndicator, Button, HelperText, List, Text } from 'react-native-paper';
+import TextField from '../components/TextField';
 import { useUnits } from '../contexts/UnitsContext';
 import { useWeather } from '../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../lib/units';
@@ -98,12 +99,12 @@ export default function WeatherSettings() {
         </HelperText>
       )}
 
-      <TextInput
+      <TextField
         label={place ? 'Change place' : 'Search for a town or city'}
         value={query}
         onChangeText={setQuery}
         autoCorrect={false}
-        right={searching ? <TextInput.Icon icon="timer-sand" /> : undefined}
+        right={searching ? <TextField.Icon icon="timer-sand" /> : undefined}
         style={styles.input}
       />
       {!!searchError && (

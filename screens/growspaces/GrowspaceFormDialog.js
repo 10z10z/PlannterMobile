@@ -7,8 +7,8 @@ import {
   Portal,
   SegmentedButtons,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -195,8 +195,8 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
         <Dialog.Title>{isEditing ? 'Edit Growspace' : 'New Growspace'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
-            <TextInput
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField
               label="Description (optional)"
               value={description}
               onChangeText={setDescription}
@@ -213,14 +213,14 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
             />
 
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label={`Temperature (${tempUnit(system)})`}
                 value={temp}
                 onChangeText={setTemp}
                 keyboardType="numbers-and-punctuation"
                 style={[styles.input, styles.half, styles.spacedInput]}
               />
-              <TextInput
+              <TextField
                 label="Humidity (%)"
                 value={humidity}
                 onChangeText={setHumidity}
@@ -249,12 +249,12 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
                 <Text variant="labelLarge" style={styles.label}>
                   Sunlight
                 </Text>
-                <TextInput
+                <TextField
                   label="Hours of direct sun"
                   value={sunHours}
                   onChangeText={setSunHours}
                   keyboardType="decimal-pad"
-                  right={<TextInput.Affix text="h / day" />}
+                  right={<TextField.Affix text="h / day" />}
                   style={styles.input}
                 />
                 <HelperText type="info">

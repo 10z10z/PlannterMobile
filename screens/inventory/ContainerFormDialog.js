@@ -7,8 +7,8 @@ import {
   Portal,
   SegmentedButtons,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -99,14 +99,14 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
               style={styles.input}
             />
 
-            <TextInput
+            <TextField
               label={`Volume (${volumeUnit(system)})`}
               value={volume}
               onChangeText={setVolume}
               keyboardType="decimal-pad"
               style={styles.input}
             />
-            <TextInput
+            <TextField
               label="Quantity"
               value={quantity}
               onChangeText={setQuantity}

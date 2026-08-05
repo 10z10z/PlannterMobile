@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
+import TextField from './TextField';
 
 export const MACRO_KEYS = ['n', 'p', 'k'];
 export const MICRO_KEYS = ['ca', 'mg', 's', 'fe', 'mn', 'zn', 'b', 'cu', 'mo'];
@@ -36,14 +37,14 @@ export default function NutrientInputs({ value, onChange, showPh = false, showEc
   const set = (key) => (text) => onChange({ ...value, [key]: text });
 
   const renderField = (key, label, suffix) => (
-    <TextInput
+    <TextField
       key={key}
       label={label}
       value={value[key] ?? ''}
       onChangeText={set(key)}
       keyboardType="decimal-pad"
       dense
-      right={suffix ? <TextInput.Affix text={suffix} /> : undefined}
+      right={suffix ? <TextField.Affix text={suffix} /> : undefined}
       style={styles.field}
     />
   );

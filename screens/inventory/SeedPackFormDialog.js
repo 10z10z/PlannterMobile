@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import ImagePickerField from '../../components/ImagePickerField';
@@ -86,8 +87,8 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="seed_packs" />
 
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
-            <TextInput
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField
               label="Plant type (optional)"
               value={plantType}
               onChangeText={setPlantType}
@@ -98,7 +99,7 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
               Germination time (days)
             </Text>
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label="Min"
                 value={germMin}
                 onChangeText={setGermMin}
@@ -106,7 +107,7 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
                 dense
                 style={styles.rowField}
               />
-              <TextInput
+              <TextField
                 label="Max"
                 value={germMax}
                 onChangeText={setGermMax}
@@ -122,7 +123,7 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
               onChange={setPackagedOn}
               maximumDate={new Date()}
             />
-            <TextInput
+            <TextField
               label="Seed count (optional)"
               value={seedCount}
               onChangeText={setSeedCount}

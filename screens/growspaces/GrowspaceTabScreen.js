@@ -8,8 +8,8 @@ import {
   Portal,
   SegmentedButtons,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -327,21 +327,21 @@ export default function GrowspaceTabScreen({ route }) {
           <Dialog.Title>New Plant</Dialog.Title>
           <Dialog.Content>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
-            <TextInput
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField
               label="Species (optional)"
               value={species}
               onChangeText={setSpecies}
               style={styles.input}
             />
-            <TextInput
+            <TextField
               label="Crop (optional)"
               placeholder="Pepper, tomato, lettuce…"
               value={plantType}
               onChangeText={setPlantType}
               style={styles.input}
             />
-            <TextInput
+            <TextField
               label="Watering interval (days)"
               value={intervalDays}
               onChangeText={setIntervalDays}

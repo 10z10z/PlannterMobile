@@ -10,9 +10,9 @@ import {
   Portal,
   SegmentedButtons,
   Text,
-  TextInput,
   useTheme,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -486,7 +486,7 @@ export default function NpkCalculatorScreen() {
             <>
               {fertilizerChips}
 
-              <TextInput
+              <TextField
                 label={`Water in the tank (${volumeUnit(system)})`}
                 value={volumeText}
                 onChangeText={setVolumeText}
@@ -512,7 +512,7 @@ export default function NpkCalculatorScreen() {
                       </Text>
                     }
                     control={
-                      <TextInput
+                      <TextField
                         label={`Amount poured (${massUnit})`}
                         value={amounts[f.id] ?? ''}
                         onChangeText={(text) => setAmounts({ ...amounts, [f.id]: text })}
@@ -557,7 +557,7 @@ export default function NpkCalculatorScreen() {
 
             {waterSource === 'hardness' ? (
               <>
-                <TextInput
+                <TextField
                   label="Water hardness (ppm as CaCO₃)"
                   value={hardnessText}
                   onChangeText={setHardnessText}
@@ -574,7 +574,7 @@ export default function NpkCalculatorScreen() {
             ) : (
               <>
                 <View style={styles.reportRow}>
-                  <TextInput
+                  <TextField
                     label="Calcium (ppm)"
                     value={caText}
                     onChangeText={setCaText}
@@ -582,7 +582,7 @@ export default function NpkCalculatorScreen() {
                     dense
                     style={styles.reportField}
                   />
-                  <TextInput
+                  <TextField
                     label="Magnesium (ppm)"
                     value={mgText}
                     onChangeText={setMgText}

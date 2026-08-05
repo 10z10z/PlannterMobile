@@ -8,8 +8,8 @@ import {
   Menu,
   Portal,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -208,8 +208,8 @@ export default function PlantDetailScreen({ route, navigation }) {
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
-            <TextInput
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField
               label="Species (optional)"
               value={species}
               onChangeText={setSpecies}
@@ -223,12 +223,12 @@ export default function PlantDetailScreen({ route, navigation }) {
               visible={typeMenuVisible}
               onDismiss={() => setTypeMenuVisible(false)}
               anchor={
-                <TextInput
+                <TextField
                   label="Crop (optional)"
                   value={plantType}
                   onChangeText={setPlantType}
                   right={
-                    <TextInput.Icon icon="menu-down" onPress={() => setTypeMenuVisible(true)} />
+                    <TextField.Icon icon="menu-down" onPress={() => setTypeMenuVisible(true)} />
                   }
                   style={styles.input}
                 />
@@ -257,7 +257,7 @@ export default function PlantDetailScreen({ route, navigation }) {
               What the growth phase is counted from. Transplants bring it with them.
             </HelperText>
 
-            <TextInput
+            <TextField
               label="Watering interval (days)"
               value={intervalDays}
               onChangeText={setIntervalDays}

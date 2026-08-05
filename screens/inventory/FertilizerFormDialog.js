@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Dialog, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -114,7 +115,7 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="fertilizers" />
 
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
 
             <Text variant="labelLarge" style={styles.sectionLabel}>
               Form
@@ -146,7 +147,7 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
               Foliar dose ({unit})
             </Text>
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label="Min"
                 value={foliarMin}
                 onChangeText={setFoliarMin}
@@ -154,7 +155,7 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
                 dense
                 style={styles.rowField}
               />
-              <TextInput
+              <TextField
                 label="Max"
                 value={foliarMax}
                 onChangeText={setFoliarMax}
@@ -168,7 +169,7 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
               Fertigation dose ({unit})
             </Text>
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label="Min"
                 value={fertigationMin}
                 onChangeText={setFertigationMin}
@@ -176,7 +177,7 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
                 dense
                 style={styles.rowField}
               />
-              <TextInput
+              <TextField
                 label="Max"
                 value={fertigationMax}
                 onChangeText={setFertigationMax}

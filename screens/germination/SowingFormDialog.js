@@ -8,8 +8,8 @@ import {
   Portal,
   SegmentedButtons,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -220,7 +220,7 @@ export default function SowingFormDialog({ visible, onDismiss, onSaved, stationI
               </Menu>
             )}
 
-            <TextInput
+            <TextField
               label={target === 'tray' ? 'Seeds per cell' : 'Seeds'}
               value={seedsPerCell}
               onChangeText={setSeedsPerCell}

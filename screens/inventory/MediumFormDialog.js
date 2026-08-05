@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Chip, Dialog, Portal, Switch, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Dialog, Portal, Switch, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -114,7 +115,7 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="growing_mediums" />
 
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
             <View style={styles.chips}>
               {PRESETS.map((preset) => (
                 <Chip key={preset} compact onPress={() => setName(preset)}>
@@ -124,7 +125,7 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
             </View>
 
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label="How many"
                 value={quantity}
                 onChangeText={setQuantity}
@@ -132,7 +133,7 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
                 dense
                 style={styles.rowField}
               />
-              <TextInput
+              <TextField
                 label={`Volume each (${volumeUnit(system)})`}
                 value={volume}
                 onChangeText={setVolume}

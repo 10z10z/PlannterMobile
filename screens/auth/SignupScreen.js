@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function SignupScreen({ navigation }) {
@@ -31,7 +32,7 @@ export default function SignupScreen({ navigation }) {
       <Text variant="displaySmall" style={styles.logo}>🌱 Plannter</Text>
       <Text variant="titleMedium" style={styles.title}>Create account</Text>
 
-      <TextInput
+      <TextField
         label="Email"
         value={email}
         onChangeText={setEmail}
@@ -39,7 +40,7 @@ export default function SignupScreen({ navigation }) {
         keyboardType="email-address"
         style={styles.input}
       />
-      <TextInput
+      <TextField
         label="Password"
         value={password}
         onChangeText={setPassword}

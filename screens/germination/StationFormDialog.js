@@ -7,8 +7,8 @@ import {
   Portal,
   SegmentedButtons,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -142,7 +142,7 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
         <Dialog.Title>{isEditing ? 'Edit Station' : 'New Station'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
 
             <Text variant="labelLarge" style={styles.label}>
               Environment
@@ -154,14 +154,14 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
             />
 
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label={`Temperature (${tempUnit(system)})`}
                 value={temp}
                 onChangeText={setTemp}
                 keyboardType="numbers-and-punctuation"
                 style={[styles.input, styles.half, styles.spacedInput]}
               />
-              <TextInput
+              <TextField
                 label="Humidity (%)"
                 value={humidity}
                 onChangeText={setHumidity}

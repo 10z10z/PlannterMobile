@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, IconButton, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, IconButton, Text } from 'react-native-paper';
+import TextField from './TextField';
 import { gridLabel, plantsOutsideGrid } from '../lib/growspaces';
 
 /**
@@ -44,7 +45,7 @@ export default function GridListField({ value, onChange, plants = [] }) {
         return (
           <View key={grid.id ?? `new-${index}`} style={styles.grid}>
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label="Name"
                 value={grid.name}
                 onChangeText={(name) => update(index, { name })}
@@ -54,7 +55,7 @@ export default function GridListField({ value, onChange, plants = [] }) {
               <IconButton icon="close" onPress={() => remove(index)} />
             </View>
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label="Rows"
                 value={String(grid.grid_rows)}
                 onChangeText={onGridCount(grid, 'grid_rows')}
@@ -62,7 +63,7 @@ export default function GridListField({ value, onChange, plants = [] }) {
                 style={styles.count}
                 dense
               />
-              <TextInput
+              <TextField
                 label="Columns"
                 value={String(grid.grid_cols)}
                 onChangeText={onGridCount(grid, 'grid_cols')}

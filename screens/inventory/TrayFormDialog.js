@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import ImagePickerField from '../../components/ImagePickerField';
@@ -93,17 +94,17 @@ export default function TrayFormDialog({ visible, onDismiss, onSaved, tray }) {
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="trays" />
 
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
 
             <View style={styles.row}>
-              <TextInput
+              <TextField
                 label="Rows"
                 value={rows}
                 onChangeText={setRows}
                 keyboardType="number-pad"
                 style={[styles.input, styles.half]}
               />
-              <TextInput
+              <TextField
                 label="Columns"
                 value={cols}
                 onChangeText={setCols}
@@ -115,14 +116,14 @@ export default function TrayFormDialog({ visible, onDismiss, onSaved, tray }) {
               {cells ? `${cells} cells per tray.` : 'Rows x columns gives the number of cells.'}
             </HelperText>
 
-            <TextInput
+            <TextField
               label="Cell volume (ml, optional)"
               value={cellVolume}
               onChangeText={setCellVolume}
               keyboardType="decimal-pad"
               style={styles.input}
             />
-            <TextInput
+            <TextField
               label="Quantity"
               value={quantity}
               onChangeText={setQuantity}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { setSowingGerminated } from '../../lib/germination';
 
 /**
@@ -62,7 +63,7 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
             <>
               <View style={styles.row}>
                 <IconButton icon="minus" mode="outlined" onPress={() => step(-1)} />
-                <TextInput
+                <TextField
                   label="Germinated per cell"
                   value={germinated}
                   onChangeText={setGerminated}

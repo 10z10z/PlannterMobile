@@ -8,8 +8,8 @@ import {
   HelperText,
   Portal,
   Text,
-  TextInput,
 } from 'react-native-paper';
+import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -151,7 +151,7 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="grow_lights" />
 
-            <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
 
             <Text variant="labelLarge" style={styles.sectionLabel}>
               Type
@@ -170,14 +170,14 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
               ))}
             </View>
 
-            <TextInput
+            <TextField
               label="Quantity"
               value={quantity}
               onChangeText={setQuantity}
               keyboardType="number-pad"
               style={styles.input}
             />
-            <TextInput
+            <TextField
               label="Power (W)"
               value={watts}
               onChangeText={setWatts}
@@ -185,7 +185,7 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
               style={styles.input}
             />
             {hasColorTemp(type) && (
-              <TextInput
+              <TextField
                 label="Colour temperature (K)"
                 value={colorTemp}
                 onChangeText={setColorTemp}
@@ -234,14 +234,14 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
                 </View>
 
                 <View style={styles.row}>
-                  <TextInput
+                  <TextField
                     label="PPF (µmol/s)"
                     value={ppf}
                     onChangeText={setPpf}
                     keyboardType="decimal-pad"
                     style={[styles.input, styles.rowField]}
                   />
-                  <TextInput
+                  <TextField
                     label="Efficacy (µmol/J)"
                     value={efficacy}
                     onChangeText={setEfficacy}
@@ -251,14 +251,14 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
                 </View>
 
                 <View style={styles.row}>
-                  <TextInput
+                  <TextField
                     label="PPFD (µmol/m²/s)"
                     value={ppfd}
                     onChangeText={setPpfd}
                     keyboardType="decimal-pad"
                     style={[styles.input, styles.rowField]}
                   />
-                  <TextInput
+                  <TextField
                     label={`At distance (${lengthUnit(system)})`}
                     value={ppfdDistance}
                     onChangeText={setPpfdDistance}
@@ -271,14 +271,14 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
                 </HelperText>
 
                 <View style={styles.row}>
-                  <TextInput
+                  <TextField
                     label={`Coverage width (${lengthUnit(system)})`}
                     value={coverageWidth}
                     onChangeText={setCoverageWidth}
                     keyboardType="decimal-pad"
                     style={[styles.input, styles.rowField]}
                   />
-                  <TextInput
+                  <TextField
                     label={`Coverage depth (${lengthUnit(system)})`}
                     value={coverageDepth}
                     onChangeText={setCoverageDepth}
@@ -288,14 +288,14 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
                 </View>
 
                 <View style={styles.row}>
-                  <TextInput
+                  <TextField
                     label="Beam angle (°)"
                     value={beamAngle}
                     onChangeText={setBeamAngle}
                     keyboardType="number-pad"
                     style={[styles.input, styles.rowField]}
                   />
-                  <TextInput
+                  <TextField
                     label="IP rating"
                     value={ipRating}
                     onChangeText={setIpRating}

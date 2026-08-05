@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, IconButton, Menu, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, IconButton, Menu, Text } from 'react-native-paper';
+import TextField from './TextField';
 import { fetchGrowLightsWithUsage, lightSpecs, lightTypeLabel, photoperiodLabel } from '../lib/growLights';
 
 /**
@@ -45,15 +46,11 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
     );
   };
 
+  // Kept as typed and turned into a number on save, so a decimal point survives
+  // being halfway through "18.5".
   const setHours = (id, text) => {
-    const trimmed = text.trim();
-    const hours = trimmed === '' ? null : Number(trimmed.replace(',', '.'));
     onChange(
-      value.map((entry) =>
-        entry.grow_light_id === id
-          ? { ...entry, hours_on: hours === null || Number.isNaN(hours) ? null : hours }
-          : entry
-      )
+      value.map((entry) => (entry.grow_light_id === id ? { ...entry, hours_on: text } : entry))
     );
   };
 
@@ -96,7 +93,7 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
               />
               <IconButton icon="close" onPress={() => remove(entry.grow_light_id)} />
             </View>
-            <TextInput
+            <TextField
               label="Hours on per day"
               value={
                 entry.hours_on === null || entry.hours_on === undefined
@@ -105,7 +102,7 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
               }
               onChangeText={(text) => setHours(entry.grow_light_id, text)}
               keyboardType="decimal-pad"
-              right={<TextInput.Affix text={cycle ? `${cycle}` : 'h'} />}
+              right={<TextField.Affix text={cycle ? `${cycle}` : 'h'} />}
               style={styles.cycleInput}
               dense
             />
