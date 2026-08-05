@@ -41,6 +41,9 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
+  "overrides": {
+    "expo-font": "~14.0.12"
+  },
   "devDependencies": {
     "babel-preset-expo": "~54.0.10",
     "jest": "~29.7.0",
