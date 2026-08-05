@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ActivityIndicator, Button, Dialog, Portal, Text } from 'react-native-paper';
+import { ActivityIndicator, Button, Dialog, Portal, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadImage } from '../lib/storage';
+import ErrorText from './ErrorText';
 
 const IMAGE_OPTIONS = { mediaTypes: ['images'], quality: 0.7, allowsEditing: true };
 
 export default function ImagePickerField({ value, onChange, entity }) {
   const { session } = useAuth();
+  const theme = useTheme();
   const [dialogVisible, setDialogVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -61,12 +63,18 @@ export default function ImagePickerField({ value, onChange, entity }) {
         ) : value ? (
           <Image source={{ uri: value }} style={styles.thumbnail} />
         ) : (
-          <View style={styles.placeholder}>
-            <MaterialCommunityIcons name="camera-plus-outline" size={28} color="#888" />
+          <View
+            style={[styles.placeholder, { backgroundColor: theme.colors.surfaceVariant }]}
+          >
+            <MaterialCommunityIcons
+              name="camera-plus-outline"
+              size={28}
+              color={theme.colors.onSurfaceVariant}
+            />
           </View>
         )}
       </Pressable>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      <ErrorText style={styles.errorText}>{error}</ErrorText>
 
       <Portal>
         <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
@@ -114,7 +122,6 @@ const styles = StyleSheet.create({
   placeholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -122,7 +129,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   errorText: {
-    color: 'red',
     textAlign: 'center',
     marginBottom: 8,
   },

@@ -15,6 +15,7 @@ import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume, parseVolume, volumeUnit } from '../../lib/units';
 import { CONTAINER_MATERIALS } from '../../lib/containers';
 import ImagePickerField from '../../components/ImagePickerField';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * One record is a group of identical containers ("6 x 11L"), so a grow's worth of
@@ -117,7 +118,7 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
               One entry covers a whole set of identical containers.
             </HelperText>
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -148,9 +149,5 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginBottom: 4,
     opacity: 0.7,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

@@ -24,7 +24,9 @@ import {
   parseVolume,
   volumeUnit,
 } from '../../lib/units';
+import { fetchPlaces, placeIcon, placeIds } from '../../lib/places';
 import { recordFeeding } from '../../lib/feedings';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Records a feed: which products at which rates, into what, on what day.
@@ -35,15 +37,10 @@ import { recordFeeding } from '../../lib/feedings';
  *
  * A growspace can be fed as a whole or plant by plant. A germination station is
  * always fed as a whole: what is growing in it are cells of a tray rather than
- * plants that could be picked out.
+ * plants that could be picked out. Both are on the one list of places, so which
+ * of the two questions gets asked follows the place that was picked.
  */
-export default function FeedingDialog({
-  visible,
-  scope = 'growspace',
-  preset,
-  onDismiss,
-  onDone,
-}) {
+export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
   const { session } = useAuth();
   const { system } = useUnits();
 
@@ -79,12 +76,10 @@ export default function FeedingDialog({
       preset?.volumeLiters ? formatVolume(preset.volumeLiters, system, { withUnit: false }) : ''
     );
 
-    const table = scope === 'station' ? 'germination_stations' : 'growspaces';
     Promise.all([
-      supabase.from(table).select('id, name').order('created_at'),
+      fetchPlaces(),
       supabase.from('fertilizers').select('*').order('name'),
-    ]).then(([placeRows, fertilizerRows]) => {
-      const placeList = placeRows.data ?? [];
+    ]).then(([placeList, fertilizerRows]) => {
       setPlaces(placeList);
       setFertilizers(fertilizerRows.data ?? []);
 
@@ -110,10 +105,13 @@ export default function FeedingDialog({
     });
   }, [visible]);
 
+  const place = places.find((entry) => entry.id === placeId);
+
   // The plants to choose from follow the growspace, so switching space doesn't
-  // leave a selection pointing at plants standing somewhere else.
+  // leave a selection pointing at plants standing somewhere else — and picking
+  // a station leaves none, since a tray's cells aren't plants.
   useEffect(() => {
-    if (!visible || scope !== 'growspace' || !placeId) {
+    if (!visible || place?.type !== 'growspace') {
       setPlants([]);
       return;
     }
@@ -128,9 +126,8 @@ export default function FeedingDialog({
         const ids = new Set(rows.map((plant) => plant.id));
         setSelectedPlantIds((current) => current.filter((id) => ids.has(id)));
       });
-  }, [visible, scope, placeId]);
+  }, [visible, place?.type, placeId]);
 
-  const place = places.find((entry) => entry.id === placeId);
   const selected = selectedIds.map((id) => fertilizers.find((f) => f.id === id)).filter(Boolean);
 
   const toggleFertilizer = (fertilizer) => {
@@ -154,8 +151,8 @@ export default function FeedingDialog({
     );
 
   const handleSave = async () => {
-    if (!placeId) {
-      setError(scope === 'station' ? 'Pick a station' : 'Pick a growspace');
+    if (!place) {
+      setError('Pick a growspace or station');
       return;
     }
     if (!selected.length) {
@@ -174,13 +171,15 @@ export default function FeedingDialog({
       return;
     }
 
-    const fedPlants =
-      target === 'plants'
-        ? plants
-            .filter((plant) => selectedPlantIds.includes(plant.id))
-            .map((plant) => ({ plant_id: plant.id, plant_name: plant.name }))
-        : [];
-    if (target === 'plants' && !fedPlants.length) {
+    // A station is always fed whole, whatever was picked out before the place
+    // was switched to one.
+    const byPlant = target === 'plants' && place.type === 'growspace';
+    const fedPlants = byPlant
+      ? plants
+          .filter((plant) => selectedPlantIds.includes(plant.id))
+          .map((plant) => ({ plant_id: plant.id, plant_name: plant.name }))
+      : [];
+    if (byPlant && !fedPlants.length) {
       setError('Pick the plants that were fed');
       return;
     }
@@ -191,8 +190,7 @@ export default function FeedingDialog({
       await recordFeeding({
         userId: session.user.id,
         fedOn,
-        growspaceId: scope === 'growspace' ? placeId : null,
-        stationId: scope === 'station' ? placeId : null,
+        ...placeIds(place),
         volumeLiters: parseVolume(volumeText, system),
         note,
         products,
@@ -214,7 +212,7 @@ export default function FeedingDialog({
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <Text variant="labelLarge" style={styles.label}>
-              {scope === 'station' ? 'Station' : 'Growspace'}
+              Fed into
             </Text>
             <Menu
               visible={openMenu}
@@ -222,10 +220,10 @@ export default function FeedingDialog({
               anchor={
                 <Button
                   mode="outlined"
-                  icon={scope === 'station' ? 'sprout-outline' : 'flower-outline'}
+                  icon={placeIcon(place?.type)}
                   onPress={() => setOpenMenu(true)}
                 >
-                  {place ? place.name : `Pick a ${scope === 'station' ? 'station' : 'growspace'}`}
+                  {place ? place.name : 'Pick a growspace or station'}
                 </Button>
               }
             >
@@ -233,6 +231,7 @@ export default function FeedingDialog({
                 <Menu.Item
                   key={entry.id}
                   title={entry.name}
+                  leadingIcon={placeIcon(entry.type)}
                   onPress={() => {
                     setPlaceId(entry.id);
                     setOpenMenu(false);
@@ -242,7 +241,7 @@ export default function FeedingDialog({
               {places.length === 0 && <Menu.Item title="Nothing to feed yet" disabled />}
             </Menu>
 
-            {scope === 'growspace' && (
+            {place?.type === 'growspace' && (
               <>
                 <Text variant="labelLarge" style={styles.label}>
                   Fed
@@ -330,7 +329,7 @@ export default function FeedingDialog({
               style={styles.input}
             />
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -378,9 +377,5 @@ const styles = StyleSheet.create({
   },
   spacedInput: {
     marginTop: 12,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

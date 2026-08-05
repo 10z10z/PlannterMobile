@@ -1,8 +1,11 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Appbar, Button, Divider, List, Menu, Text } from "react-native-paper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import MonthCalendar from "../../components/MonthCalendar";
+import CalendarFilterBar from "../../components/CalendarFilterBar";
+import ScreenTitle from "../../components/ScreenTitle";
 import { formatDateString, toDateString } from "../../components/DateField";
 import {
   fetchActivity,
@@ -12,6 +15,14 @@ import {
   monthOf,
   monthRange,
 } from "../../lib/activity";
+import {
+  DEFAULT_FILTERS,
+  filterActions,
+  filterEntries,
+  isFiltered,
+  normalizeFilters,
+  toggleFilter,
+} from "../../lib/calendarFilters";
 import {
   completeScheduledAction,
   deleteScheduledAction,
@@ -25,26 +36,28 @@ import SowingFormDialog from "../germination/SowingFormDialog";
 import ScheduleActionDialog from "./ScheduleActionDialog";
 import FeedingDialog from "./FeedingDialog";
 
+const FILTERS_KEY = "calendarFilters";
+
 /**
- * A month of what was done and what is planned, for one side of the app.
+ * A month of what was done and what is planned, across the whole grow.
  *
- * `scope` decides which: 'station' shows the sowing side, 'growspace' the
- * growing side. They read the same log — a transplant leaves one and arrives in
- * the other, and shows up on both calendars from its own end.
+ * There is one calendar rather than one per side of the app. A transplant leaves
+ * a station and arrives in a growspace, and splitting the two meant reading half
+ * the move on each of two screens; here it is one week's work in one place, and
+ * the chips above narrow it to whatever is being looked for.
  *
  * Entries the app worked out from the data itself are marked as such rather
  * than dressed up as a diary: "sown on the 5th" is something the sowing already
  * knew, and saying so is more honest than implying it was written down at the
  * time.
  */
-export default function CalendarScreen({ navigation, route }) {
-  const scope = route.params?.scope ?? "growspace";
-
+export default function CalendarScreen({ navigation }) {
   const [month, setMonth] = useState(() => monthOf(new Date()));
   const [selected, setSelected] = useState(() => toDateString(new Date()));
   const [entries, setEntries] = useState([]);
   const [scheduled, setScheduled] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -53,13 +66,31 @@ export default function CalendarScreen({ navigation, route }) {
   // The scheduled sowing being carried out, so it can be ticked off on save.
   const [sowingFor, setSowingFor] = useState(null);
 
+  // The chips are how the calendar was left, not how it starts: someone who
+  // only ever wants the growing side shouldn't have to say so every morning.
+  useEffect(() => {
+    AsyncStorage.getItem(FILTERS_KEY).then((stored) => {
+      if (!stored) return;
+      try {
+        setFilters(normalizeFilters(JSON.parse(stored)));
+      } catch {
+        // Unreadable settings are no reason to open on an empty calendar.
+      }
+    });
+  }, []);
+
+  const applyFilters = (next) => {
+    setFilters(next);
+    AsyncStorage.setItem(FILTERS_KEY, JSON.stringify(next));
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     const range = monthRange(month);
     try {
       const [activity, plans] = await Promise.all([
-        fetchActivity({ ...range, scope }),
-        fetchScheduled({ ...range, scope }),
+        fetchActivity(range),
+        fetchScheduled(range),
       ]);
       setEntries(activity);
       setScheduled(plans);
@@ -67,7 +98,7 @@ export default function CalendarScreen({ navigation, route }) {
       // Leave the month as it was; changing month or reopening retries.
     }
     setLoading(false);
-  }, [month, scope]);
+  }, [month]);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,20 +106,29 @@ export default function CalendarScreen({ navigation, route }) {
     }, [load]),
   );
 
-  const entriesByDay = useMemo(() => groupByDay(entries), [entries]);
+  const entriesByDay = useMemo(
+    () => groupByDay(filterEntries(entries, filters)),
+    [entries, filters],
+  );
   const scheduledByDay = useMemo(
     () =>
       groupByDay(
-        (scheduled ?? []).map((action) => ({
+        filterActions(scheduled, filters).map((action) => ({
           ...action,
           occurred_on: action.due_on,
         })),
       ),
-    [scheduled],
+    [scheduled, filters],
   );
 
   const dayEntries = entriesByDay[selected] ?? [];
   const dayPlans = scheduledByDay[selected] ?? [];
+
+  // Whether the day is empty because nothing happened on it, or because the
+  // chips are hiding what did — two different things to tell someone.
+  const dayHasHidden =
+    entries.some((entry) => entry.occurred_on === selected) ||
+    scheduled.some((action) => action.due_on === selected);
 
   const openSchedule = (action = null) => {
     setEditingAction(action);
@@ -135,7 +175,7 @@ export default function CalendarScreen({ navigation, route }) {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content
-          title={`${route.params?.scope === "station" ? "Sowing" : "Growspace"} Calendar`}
+          title={<ScreenTitle icon="calendar-month-outline" label="Calendar" />}
         />
         <Menu
           visible={menuOpen}
@@ -164,6 +204,14 @@ export default function CalendarScreen({ navigation, route }) {
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <CalendarFilterBar
+          filters={filters}
+          onToggle={(dimension, value) =>
+            applyFilters(toggleFilter(filters, dimension, value))
+          }
+          onReset={() => applyFilters(DEFAULT_FILTERS)}
+        />
+
         <MonthCalendar
           month={month}
           entriesByDay={entriesByDay}
@@ -288,15 +336,15 @@ export default function CalendarScreen({ navigation, route }) {
 
         {!loading && dayEntries.length === 0 && dayPlans.length === 0 && (
           <Text style={styles.emptyText}>
-            Nothing recorded on this day. Tap + to plan something or log a
-            feeding.
+            {dayHasHidden && isFiltered(filters)
+              ? "Nothing on this day matches the chips above."
+              : "Nothing recorded on this day. Tap + to plan something or log a feeding."}
           </Text>
         )}
       </ScrollView>
 
       <ScheduleActionDialog
         visible={scheduleOpen}
-        scope={scope}
         action={editingAction}
         defaultDate={selected}
         onDismiss={() => setScheduleOpen(false)}
@@ -309,7 +357,6 @@ export default function CalendarScreen({ navigation, route }) {
 
       <FeedingDialog
         visible={!!feedingPreset}
-        scope={scope}
         preset={feedingPreset}
         onDismiss={() => setFeedingPreset(null)}
         onDone={async () => {

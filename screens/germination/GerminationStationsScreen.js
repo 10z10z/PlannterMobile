@@ -4,6 +4,7 @@ import { Appbar, Button, Text } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { fetchStations } from '../../lib/germination';
+import ScreenTitle from '../../components/ScreenTitle';
 import StationFormDialog from './StationFormDialog';
 import StationTabScreen from './StationTabScreen';
 
@@ -34,10 +35,10 @@ export default function GerminationStationsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content title="Sowing" />
+        <Appbar.Content title={<ScreenTitle icon="sprout-outline" label="Sowing" />} />
         <Appbar.Action
           icon="calendar-month-outline"
-          onPress={() => navigation.navigate('Calendar', { scope: 'station' })}
+          onPress={() => navigation.navigate('Calendar')}
         />
         <Appbar.Action icon="plus" onPress={() => setDialogVisible(true)} />
       </Appbar.Header>

@@ -16,6 +16,7 @@ import { useUnits } from '../../contexts/UnitsContext';
 import { formatLength, lengthUnit, parseLength } from '../../lib/units';
 import { hasColorTemp, LIGHT_TYPES, SPECTRUMS } from '../../lib/growLights';
 import ImagePickerField from '../../components/ImagePickerField';
+import ErrorText from '../../components/ErrorText';
 
 function toNumberOrNull(text) {
   if (text === null || text === undefined || String(text).trim() === '') return null;
@@ -310,7 +311,7 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
               One entry covers a whole set of identical fixtures.
             </HelperText>
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -361,9 +362,5 @@ const styles = StyleSheet.create({
   specsToggle: {
     alignSelf: 'flex-start',
     marginBottom: 4,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

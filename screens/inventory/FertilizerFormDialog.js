@@ -8,6 +8,7 @@ import { useUnits } from '../../contexts/UnitsContext';
 import { doseUnit, formatDose, parseDose } from '../../lib/units';
 import ImagePickerField from '../../components/ImagePickerField';
 import NutrientInputs, { NUTRIENT_KEYS } from '../../components/NutrientInputs';
+import ErrorText from '../../components/ErrorText';
 
 function emptyNutrients() {
   return Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, '']));
@@ -187,7 +188,7 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
               />
             </View>
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -226,9 +227,5 @@ const styles = StyleSheet.create({
   },
   rowField: {
     flex: 1,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

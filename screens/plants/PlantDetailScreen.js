@@ -8,6 +8,7 @@ import {
   Menu,
   Portal,
   Text,
+  useTheme,
 } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,6 +29,7 @@ import {
 } from '../../lib/plants';
 import { SPECIES, SPECIES_KEYS, daysToNextPhase } from '../../lib/species';
 import DateField from '../../components/DateField';
+import ErrorText from '../../components/ErrorText';
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -47,6 +49,7 @@ function formatDateOnly(dateString) {
 export default function PlantDetailScreen({ route, navigation }) {
   const { plantId } = route.params;
   const { system } = useUnits();
+  const theme = useTheme();
   const [plant, setPlant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editVisible, setEditVisible] = useState(false);
@@ -190,8 +193,14 @@ export default function PlantDetailScreen({ route, navigation }) {
       {plant.image_url ? (
         <Image source={{ uri: plant.image_url }} style={styles.heroImage} />
       ) : (
-        <View style={styles.heroPlaceholder}>
-          <MaterialCommunityIcons name="leaf" size={48} color="#888" />
+        <View
+          style={[styles.heroPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}
+        >
+          <MaterialCommunityIcons
+            name="leaf"
+            size={48}
+            color={theme.colors.onSurfaceVariant}
+          />
         </View>
       )}
 
@@ -264,7 +273,6 @@ export default function PlantDetailScreen({ route, navigation }) {
 
       <FeedingDialog
         visible={feedVisible}
-        scope="growspace"
         preset={feedPreset}
         onDismiss={() => setFeedVisible(false)}
         onDone={() => setFeedVisible(false)}
@@ -337,7 +345,7 @@ export default function PlantDetailScreen({ route, navigation }) {
               style={styles.input}
             />
             <ContainerPicker value={containerId} onChange={setContainerId} />
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
@@ -373,7 +381,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     marginBottom: 16,
-    backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -414,8 +421,5 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 8,
-  },
-  errorText: {
-    color: 'red',
   },
 });

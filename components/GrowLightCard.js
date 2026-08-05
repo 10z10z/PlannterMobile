@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Avatar, Card, IconButton, ProgressBar, Text } from 'react-native-paper';
+import { Avatar, Card, IconButton, ProgressBar, Text, useTheme } from 'react-native-paper';
 import { useUnits } from '../contexts/UnitsContext';
 import { formatLength, lengthUnit } from '../lib/units';
 import { hasColorTemp, lightTypeLabel, spectrumLabel } from '../lib/growLights';
@@ -11,6 +11,7 @@ import { hasColorTemp, lightTypeLabel, spectrumLabel } from '../lib/growLights';
  */
 export default function GrowLightCard({ light, inUse, onPress, onDelete }) {
   const { system } = useUnits();
+  const theme = useTheme();
   const free = Math.max(light.quantity - inUse, 0);
 
   // Only the specs this fixture actually has, so a floodlight entry doesn't
@@ -73,7 +74,7 @@ export default function GrowLightCard({ light, inUse, onPress, onDelete }) {
           </Text>
         )}
         {inUse > light.quantity && (
-          <Text variant="bodySmall" style={styles.warning}>
+          <Text variant="bodySmall" style={[styles.warning, { color: theme.colors.error }]}>
             {inUse - light.quantity} more assigned than owned
           </Text>
         )}
@@ -93,6 +94,5 @@ const styles = StyleSheet.create({
   },
   warning: {
     marginTop: 8,
-    color: '#c62828',
   },
 });

@@ -35,6 +35,7 @@ import {
 import { mixColor } from '../../lib/mixColors';
 import NutrientTargetBar from '../../components/NutrientTargetBar';
 import DoseSlider from '../../components/DoseSlider';
+import ScreenTitle from '../../components/ScreenTitle';
 import FeedingDialog from '../calendar/FeedingDialog';
 
 const WATER_KEYS = {
@@ -445,7 +446,9 @@ export default function NpkCalculatorScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content title="NPK Calculator" />
+        <Appbar.Content
+          title={<ScreenTitle icon="calculator-variant-outline" label="NPK Calculator" />}
+        />
         <Appbar.Action icon="cog-outline" onPress={() => setSettingsOpen(true)} />
       </Appbar.Header>
 
@@ -571,7 +574,6 @@ export default function NpkCalculatorScreen() {
 
       <FeedingDialog
         visible={feedOpen}
-        scope="growspace"
         preset={feedPreset}
         onDismiss={() => setFeedOpen(false)}
         onDone={() => setFeedOpen(false)}

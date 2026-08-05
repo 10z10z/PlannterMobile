@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -64,12 +64,12 @@ function AppTabs() {
 
 export default function RootNavigator() {
   const { session, loading } = useAuth();
-  const { isDark } = useThemePreference();
+  const { navigationTheme } = useThemePreference();
 
   if (loading) return null;
 
   return (
-    <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
+    <NavigationContainer theme={navigationTheme}>
       {session ? <AppTabs /> : <AuthStack />}
     </NavigationContainer>
   );

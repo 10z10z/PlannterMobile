@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import ImagePickerField from '../../components/ImagePickerField';
 import DateField from '../../components/DateField';
+import ErrorText from '../../components/ErrorText';
 
 function toIntOrNull(text) {
   if (text === null || text === undefined || String(text).trim() === '') return null;
@@ -134,7 +135,7 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
               Worth filling in for rare varieties that are counted by the seed.
             </HelperText>
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -174,9 +175,5 @@ const styles = StyleSheet.create({
   },
   rowField: {
     flex: 1,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

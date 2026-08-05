@@ -58,9 +58,13 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
   tracked by quantity and how many are assigned to growspaces and germination
   stations
 - Container occupancy derived from plant assignments — "8/10 in use, 2 free"
-- A calendar behind both the growspace and sowing headers, showing what was
-  done on each day: sowing, germinating, thinning, transplanting, planting,
-  moving a plant on the grid, watering, feeding and removing
+- One calendar for the whole grow, behind both the growspace and sowing
+  headers, showing what was done on each day: sowing, germinating, thinning,
+  transplanting, planting, moving a plant on the grid, watering, feeding and
+  removing
+- A row of chips over the calendar narrows it down three ways — growspaces or
+  stations, planned or done, and the sort of job (sowing, transplants,
+  watering, feeding, other) — and it reopens the way you left it
 - The calendar opens with the history already in it — days a sowing went in, a
   cell came up or a plant was potted on are read back out of the data itself
   and marked "from records", rather than starting blank on the day it ships
@@ -85,6 +89,11 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
   shows the temperature and humidity there, with the figures recorded by hand
   kept as the fallback. Off until a place is chosen, and only that place's
   coordinates are ever sent
+- Six colour schemes — Plannter, Greenhouse, Slate, Terracotta, Plum and
+  Graphite — each a full Material 3 palette grown from its own seed colours, so
+  a scheme carries every surface and every contrasting text tone rather than
+  tinting a few buttons. Light or dark is a separate setting and can follow the
+  system: one is taste, the other is the room you're standing in
 - Metric/imperial unit preference — values are stored metric (litres,
   centimetres, Celsius) and converted for display
 - Row-level security in Supabase — each user only sees their own data
@@ -121,7 +130,7 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 ## Project structure
 
 ```
-lib/            Supabase client, storage uploads, unit conversion, notifications
+lib/            Supabase client, storage uploads, unit conversion, notifications, colour schemes
 contexts/       Auth, theme and unit-preference providers
 navigation/     Root navigator (auth stack vs. bottom tabs)
 screens/        Login/Signup, Growspaces, Plant detail, Germination, Inventory, NPK calculator, Settings

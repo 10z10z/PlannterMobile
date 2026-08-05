@@ -19,6 +19,7 @@ import {
   saveStationLights,
 } from '../../lib/germination';
 import LightAssignmentField from '../../components/LightAssignmentField';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Creates a station or edits one — the same fields either way, so the two paths
@@ -175,7 +176,7 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
 
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -217,9 +218,5 @@ const styles = StyleSheet.create({
   },
   half: {
     flex: 1,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Avatar, Card, IconButton, ProgressBar, Text } from 'react-native-paper';
+import { Avatar, Card, IconButton, ProgressBar, Text, useTheme } from 'react-native-paper';
 import { useUnits } from '../contexts/UnitsContext';
 import { formatVolume } from '../lib/units';
 import { materialLabel } from '../lib/containers';
@@ -10,6 +10,7 @@ import { materialLabel } from '../lib/containers';
  */
 export default function ContainerCard({ container, inUse, onPress, onDelete }) {
   const { system } = useUnits();
+  const theme = useTheme();
   const volume = formatVolume(container.volume_liters, system);
   const free = Math.max(container.quantity - inUse, 0);
 
@@ -30,7 +31,7 @@ export default function ContainerCard({ container, inUse, onPress, onDelete }) {
       <Card.Content>
         <ProgressBar progress={container.quantity ? inUse / container.quantity : 0} />
         {inUse > container.quantity && (
-          <Text variant="bodySmall" style={styles.warning}>
+          <Text variant="bodySmall" style={[styles.warning, { color: theme.colors.error }]}>
             {inUse - container.quantity} more plants assigned than containers owned
           </Text>
         )}
@@ -46,6 +47,5 @@ const styles = StyleSheet.create({
   },
   warning: {
     marginTop: 8,
-    color: '#c62828',
   },
 });

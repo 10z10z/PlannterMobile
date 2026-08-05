@@ -39,6 +39,7 @@ import ImagePickerField from '../../components/ImagePickerField';
 import ContainerPicker from '../../components/ContainerPicker';
 import { toDateString } from '../../components/DateField';
 import GrowspaceFormDialog from './GrowspaceFormDialog';
+import ErrorText from '../../components/ErrorText';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
@@ -377,7 +378,7 @@ export default function GrowspaceTabScreen({ route }) {
             <Text variant="bodySmall" style={styles.hint}>
               New plants wait in the holding tray until you place them.
             </Text>
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDialogVisible(false)}>Cancel</Button>
@@ -426,8 +427,5 @@ const styles = StyleSheet.create({
   hint: {
     marginTop: 8,
     opacity: 0.7,
-  },
-  errorText: {
-    color: 'red',
   },
 });

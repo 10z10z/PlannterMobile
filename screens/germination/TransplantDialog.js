@@ -8,6 +8,7 @@ import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume } from '../../lib/units';
 import { fetchContainersWithUsage, materialLabel } from '../../lib/containers';
 import { germinatedCells, transplant } from '../../lib/germination';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Moves germinated seedlings into a growspace, from one held cell, a selection
@@ -215,7 +216,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
                 : 'One plant is created in the growspace.'}
             </HelperText>
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -250,9 +251,5 @@ const styles = StyleSheet.create({
   },
   spacedInput: {
     marginTop: 12,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

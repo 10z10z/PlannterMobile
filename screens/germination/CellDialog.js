@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { daysSince, setCellGerminated } from '../../lib/germination';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Opened by holding a cell. The count of seedlings that have come up is edited
@@ -71,7 +72,7 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
                 {`Out of ${cell.seeds_planted} seed${cell.seeds_planted === 1 ? '' : 's'} sown`}
                 {days !== null ? ` · first came up ${days}d ago` : ''}
               </HelperText>
-              {!!error && <Text style={styles.errorText}>{error}</Text>}
+              <ErrorText>{error}</ErrorText>
             </>
           )}
         </Dialog.Content>
@@ -97,9 +98,5 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     marginHorizontal: 8,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

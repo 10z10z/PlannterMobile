@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
 import { thinSowing, thinnableCells, thinningSummary } from '../../lib/germination';
+import ErrorText from '../../components/ErrorText';
 
 /** "8 seedlings and 4 seeds", leaving out whichever side is zero. */
 function describeLosses({ seedlings, seeds }) {
@@ -57,7 +58,7 @@ export default function ThinDialog({ visible, sowing, onDismiss, onDone }) {
               </Text>
             </>
           )}
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
+          <ErrorText style={styles.errorText}>{error}</ErrorText>
         </Dialog.Content>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
@@ -76,7 +77,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   errorText: {
-    color: 'red',
     marginTop: 12,
   },
 });

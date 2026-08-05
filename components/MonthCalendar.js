@@ -11,7 +11,20 @@ import { toDateString } from './DateField';
  * as busy without the grid turning into a chart, and a ring for anything still
  * scheduled — a plan and a record are different claims about a day, and the
  * calendar shouldn't blur them.
+ *
+ * The dots are coloured by which side of the grow the entry came from, since one
+ * calendar now shows both: a day of sowing and a day in the tent shouldn't look
+ * the same from the month view.
  */
+/**
+ * Anything the app worked out for itself stays grey, whichever side it came
+ * from — the muted dot is saying "this was inferred", which outranks where.
+ */
+function dotColor(theme, entry) {
+  if (entry.derived) return theme.colors.outline;
+  return entry.source === 'station' ? theme.colors.secondary : theme.colors.primary;
+}
+
 export default function MonthCalendar({
   month,
   entriesByDay,
@@ -79,11 +92,7 @@ export default function MonthCalendar({
                           key={entry.id}
                           style={[
                             styles.dot,
-                            {
-                              backgroundColor: entry.derived
-                                ? theme.colors.outline
-                                : theme.colors.primary,
-                            },
+                            { backgroundColor: dotColor(theme, entry) },
                           ]}
                         />
                       ))}

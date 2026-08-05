@@ -12,11 +12,7 @@ export default function GerminationStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="GerminationStations" component={GerminationStationsScreen} />
-      <Stack.Screen
-        name="Calendar"
-        component={CalendarScreen}
-        initialParams={{ scope: 'station' }}
-      />
+      <Stack.Screen name="Calendar" component={CalendarScreen} />
     </Stack.Navigator>
   );
 }

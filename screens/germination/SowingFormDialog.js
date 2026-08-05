@@ -18,6 +18,7 @@ import { materialLabel } from '../../lib/containers';
 import { fetchTraysWithUsage, trayGridLabel } from '../../lib/trays';
 import { createSowing, originalSeedsPerCell } from '../../lib/germination';
 import DateField, { toDateString } from '../../components/DateField';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Sowing a seed pack into a tray or a single container. The seeds are taken out
@@ -251,7 +252,7 @@ export default function SowingFormDialog({
 
             <DateField label="Sown on" value={sownOn} onChange={setSownOn} maximumDate={new Date()} />
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -286,9 +287,5 @@ const styles = StyleSheet.create({
   },
   spacedInput: {
     marginTop: 12,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

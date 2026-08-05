@@ -4,6 +4,7 @@ import { Appbar, Button, Text } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+import ScreenTitle from '../../components/ScreenTitle';
 import GrowspaceTabScreen from './GrowspaceTabScreen';
 import GrowspaceFormDialog from './GrowspaceFormDialog';
 
@@ -35,10 +36,10 @@ export default function GrowspacesOverviewScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content title="My Growspace" />
+        <Appbar.Content title={<ScreenTitle icon="flower-outline" label="My Growspace" />} />
         <Appbar.Action
           icon="calendar-month-outline"
-          onPress={() => navigation.navigate('Calendar', { scope: 'growspace' })}
+          onPress={() => navigation.navigate('Calendar')}
         />
         <Appbar.Action icon="plus" onPress={openDialog} />
       </Appbar.Header>

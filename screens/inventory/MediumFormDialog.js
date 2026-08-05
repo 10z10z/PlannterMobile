@@ -8,6 +8,7 @@ import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume, parseVolume, volumeUnit } from '../../lib/units';
 import ImagePickerField from '../../components/ImagePickerField';
 import NutrientInputs, { NUTRIENT_KEYS } from '../../components/NutrientInputs';
+import ErrorText from '../../components/ErrorText';
 
 const PRESETS = [
   'Coco coir',
@@ -153,7 +154,7 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
             </Text>
             <NutrientInputs value={specs} onChange={setSpecs} showPh showEc />
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -203,9 +204,5 @@ const styles = StyleSheet.create({
   optionalLabel: {
     marginTop: 16,
     opacity: 0.7,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

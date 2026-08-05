@@ -6,12 +6,14 @@ import TextField from '../../components/TextField';
 import DateField, { toDateString } from '../../components/DateField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { fetchPlaces, placeIcon, placeIds, placeOf } from '../../lib/places';
 import {
   SCHEDULE_KINDS,
   formatMinutes,
   minutesOf,
   saveScheduledAction,
 } from '../../lib/scheduling';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Plans an action for a day, with an optional reminder at a time.
@@ -20,10 +22,12 @@ import {
  * form the action is normally done through, prefilled with what was planned.
  * The seed pack is therefore a hint rather than a commitment — it is what the
  * sowing form will start from, and it can still be changed or have run out.
+ *
+ * A growspace and a station are both just places to plan for, so both are on
+ * the one list: the calendar this opens from no longer takes a side.
  */
 export default function ScheduleActionDialog({
   visible,
-  scope = 'growspace',
   action,
   defaultDate,
   onDismiss,
@@ -49,7 +53,7 @@ export default function ScheduleActionDialog({
 
   useEffect(() => {
     if (!visible) return;
-    setKind(action?.kind ?? (scope === 'station' ? 'sow' : 'feed'));
+    setKind(action?.kind ?? 'feed');
     setSubject(action?.subject ?? '');
     setSeedPackId(action?.seed_pack_id ?? null);
     setDueOn(action?.due_on ?? defaultDate ?? toDateString(new Date()));
@@ -57,18 +61,14 @@ export default function ScheduleActionDialog({
     setNote(action?.note ?? '');
     setError('');
 
-    const table = scope === 'station' ? 'germination_stations' : 'growspaces';
     Promise.all([
-      supabase.from(table).select('id, name').order('created_at'),
+      fetchPlaces(),
       supabase.from('seed_packs').select('id, name, seed_count').order('name'),
-    ]).then(([placeRows, packRows]) => {
-      const placeList = placeRows.data ?? [];
+    ]).then(([placeList, packRows]) => {
       setPlaces(placeList);
       setSeedPacks(packRows.data ?? []);
       setPlaceId(
-        action?.growspace_id ??
-          action?.station_id ??
-          (placeList.length === 1 ? placeList[0].id : null)
+        placeOf(placeList, action)?.id ?? (placeList.length === 1 ? placeList[0].id : null)
       );
     });
     // Read when the dialog opens, like every other form in the app: what is
@@ -79,8 +79,8 @@ export default function ScheduleActionDialog({
   const seedPack = seedPacks.find((pack) => pack.id === seedPackId);
 
   const handleSave = async () => {
-    if (!placeId) {
-      setError(scope === 'station' ? 'Pick a station' : 'Pick a growspace');
+    if (!place) {
+      setError('Pick a growspace or station');
       return;
     }
     if (!subject.trim()) {
@@ -97,8 +97,7 @@ export default function ScheduleActionDialog({
         kind,
         dueOn,
         dueMinutes,
-        growspaceId: scope === 'growspace' ? placeId : null,
-        stationId: scope === 'station' ? placeId : null,
+        ...placeIds(place),
         subject: subject.trim(),
         note,
         seedPackId: kind === 'sow' ? seedPackId : null,
@@ -136,7 +135,7 @@ export default function ScheduleActionDialog({
             </View>
 
             <Text variant="labelLarge" style={styles.label}>
-              {scope === 'station' ? 'Station' : 'Growspace'}
+              Where
             </Text>
             <Menu
               visible={openMenu === 'place'}
@@ -144,10 +143,10 @@ export default function ScheduleActionDialog({
               anchor={
                 <Button
                   mode="outlined"
-                  icon={scope === 'station' ? 'sprout-outline' : 'flower-outline'}
+                  icon={placeIcon(place?.type)}
                   onPress={() => setOpenMenu('place')}
                 >
-                  {place ? place.name : `Pick a ${scope === 'station' ? 'station' : 'growspace'}`}
+                  {place ? place.name : 'Pick a growspace or station'}
                 </Button>
               }
             >
@@ -155,6 +154,7 @@ export default function ScheduleActionDialog({
                 <Menu.Item
                   key={entry.id}
                   title={entry.name}
+                  leadingIcon={placeIcon(entry.type)}
                   onPress={() => {
                     setPlaceId(entry.id);
                     setOpenMenu(null);
@@ -240,7 +240,7 @@ export default function ScheduleActionDialog({
               style={styles.input}
             />
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -304,9 +304,5 @@ const styles = StyleSheet.create({
   },
   spacedInput: {
     marginTop: 12,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

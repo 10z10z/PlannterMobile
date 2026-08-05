@@ -25,6 +25,7 @@ import {
 } from '../../lib/growspaces';
 import LightAssignmentField from '../../components/LightAssignmentField';
 import GridListField from '../../components/GridListField';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Creates a growspace or edits one, the same fields either way. The grid is part
@@ -265,7 +266,7 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
 
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -307,9 +308,5 @@ const styles = StyleSheet.create({
   },
   half: {
     flex: 1,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

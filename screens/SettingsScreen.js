@@ -3,21 +3,24 @@ import { Appbar, Button, SegmentedButtons, Text } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useThemePreference } from '../contexts/ThemeContext';
 import { useUnits } from '../contexts/UnitsContext';
+import ScreenTitle from '../components/ScreenTitle';
+import SchemePicker from '../components/SchemePicker';
 import WeatherSettings from './WeatherSettings';
 
 export default function SettingsScreen() {
   const { signOut, session } = useAuth();
-  const { preference, setThemePreference } = useThemePreference();
+  const { preference, setThemePreference, isDark, scheme, setColorScheme } =
+    useThemePreference();
   const { system, setUnitSystem } = useUnits();
 
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content title="Settings" />
+        <Appbar.Content title={<ScreenTitle icon="cog-outline" label="Settings" />} />
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text variant="labelLarge" style={styles.sectionLabel}>Theme</Text>
+        <Text variant="labelLarge" style={styles.sectionLabel}>Light or dark</Text>
         <SegmentedButtons
           value={preference}
           onValueChange={setThemePreference}
@@ -28,6 +31,9 @@ export default function SettingsScreen() {
           ]}
           style={styles.segmented}
         />
+
+        <Text variant="labelLarge" style={styles.sectionLabel}>Colour scheme</Text>
+        <SchemePicker value={scheme} onChange={setColorScheme} isDark={isDark} />
 
         <Text variant="labelLarge" style={styles.sectionLabel}>Units</Text>
         <SegmentedButtons

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, Portal, Text } from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import ImagePickerField from '../../components/ImagePickerField';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * One record is a group of identical trays, as with containers. The grid is what
@@ -132,7 +133,7 @@ export default function TrayFormDialog({ visible, onDismiss, onSaved, tray }) {
             />
             <HelperText type="info">One entry covers a whole set of identical trays.</HelperText>
 
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -166,9 +167,5 @@ const styles = StyleSheet.create({
   },
   half: {
     flex: 1,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });

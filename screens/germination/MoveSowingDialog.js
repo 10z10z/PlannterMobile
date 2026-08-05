@@ -7,6 +7,7 @@ import {
   moveSowing,
   otherStations,
 } from '../../lib/germination';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Moves a whole sowing to another germination station — a tray carried to a
@@ -72,7 +73,7 @@ export default function MoveSowingDialog({ visible, sowing, stationId, onDismiss
                 ))}
               </RadioButton.Group>
             )}
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+            <ErrorText style={styles.errorText}>{error}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -98,7 +99,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   errorText: {
-    color: 'red',
     paddingHorizontal: 24,
     paddingTop: 8,
   },

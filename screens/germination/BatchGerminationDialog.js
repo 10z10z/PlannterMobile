@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { setSowingGerminated } from '../../lib/germination';
+import ErrorText from '../../components/ErrorText';
 
 /**
  * Marks a whole sowing at once, for a tray that came up together — holding the
@@ -83,7 +84,7 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
                   Reset to none
                 </Button>
               </View>
-              {!!error && <Text style={styles.errorText}>{error}</Text>}
+              <ErrorText>{error}</ErrorText>
             </>
           )}
         </Dialog.Content>
@@ -111,9 +112,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-start',
     marginTop: 4,
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 8,
   },
 });
