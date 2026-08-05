@@ -9,7 +9,7 @@ import GrowspaceFormDialog from './GrowspaceFormDialog';
 
 const Tab = createMaterialTopTabNavigator();
 
-export default function GrowspacesOverviewScreen() {
+export default function GrowspacesOverviewScreen({ navigation }) {
   const [growspaces, setGrowspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -36,6 +36,10 @@ export default function GrowspacesOverviewScreen() {
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.Content title="My Growspace" />
+        <Appbar.Action
+          icon="calendar-month-outline"
+          onPress={() => navigation.navigate('Calendar', { scope: 'growspace' })}
+        />
         <Appbar.Action icon="plus" onPress={openDialog} />
       </Appbar.Header>
 

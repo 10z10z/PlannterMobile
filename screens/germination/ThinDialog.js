@@ -28,7 +28,7 @@ export default function ThinDialog({ visible, sowing, onDismiss, onDone }) {
     setSaving(true);
     setError('');
     try {
-      await thinSowing(cells);
+      await thinSowing(cells, sowing);
       onDone();
     } catch (thinError) {
       setError(thinError.message);

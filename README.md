@@ -58,6 +58,22 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
   tracked by quantity and how many are assigned to growspaces and germination
   stations
 - Container occupancy derived from plant assignments — "8/10 in use, 2 free"
+- A calendar behind both the growspace and sowing headers, showing what was
+  done on each day: sowing, germinating, thinning, transplanting, planting,
+  moving a plant on the grid, watering, feeding and removing
+- The calendar opens with the history already in it — days a sowing went in, a
+  cell came up or a plant was potted on are read back out of the data itself
+  and marked "from records", rather than starting blank on the day it ships
+- Feeding recorded as it was actually mixed: several products at their own
+  per-litre doses, to a whole growspace or station or to particular plants,
+  logged from the calendar, from a plant, or straight out of the NPK calculator
+  with the mix you just worked out
+- Water a plant from its own screen, which restarts its reminder cycle and
+  puts the watering in the calendar
+- Schedule an action on a future day — sow this crop, feed that tent — with an
+  optional reminder at a time of day. Nothing is planted for you: the reminder
+  is a nudge, and the entry opens the usual form on the day and ticks itself
+  off once the work is done
 - NPK calculator fed by the fertilizer inventory: mix several products with a
   dose slider each, and read the resulting ppm against growth-stage target
   bands for macros and micronutrients
@@ -79,7 +95,7 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 - [React Navigation](https://reactnavigation.org) (native stack)
 - [React Native Paper](https://callstack.github.io/react-native-paper/) (Material Design UI)
 - [Supabase](https://supabase.com) (Postgres, Auth, Row Level Security)
-- [expo-notifications](https://docs.expo.dev/versions/latest/sdk/notifications/) (local watering reminders)
+- [expo-notifications](https://docs.expo.dev/versions/latest/sdk/notifications/) (local watering reminders and scheduled-action reminders)
 
 ## Getting started
 

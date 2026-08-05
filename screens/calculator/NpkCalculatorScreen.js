@@ -35,6 +35,7 @@ import {
 import { mixColor } from '../../lib/mixColors';
 import NutrientTargetBar from '../../components/NutrientTargetBar';
 import DoseSlider from '../../components/DoseSlider';
+import FeedingDialog from '../calendar/FeedingDialog';
 
 const WATER_KEYS = {
   source: 'waterSource',
@@ -125,6 +126,7 @@ export default function NpkCalculatorScreen() {
   const [volumeText, setVolumeText] = useState('4');
   const [showMicros, setShowMicros] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [feedOpen, setFeedOpen] = useState(false);
   const [waterSource, setWaterSource] = useState('hardness'); // 'hardness' | 'report'
   const [hardnessText, setHardnessText] = useState('');
   const [caText, setCaText] = useState('');
@@ -346,6 +348,23 @@ export default function NpkCalculatorScreen() {
     </>
   );
 
+  /**
+   * The mix as the calendar records it: the products and the rates they were
+   * worked out at, per litre. A tank measured back out in reverse mode brings
+   * its volume along too, since that one really was poured.
+   */
+  const feedPreset = {
+    products: mixEntries
+      .filter((entry) => entry.dosePerLiter > 0)
+      .map((entry) => ({
+        fertilizer_id: entry.fertilizer.id,
+        fertilizer_name: entry.fertilizer.name,
+        form: entry.fertilizer.form,
+        dose_per_liter: entry.dosePerLiter,
+      })),
+    volumeLiters: mode === 'reverse' && batchVolumeLiters > 0 ? batchVolumeLiters : null,
+  };
+
   const resultCard = (
     <>
       <Card style={styles.card}>
@@ -402,6 +421,18 @@ export default function NpkCalculatorScreen() {
           )}
         </Card.Content>
       </Card>
+
+      {/* The calculator works out a mix; this is what turns one that was
+          actually poured into a dated entry on the growspace calendar. */}
+      <Button
+        mode="contained-tonal"
+        icon="cup-water"
+        onPress={() => setFeedOpen(true)}
+        disabled={feedPreset.products.length === 0}
+        style={styles.logButton}
+      >
+        Save as a feeding
+      </Button>
 
       <Text variant="bodySmall" style={styles.note}>
         Target bands are typical hydroponic ranges, not advice for a particular plant. Your species,
@@ -537,6 +568,14 @@ export default function NpkCalculatorScreen() {
           )}
         </ScrollView>
       )}
+
+      <FeedingDialog
+        visible={feedOpen}
+        scope="growspace"
+        preset={feedPreset}
+        onDismiss={() => setFeedOpen(false)}
+        onDone={() => setFeedOpen(false)}
+      />
 
       <Portal>
         <Dialog visible={settingsOpen} onDismiss={closeSettings}>
@@ -695,6 +734,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   card: {
+    marginTop: 16,
+  },
+  logButton: {
     marginTop: 16,
   },
   divider: {

@@ -9,7 +9,7 @@ import { daysSince, setCellGerminated } from '../../lib/germination';
  * here, and this is also where a single cell's seedlings are sent on to a
  * growspace.
  */
-export default function CellDialog({ visible, cell, onDismiss, onSaved, onTransplant }) {
+export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, onTransplant }) {
   const [germinated, setGerminated] = useState('0');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -39,7 +39,7 @@ export default function CellDialog({ visible, cell, onDismiss, onSaved, onTransp
     setSaving(true);
     setError('');
     try {
-      await setCellGerminated(cell, value);
+      await setCellGerminated(cell, value, sowing);
       onSaved();
     } catch (saveError) {
       setError(saveError.message);

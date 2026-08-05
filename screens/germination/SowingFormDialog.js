@@ -28,8 +28,18 @@ import DateField, { toDateString } from '../../components/DateField';
  * fills the form in rather than saving straight away: the seed pack may have run
  * low and the tray may be in use since, and both are worth seeing before
  * committing. Everything is still editable, and the date resets to today.
+ *
+ * `seedPackId` does the lighter version of the same thing for a sowing that was
+ * planned on the calendar: the pack is chosen, and nothing else is assumed.
  */
-export default function SowingFormDialog({ visible, onDismiss, onSaved, stationId, template }) {
+export default function SowingFormDialog({
+  visible,
+  onDismiss,
+  onSaved,
+  stationId,
+  template,
+  seedPackId,
+}) {
   const { session } = useAuth();
   const { system } = useUnits();
 
@@ -72,12 +82,15 @@ export default function SowingFormDialog({ visible, onDismiss, onSaved, stationI
       // Resolved once the lists are in, and only to rows that still exist —
       // a pack or tray deleted since the original sowing simply comes up blank
       // rather than preselecting something that isn't there.
-      if (!template) return;
-      setSeedPack(packRows.find((pack) => pack.id === template.seed_pack_id) ?? null);
-      setTray(trayRows.find((entry) => entry.id === template.tray_id) ?? null);
-      setContainer(containerList.find((entry) => entry.id === template.container_id) ?? null);
+      if (template) {
+        setSeedPack(packRows.find((pack) => pack.id === template.seed_pack_id) ?? null);
+        setTray(trayRows.find((entry) => entry.id === template.tray_id) ?? null);
+        setContainer(containerList.find((entry) => entry.id === template.container_id) ?? null);
+      } else if (seedPackId) {
+        setSeedPack(packRows.find((pack) => pack.id === seedPackId) ?? null);
+      }
     });
-  }, [visible, template]);
+  }, [visible, template, seedPackId]);
 
   const perCell = parseInt(seedsPerCell, 10);
   const cellCount = target === 'tray' ? (tray ? tray.grid_rows * tray.grid_cols : null) : 1;

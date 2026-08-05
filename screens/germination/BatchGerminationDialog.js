@@ -36,7 +36,7 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
     setSaving(true);
     setError('');
     try {
-      await setSowingGerminated(cells, count);
+      await setSowingGerminated(cells, count, sowing);
       onSaved();
     } catch (saveError) {
       setError(saveError.message);

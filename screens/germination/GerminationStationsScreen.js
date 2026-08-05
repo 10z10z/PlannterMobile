@@ -10,7 +10,7 @@ import StationTabScreen from './StationTabScreen';
 const Tab = createMaterialTopTabNavigator();
 
 /** Stations sit in swipeable tabs, the same shape as the growspace screen. */
-export default function GerminationStationsScreen() {
+export default function GerminationStationsScreen({ navigation }) {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -35,6 +35,10 @@ export default function GerminationStationsScreen() {
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.Content title="Sowing" />
+        <Appbar.Action
+          icon="calendar-month-outline"
+          onPress={() => navigation.navigate('Calendar', { scope: 'station' })}
+        />
         <Appbar.Action icon="plus" onPress={() => setDialogVisible(true)} />
       </Appbar.Header>
 

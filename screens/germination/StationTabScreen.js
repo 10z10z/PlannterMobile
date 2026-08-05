@@ -12,6 +12,7 @@ import {
   fetchStation,
   fetchStationLights,
 } from '../../lib/germination';
+import { recordEvent } from '../../lib/activity';
 import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
 import { conditionsFor, placeLabel, readingAgeLabel } from '../../lib/weather';
 import SowingCard from '../../components/SowingCard';
@@ -97,9 +98,17 @@ export default function StationTabScreen({ route }) {
     .join(' · ');
 
   const handleDelete = async () => {
-    const id = pendingDelete.id;
+    const sowing = pendingDelete;
     setPendingDelete(null);
-    await supabase.from('sowings').delete().eq('id', id);
+    // Logged before the row goes, so the entry can name what was removed while
+    // the sowing is still there to be read.
+    await recordEvent({
+      kind: 'removed',
+      subject: sowing.seed_pack_name,
+      detail: 'Sowing removed',
+      stationId,
+    });
+    await supabase.from('sowings').delete().eq('id', sowing.id);
     load();
   };
 
@@ -205,6 +214,7 @@ export default function StationTabScreen({ route }) {
 
       <CellDialog
         visible={!!activeCell}
+        sowing={activeCell?.sowing}
         cell={activeCell?.cell}
         onDismiss={() => setActiveCell(null)}
         onSaved={() => {

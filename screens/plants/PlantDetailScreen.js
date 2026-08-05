@@ -14,6 +14,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { cancelWateringReminder, scheduleWateringReminder } from '../../lib/notifications';
+import { recordEvent } from '../../lib/activity';
+import FeedingDialog from '../calendar/FeedingDialog';
 import ImagePickerField from '../../components/ImagePickerField';
 import ContainerPicker from '../../components/ContainerPicker';
 import { useUnits } from '../../contexts/UnitsContext';
@@ -56,6 +58,8 @@ export default function PlantDetailScreen({ route, navigation }) {
   const [plantType, setPlantType] = useState('');
   const [germinatedOn, setGerminatedOn] = useState(null);
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
+  const [feedVisible, setFeedVisible] = useState(false);
+  const [watering, setWatering] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -123,8 +127,43 @@ export default function PlantDetailScreen({ route, navigation }) {
     setEditVisible(false);
   };
 
+  /**
+   * Watering restarts the reminder cycle and goes into the calendar. The plant
+   * itself only keeps the most recent watering, so this log is what makes the
+   * ones before it recoverable at all.
+   */
+  const handleWater = async () => {
+    setWatering(true);
+    const wateredAt = new Date().toISOString();
+    const { data, error: waterError } = await supabase
+      .from('plants')
+      .update({ last_watered_at: wateredAt })
+      .eq('id', plantId)
+      .select('*, containers(material, volume_liters)')
+      .single();
+    setWatering(false);
+    if (waterError) return;
+
+    setPlant(data);
+    await scheduleWateringReminder(data);
+    await recordEvent({
+      kind: 'watered',
+      subject: data.name,
+      detail: `Every ${data.watering_interval_days} days`,
+      growspaceId: data.growspace_id,
+      plantId: data.id,
+    });
+  };
+
   const handleDelete = async () => {
     await cancelWateringReminder(plantId);
+    // Logged first, so the entry can still name what was pulled.
+    await recordEvent({
+      kind: 'removed',
+      subject: plant.name,
+      detail: plantTypeLabel(plant) ?? plant.species ?? null,
+      growspaceId: plant.growspace_id,
+    });
     await supabase.from('plants').delete().eq('id', plantId);
     navigation.goBack();
   };
@@ -138,6 +177,10 @@ export default function PlantDetailScreen({ route, navigation }) {
   }
 
   const phase = plantPhase(plant);
+  // What the feeding dialog starts from: this plant, in its own growspace. It is
+  // read when the dialog opens rather than watched, so rebuilding it each render
+  // costs nothing.
+  const feedPreset = { placeId: plant.growspace_id, plants: [{ id: plant.id, name: plant.name }] };
   const germinatedDays = daysSinceGermination(plant);
   const transplantDays = daysSinceTransplant(plant);
   const toNextPhase = daysToNextPhase(plant.plant_type, germinatedDays);
@@ -191,12 +234,41 @@ export default function PlantDetailScreen({ route, navigation }) {
         )}
       </View>
 
+      <View style={styles.careRow}>
+        <Button
+          mode="contained-tonal"
+          icon="water-outline"
+          onPress={handleWater}
+          loading={watering}
+          disabled={watering}
+          style={styles.careButton}
+        >
+          Water now
+        </Button>
+        <Button
+          mode="contained-tonal"
+          icon="cup-water"
+          onPress={() => setFeedVisible(true)}
+          style={styles.careButton}
+        >
+          Log feeding
+        </Button>
+      </View>
+
       <Button mode="outlined" onPress={openEditDialog} style={styles.actionButton}>
         Edit
       </Button>
       <Button mode="text" textColor="red" onPress={handleDelete} style={styles.actionButton}>
         Delete plant
       </Button>
+
+      <FeedingDialog
+        visible={feedVisible}
+        scope="growspace"
+        preset={feedPreset}
+        onDismiss={() => setFeedVisible(false)}
+        onDone={() => setFeedVisible(false)}
+      />
 
       <Portal>
         <Dialog
@@ -318,6 +390,14 @@ const styles = StyleSheet.create({
   infoBlock: {
     marginBottom: 24,
     gap: 4,
+  },
+  careRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  careButton: {
+    flex: 1,
   },
   actionButton: {
     marginBottom: 12,

@@ -17,6 +17,7 @@ import { useUnits } from '../../contexts/UnitsContext';
 import { useWeather } from '../../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
 import { scheduleWateringReminder } from '../../lib/notifications';
+import { recordEvent, recordMove } from '../../lib/activity';
 import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
 import { conditionsFor, placeLabel, readingAgeLabel } from '../../lib/weather';
 import {
@@ -92,6 +93,13 @@ export default function GrowspaceTabScreen({ route }) {
   const openPlantDetail = (plant) =>
     navigation.navigate('PlantDetail', { plantId: plant.id, plantName: plant.name });
 
+  /** "Shelf, spot 2,3" — where a plant ended up, for the calendar entry. */
+  const spotLabel = (cell) => {
+    if (!cell) return 'Back in the holding tray';
+    const grid = grids.find((entry) => entry.id === cell.gridId);
+    return `${grid?.name ?? 'Grid'}, spot ${cell.row + 1},${cell.col + 1}`;
+  };
+
   /**
    * Applies a drop. The plants are updated in place before the reload so the
    * tile doesn't flick back to where it came from while the write is in flight.
@@ -112,6 +120,7 @@ export default function GrowspaceTabScreen({ route }) {
       );
       try {
         await placePlant(plant.id, cell);
+        await recordMove({ plant, detail: spotLabel(cell), growspaceId });
       } catch {
         // Put the optimistic move back where it was.
       }
@@ -126,6 +135,13 @@ export default function GrowspaceTabScreen({ route }) {
       );
       try {
         await swapPlants(plant, drop.occupant);
+        // A swap moves two plants, and both have a day of their own to record.
+        await recordMove({ plant, detail: spotLabel(cell), growspaceId });
+        await recordMove({
+          plant: drop.occupant,
+          detail: `${spotLabel(from)} · swapped with ${plant.name}`,
+          growspaceId,
+        });
       } catch {
         // Same — the reload below is the source of truth.
       }
@@ -144,6 +160,7 @@ export default function GrowspaceTabScreen({ route }) {
     );
     try {
       await placePlant(plant.id, null);
+      await recordMove({ plant, detail: spotLabel(null), growspaceId });
     } catch {
       // The reload puts it back if the write failed.
     }
@@ -195,6 +212,14 @@ export default function GrowspaceTabScreen({ route }) {
       return;
     }
     await scheduleWateringReminder(data);
+    await recordEvent({
+      userId: session.user.id,
+      kind: 'planted',
+      subject: data.name,
+      detail: data.plant_type || data.species || null,
+      growspaceId,
+      plantId: data.id,
+    });
     setDialogVisible(false);
     load();
   };

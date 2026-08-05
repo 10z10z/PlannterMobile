@@ -7,7 +7,7 @@ import { useThemePreference } from '../contexts/ThemeContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import GrowspacesStack from './GrowspacesStack';
-import GerminationStationsScreen from '../screens/germination/GerminationStationsScreen';
+import GerminationStack from './GerminationStack';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
 import NpkCalculatorScreen from '../screens/calculator/NpkCalculatorScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -40,7 +40,7 @@ function AppTabs() {
       />
       <Tab.Screen
         name="Germination"
-        component={GerminationStationsScreen}
+        component={GerminationStack}
         options={{ tabBarIcon: tabIcon('sprout-outline'), title: 'Sowing' }}
       />
       <Tab.Screen
