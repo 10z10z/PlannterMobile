@@ -11,7 +11,7 @@ import {
   fetchStation,
   fetchStationLights,
 } from '../../lib/germination';
-import { lightTypeLabel } from '../../lib/growLights';
+import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
 import SowingCard from '../../components/SowingCard';
 import SowingFormDialog from './SowingFormDialog';
 import CellDialog from './CellDialog';
@@ -74,10 +74,6 @@ export default function StationTabScreen({ route }) {
     if (cells?.length) setTransplanting({ sowing, cells });
   };
 
-  const lightsSummary = lights
-    .map((row) => `${row.quantity} x ${row.light?.name ?? lightTypeLabel(row.light?.type)}`)
-    .join(' · ');
-
   // Only the conditions that were actually filled in, so a windowsill with no
   // thermostat doesn't read as a row of blanks. The lights get a row of their
   // own below this one.
@@ -117,20 +113,28 @@ export default function StationTabScreen({ route }) {
               right={(props) => <List.Icon {...props} icon="pencil-outline" />}
               onPress={() => setEditVisible(true)}
             />
-            {/* The lights get their own row so a station's lighting reads at a
-                glance instead of trailing off the end of the conditions. */}
-            <List.Item
-              title={lights.length ? lightsSummary : 'No lights'}
-              left={(props) => (
-                <List.Icon
-                  {...props}
-                  icon={lights.length ? 'lightbulb-on-outline' : 'lightbulb-off-outline'}
-                />
-              )}
-              titleStyle={!lights.length ? styles.mutedTitle : undefined}
-              onPress={() => setEditVisible(true)}
-              style={styles.stationRow}
-            />
+            {/* Each fixture gets a line of its own, so its run cycle and the
+                figures worth knowing have somewhere to sit rather than trailing
+                off the end of the conditions. */}
+            {lights.map((row) => (
+              <List.Item
+                key={row.id}
+                title={assignmentTitle(row)}
+                description={assignmentSummary(row) || undefined}
+                left={(props) => <List.Icon {...props} icon="lightbulb-on-outline" />}
+                onPress={() => setEditVisible(true)}
+                style={styles.lightRow}
+              />
+            ))}
+            {lights.length === 0 && (
+              <List.Item
+                title="No lights"
+                left={(props) => <List.Icon {...props} icon="lightbulb-off-outline" />}
+                titleStyle={styles.mutedTitle}
+                onPress={() => setEditVisible(true)}
+                style={styles.stationRow}
+              />
+            )}
           </View>
         }
         ListEmptyComponent={
@@ -271,6 +275,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 96,
+  },
+  lightRow: {
+    paddingVertical: 0,
   },
   stationRow: {
     marginBottom: 8,

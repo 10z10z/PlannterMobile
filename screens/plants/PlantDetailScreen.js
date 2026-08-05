@@ -1,6 +1,15 @@
 import { useCallback, useState } from 'react';
-import { Image, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Button, Dialog, Portal, Text, TextInput } from 'react-native-paper';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Button,
+  Dialog,
+  HelperText,
+  Menu,
+  Portal,
+  Text,
+  TextInput,
+} from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -8,8 +17,15 @@ import { cancelWateringReminder, scheduleWateringReminder } from '../../lib/noti
 import ImagePickerField from '../../components/ImagePickerField';
 import ContainerPicker from '../../components/ContainerPicker';
 import { useUnits } from '../../contexts/UnitsContext';
-import { formatVolume } from '../../lib/units';
-import { materialLabel } from '../../lib/containers';
+import { containerLabel } from '../../lib/containers';
+import {
+  daysSinceGermination,
+  daysSinceTransplant,
+  plantPhase,
+  plantTypeLabel,
+} from '../../lib/plants';
+import { SPECIES, SPECIES_KEYS, daysToNextPhase } from '../../lib/species';
+import DateField from '../../components/DateField';
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -17,6 +33,13 @@ function formatDate(iso) {
     month: 'short',
     day: 'numeric',
   });
+}
+
+/** A stored `YYYY-MM-DD`, read as a local date rather than as UTC midnight. */
+function formatDateOnly(dateString) {
+  if (!dateString) return '';
+  const [year, month, day] = String(dateString).split('-').map(Number);
+  return formatDate(new Date(year, month - 1, day));
 }
 
 export default function PlantDetailScreen({ route, navigation }) {
@@ -30,6 +53,9 @@ export default function PlantDetailScreen({ route, navigation }) {
   const [intervalDays, setIntervalDays] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
   const [containerId, setContainerId] = useState(null);
+  const [plantType, setPlantType] = useState('');
+  const [germinatedOn, setGerminatedOn] = useState(null);
+  const [typeMenuVisible, setTypeMenuVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -56,6 +82,8 @@ export default function PlantDetailScreen({ route, navigation }) {
     setIntervalDays(String(plant.watering_interval_days));
     setImageUrl(plant.image_url);
     setContainerId(plant.container_id);
+    setPlantType(plant.plant_type || '');
+    setGerminatedOn(plant.germinated_on);
     setError('');
     setEditVisible(true);
   };
@@ -76,6 +104,8 @@ export default function PlantDetailScreen({ route, navigation }) {
       .update({
         name: name.trim(),
         species: species.trim() || null,
+        plant_type: plantType.trim() || null,
+        germinated_on: germinatedOn,
         watering_interval_days: interval,
         image_url: imageUrl,
         container_id: containerId,
@@ -107,6 +137,11 @@ export default function PlantDetailScreen({ route, navigation }) {
     );
   }
 
+  const phase = plantPhase(plant);
+  const germinatedDays = daysSinceGermination(plant);
+  const transplantDays = daysSinceTransplant(plant);
+  const toNextPhase = daysToNextPhase(plant.plant_type, germinatedDays);
+
   return (
     <View style={styles.container}>
       {plant.image_url ? (
@@ -118,20 +153,41 @@ export default function PlantDetailScreen({ route, navigation }) {
       )}
 
       <Text variant="headlineMedium">{plant.name}</Text>
-      {!!plant.species && (
+      {!!(plantTypeLabel(plant) || plant.species) && (
         <Text variant="bodyLarge" style={styles.species}>
-          {plant.species}
+          {plantTypeLabel(plant) ?? plant.species}
         </Text>
       )}
 
+      {!!phase && (
+        <View style={styles.phaseBlock}>
+          <Text variant="titleMedium">{phase.label}</Text>
+          <Text variant="bodySmall" style={styles.phaseHint}>
+            {toNextPhase !== null
+              ? `Typically another ${toNextPhase}d at this stage`
+              : 'The last stage for this crop'}
+            {' · a guideline, not a schedule'}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.infoBlock}>
+        {germinatedDays !== null && (
+          <Text variant="bodyMedium">
+            Germinated: {formatDateOnly(plant.germinated_on)} · {germinatedDays}d ago
+          </Text>
+        )}
+        {transplantDays !== null && (
+          <Text variant="bodyMedium">
+            {transplantDays === 0
+              ? 'Planted in this growspace today'
+              : `In this growspace: ${transplantDays}d`}
+          </Text>
+        )}
         <Text variant="bodyMedium">Watering interval: every {plant.watering_interval_days} days</Text>
         <Text variant="bodyMedium">Last watered: {formatDate(plant.last_watered_at)}</Text>
         {!!plant.containers && (
-          <Text variant="bodyMedium">
-            Container: {formatVolume(plant.containers.volume_liters, system)}{' '}
-            {materialLabel(plant.containers.material)}
-          </Text>
+          <Text variant="bodyMedium">Container: {containerLabel(plant.containers, system)}</Text>
         )}
       </View>
 
@@ -143,9 +199,14 @@ export default function PlantDetailScreen({ route, navigation }) {
       </Button>
 
       <Portal>
-        <Dialog visible={editVisible} onDismiss={() => setEditVisible(false)}>
+        <Dialog
+          visible={editVisible}
+          onDismiss={() => setEditVisible(false)}
+          style={styles.dialog}
+        >
           <Dialog.Title>Edit Plant</Dialog.Title>
-          <Dialog.Content>
+          <Dialog.ScrollArea style={styles.scrollArea}>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
             <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
             <TextInput label="Name" value={name} onChangeText={setName} style={styles.input} />
             <TextInput
@@ -154,6 +215,48 @@ export default function PlantDetailScreen({ route, navigation }) {
               onChangeText={setSpecies}
               style={styles.input}
             />
+
+            {/* Free text, since a grower may keep something the guidelines
+                don't cover — the picker is a shortcut to the crops that carry
+                phase guidelines, not a closed list. */}
+            <Menu
+              visible={typeMenuVisible}
+              onDismiss={() => setTypeMenuVisible(false)}
+              anchor={
+                <TextInput
+                  label="Crop (optional)"
+                  value={plantType}
+                  onChangeText={setPlantType}
+                  right={
+                    <TextInput.Icon icon="menu-down" onPress={() => setTypeMenuVisible(true)} />
+                  }
+                  style={styles.input}
+                />
+              }
+            >
+              {SPECIES_KEYS.map((key) => (
+                <Menu.Item
+                  key={key}
+                  title={SPECIES[key].label}
+                  leadingIcon={SPECIES[key].icon}
+                  onPress={() => {
+                    setPlantType(SPECIES[key].label);
+                    setTypeMenuVisible(false);
+                  }}
+                />
+              ))}
+            </Menu>
+
+            <DateField
+              label="Germinated on (optional)"
+              value={germinatedOn}
+              onChange={setGerminatedOn}
+              maximumDate={new Date()}
+            />
+            <HelperText type="info">
+              What the growth phase is counted from. Transplants bring it with them.
+            </HelperText>
+
             <TextInput
               label="Watering interval (days)"
               value={intervalDays}
@@ -163,7 +266,8 @@ export default function PlantDetailScreen({ route, navigation }) {
             />
             <ContainerPicker value={containerId} onChange={setContainerId} />
             {!!error && <Text style={styles.errorText}>{error}</Text>}
-          </Dialog.Content>
+            </ScrollView>
+          </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setEditVisible(false)}>Cancel</Button>
             <Button onPress={handleSaveEdit} loading={saving} disabled={saving}>
@@ -205,6 +309,12 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     marginBottom: 16,
   },
+  phaseBlock: {
+    marginBottom: 16,
+  },
+  phaseHint: {
+    opacity: 0.6,
+  },
   infoBlock: {
     marginBottom: 24,
     gap: 4,
@@ -214,6 +324,16 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 8,
+  },
+  dialog: {
+    maxHeight: '85%',
+  },
+  scrollArea: {
+    paddingHorizontal: 0,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 8,
   },
   errorText: {
     color: 'red',

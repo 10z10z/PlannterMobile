@@ -6,7 +6,27 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 ## Features
 
 - Email/password authentication
-- Create growspaces and organize plants within them
+- Growspaces in swipeable tabs, indoor or outdoor, with the temperature and
+  humidity they're kept at and the grow lights hanging over them — an outdoor
+  space records its hours of direct sun instead, or as well, for a greenhouse
+  stretching a short winter day
+- Each growspace is laid out on as many named grids as it needs — a shelf, a
+  bench, the floor under the light — each sized on its own, one plant per spot
+- Hold a plant to pick it up and drag it to rearrange the space the way you
+  would in person, between grids as well as within one; dropping it on another
+  plant swaps the two, wherever each of them was standing
+- Plants without a spot wait in a holding tray under the grid, so transplants
+  arrive somewhere visible and nothing is ever placed for you
+- Layout or list, whichever suits the space, with plants flagged on the grid
+  when they're due for watering
+- Plants carry their photo, crop and germination date from the seed pack they
+  were sown from, and show their growth phase, age and how long they've been in
+  the growspace
+- Growth-phase guidelines for peppers, tomatoes, cucumbers, basil, arugula,
+  lettuce and radish — counted in days since germination, with leaf and root
+  crops ending at a harvest window rather than in fruit. Anything else is read
+  against a general default, and all of it is a rule of thumb rather than a
+  schedule
 - Track each plant's watering interval and last-watered date
 - Local notification reminders when a plant is due for watering
 - Inventory across six tabs: fertilizers (NPK/micronutrient specs, foliar and

@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Icon, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { useThemePreference } from '../contexts/ThemeContext';
 import { daysSince, germinatedCellColors, isSelectable } from '../lib/germination';
@@ -21,6 +21,7 @@ export default function SowingGrid({
   onCellLongPress,
   selectionMode = false,
   selectedIds = [],
+  imageUrl,
 }) {
   const { isDark } = useThemePreference();
   const theme = useTheme();
@@ -72,6 +73,13 @@ export default function SowingGrid({
                   ]}
                 >
                   <View style={styles.cellContent}>
+                    {/* The pack's own photo, behind a cell that has something
+                        growing in it — a picture of what is coming up beats a
+                        green square, and it fades back so the count stays
+                        readable over it. */}
+                    {!!imageUrl && isGreen && (
+                      <Image source={{ uri: imageUrl }} style={styles.cellImage} />
+                    )}
                     {isSelected && (
                       <View style={[styles.check, { backgroundColor: theme.colors.primary }]}>
                         <Icon source="check" size={12} color={theme.colors.onPrimary} />
@@ -133,6 +141,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cellImage: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 5,
+    opacity: 0.35,
   },
   check: {
     position: 'absolute',

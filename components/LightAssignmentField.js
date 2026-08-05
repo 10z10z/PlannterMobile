@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, IconButton, Menu, Text } from 'react-native-paper';
-import { fetchGrowLightsWithUsage, lightTypeLabel } from '../lib/growLights';
+import { Button, HelperText, IconButton, Menu, Text, TextInput } from 'react-native-paper';
+import { fetchGrowLightsWithUsage, lightSpecs, lightTypeLabel, photoperiodLabel } from '../lib/growLights';
 
 /**
  * Picks fixtures out of the inventory and says how many of each hang here.
  *
- * `value` is a list of `{ grow_light_id, quantity }`. `baseline` is what this
- * place already has saved: those are added back when working out how many are
- * free, since a station's own lights are counted as in use by the inventory and
- * would otherwise look unavailable to itself.
+ * `value` is a list of `{ grow_light_id, quantity, hours_on }`. `baseline` is
+ * what this place already has saved: those are added back when working out how
+ * many are free, since a station's own lights are counted as in use by the
+ * inventory and would otherwise look unavailable to itself.
+ *
+ * The run cycle is set here rather than on the fixture in inventory, because it
+ * belongs to where the light hangs — the same lamp runs 18/6 over one space and
+ * 12/12 over another.
  */
 export default function LightAssignmentField({ value, onChange, baseline = [] }) {
   const [lights, setLights] = useState([]);
@@ -31,13 +35,25 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
   );
 
   const add = (light) => {
-    onChange([...value, { grow_light_id: light.id, quantity: 1 }]);
+    onChange([...value, { grow_light_id: light.id, quantity: 1, hours_on: null }]);
     setMenuVisible(false);
   };
 
   const setQuantity = (id, quantity) => {
     onChange(
       value.map((entry) => (entry.grow_light_id === id ? { ...entry, quantity } : entry))
+    );
+  };
+
+  const setHours = (id, text) => {
+    const trimmed = text.trim();
+    const hours = trimmed === '' ? null : Number(trimmed.replace(',', '.'));
+    onChange(
+      value.map((entry) =>
+        entry.grow_light_id === id
+          ? { ...entry, hours_on: hours === null || Number.isNaN(hours) ? null : hours }
+          : entry
+      )
     );
   };
 
@@ -54,25 +70,45 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
       {value.map((entry) => {
         const light = lights.find((candidate) => candidate.id === entry.grow_light_id);
         const free = light ? freeCount(light) : 0;
+        const cycle = photoperiodLabel(entry.hours_on);
+        const specs = lightSpecs(light, { limit: 3 });
+
         return (
-          <View key={entry.grow_light_id} style={styles.row}>
-            <View style={styles.rowText}>
-              <Text variant="bodyMedium">{light?.name ?? 'Light'}</Text>
-              <Text variant="bodySmall" style={styles.subtitle}>
-                {light ? `${lightTypeLabel(light.type)} · ${free} free` : ''}
-              </Text>
+          <View key={entry.grow_light_id} style={styles.entry}>
+            <View style={styles.row}>
+              <View style={styles.rowText}>
+                <Text variant="bodyMedium">{light?.name ?? 'Light'}</Text>
+                <Text variant="bodySmall" style={styles.subtitle}>
+                  {light
+                    ? [lightTypeLabel(light.type), ...specs, `${free} free`].join(' · ')
+                    : ''}
+                </Text>
+              </View>
+              <IconButton
+                icon="minus"
+                disabled={entry.quantity <= 1}
+                onPress={() => setQuantity(entry.grow_light_id, entry.quantity - 1)}
+              />
+              <Text variant="titleMedium">{entry.quantity}</Text>
+              <IconButton
+                icon="plus"
+                onPress={() => setQuantity(entry.grow_light_id, entry.quantity + 1)}
+              />
+              <IconButton icon="close" onPress={() => remove(entry.grow_light_id)} />
             </View>
-            <IconButton
-              icon="minus"
-              disabled={entry.quantity <= 1}
-              onPress={() => setQuantity(entry.grow_light_id, entry.quantity - 1)}
+            <TextInput
+              label="Hours on per day"
+              value={
+                entry.hours_on === null || entry.hours_on === undefined
+                  ? ''
+                  : String(entry.hours_on)
+              }
+              onChangeText={(text) => setHours(entry.grow_light_id, text)}
+              keyboardType="decimal-pad"
+              right={<TextInput.Affix text={cycle ? `${cycle}` : 'h'} />}
+              style={styles.cycleInput}
+              dense
             />
-            <Text variant="titleMedium">{entry.quantity}</Text>
-            <IconButton
-              icon="plus"
-              onPress={() => setQuantity(entry.grow_light_id, entry.quantity + 1)}
-            />
-            <IconButton icon="close" onPress={() => remove(entry.grow_light_id)} />
           </View>
         );
       })}
@@ -136,6 +172,12 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     opacity: 0.7,
+  },
+  entry: {
+    marginBottom: 8,
+  },
+  cycleInput: {
+    marginTop: 2,
   },
   addButton: {
     marginTop: 4,

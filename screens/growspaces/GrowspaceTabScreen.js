@@ -1,50 +1,157 @@
 import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Dialog, FAB, Portal, Text, TextInput } from 'react-native-paper';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Button,
+  Dialog,
+  FAB,
+  List,
+  Portal,
+  SegmentedButtons,
+  Text,
+  TextInput,
+} from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUnits } from '../../contexts/UnitsContext';
+import { formatTemperature, tempUnit } from '../../lib/units';
 import { scheduleWateringReminder } from '../../lib/notifications';
+import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
+import {
+  environmentLabel,
+  fetchGrids,
+  fetchGrowspace,
+  fetchGrowspaceLights,
+  fetchPlants,
+  sunHoursLabel,
+  placePlant,
+  positionOf,
+  resolveDrop,
+  swapPlants,
+  totalSpots,
+} from '../../lib/growspaces';
 import PlantCard from '../../components/PlantCard';
+import PlantGrid from '../../components/PlantGrid';
 import ImagePickerField from '../../components/ImagePickerField';
 import ContainerPicker from '../../components/ContainerPicker';
+import { toDateString } from '../../components/DateField';
+import GrowspaceFormDialog from './GrowspaceFormDialog';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
   const navigation = useNavigation();
   const { session } = useAuth();
+  const { system } = useUnits();
+
+  const [growspace, setGrowspace] = useState(null);
+  const [grids, setGrids] = useState([]);
   const [plants, setPlants] = useState([]);
+  const [lights, setLights] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('grid');
+  const [editVisible, setEditVisible] = useState(false);
+
   const [dialogVisible, setDialogVisible] = useState(false);
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('');
   const [intervalDays, setIntervalDays] = useState('7');
+  const [plantType, setPlantType] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
   const [containerId, setContainerId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchPlants = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('plants')
-      .select('*')
-      .eq('growspace_id', growspaceId)
-      .order('created_at', { ascending: false });
-    if (!error) setPlants(data);
+    try {
+      const [growspaceRow, gridRows, plantRows, lightRows] = await Promise.all([
+        fetchGrowspace(growspaceId),
+        fetchGrids(growspaceId),
+        fetchPlants(growspaceId),
+        fetchGrowspaceLights(growspaceId),
+      ]);
+      setGrowspace(growspaceRow);
+      setGrids(gridRows);
+      setPlants(plantRows);
+      setLights(lightRows);
+    } catch {
+      // Leave the previous state in place; pull-to-refresh retries.
+    }
     setLoading(false);
   }, [growspaceId]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchPlants();
-    }, [fetchPlants])
+      load();
+    }, [load])
   );
+
+  const openPlantDetail = (plant) =>
+    navigation.navigate('PlantDetail', { plantId: plant.id, plantName: plant.name });
+
+  /**
+   * Applies a drop. The plants are updated in place before the reload so the
+   * tile doesn't flick back to where it came from while the write is in flight.
+   */
+  const handleMove = async (plant, cell) => {
+    const drop = resolveDrop(plants, plant, cell);
+    if (drop.type === 'none') return;
+
+    const at = (target) => ({
+      grid_id: target?.gridId ?? null,
+      grid_row: target?.row ?? null,
+      grid_col: target?.col ?? null,
+    });
+
+    if (drop.type === 'move') {
+      setPlants((current) =>
+        current.map((entry) => (entry.id === plant.id ? { ...entry, ...at(cell) } : entry))
+      );
+      try {
+        await placePlant(plant.id, cell);
+      } catch {
+        // Put the optimistic move back where it was.
+      }
+    } else {
+      const from = positionOf(plant);
+      setPlants((current) =>
+        current.map((entry) => {
+          if (entry.id === plant.id) return { ...entry, ...at(cell) };
+          if (entry.id === drop.occupant.id) return { ...entry, ...at(from) };
+          return entry;
+        })
+      );
+      try {
+        await swapPlants(plant, drop.occupant);
+      } catch {
+        // Same — the reload below is the source of truth.
+      }
+    }
+
+    load();
+  };
+
+  const handleUnplace = async (plant) => {
+    setPlants((current) =>
+      current.map((entry) =>
+        entry.id === plant.id
+          ? { ...entry, grid_id: null, grid_row: null, grid_col: null }
+          : entry
+      )
+    );
+    try {
+      await placePlant(plant.id, null);
+    } catch {
+      // The reload puts it back if the write failed.
+    }
+    load();
+  };
 
   const openDialog = () => {
     setName('');
     setSpecies('');
     setIntervalDays('7');
+    setPlantType('');
     setImageUrl(null);
     setContainerId(null);
     setError('');
@@ -63,11 +170,13 @@ export default function GrowspaceTabScreen({ route }) {
     }
     setSaving(true);
     const nowIso = new Date().toISOString();
-    const { data, error } = await supabase
+    const { data, error: insertError } = await supabase
       .from('plants')
       .insert({
         name: name.trim(),
         species: species.trim() || null,
+        plant_type: plantType.trim() || null,
+        transplanted_on: toDateString(new Date()),
         watering_interval_days: interval,
         last_watered_at: nowIso,
         image_url: imageUrl,
@@ -78,44 +187,132 @@ export default function GrowspaceTabScreen({ route }) {
       .select()
       .single();
     setSaving(false);
-    if (error) {
-      setError(error.message);
+    if (insertError) {
+      setError(insertError.message);
       return;
     }
     await scheduleWateringReminder(data);
     setDialogVisible(false);
-    fetchPlants();
+    load();
   };
+
+  const sunlit = growspace?.environment === 'outdoor' && growspace?.sun_hours > 0;
+
+  // Only the conditions that were actually filled in, so a windowsill with no
+  // thermostat doesn't read as a row of blanks.
+  const summary = [
+    growspace ? environmentLabel(growspace.environment) : null,
+    growspace?.temp_c !== null && growspace?.temp_c !== undefined
+      ? `${formatTemperature(growspace.temp_c, system)} ${tempUnit(system)}`
+      : null,
+    growspace?.humidity_pct !== null && growspace?.humidity_pct !== undefined
+      ? `${growspace.humidity_pct}% RH`
+      : null,
+    grids.length
+      ? `${totalSpots(grids)} spots · ${grids.length} grid${grids.length === 1 ? '' : 's'}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const header = (
+    <View>
+      <List.Item
+        title={growspace?.name ?? 'Growspace'}
+        description={summary}
+        left={(props) => <List.Icon {...props} icon="home-thermometer-outline" />}
+        right={(props) => <List.Icon {...props} icon="pencil-outline" />}
+        onPress={() => setEditVisible(true)}
+      />
+      {/* The sun and each fixture get a line of their own, so a light's cycle
+          and the couple of figures worth knowing have somewhere to sit. */}
+      {sunlit && (
+        <List.Item
+          title={sunHoursLabel(growspace.sun_hours)}
+          left={(props) => <List.Icon {...props} icon="white-balance-sunny" />}
+          onPress={() => setEditVisible(true)}
+          style={styles.lightRow}
+        />
+      )}
+      {lights.map((row) => (
+        <List.Item
+          key={row.id}
+          title={assignmentTitle(row)}
+          description={assignmentSummary(row) || undefined}
+          left={(props) => <List.Icon {...props} icon="lightbulb-on-outline" />}
+          onPress={() => setEditVisible(true)}
+          style={styles.lightRow}
+        />
+      ))}
+      {!sunlit && lights.length === 0 && (
+        <List.Item
+          title="No lights"
+          left={(props) => <List.Icon {...props} icon="lightbulb-off-outline" />}
+          titleStyle={styles.mutedTitle}
+          onPress={() => setEditVisible(true)}
+          style={styles.lightRow}
+        />
+      )}
+      <SegmentedButtons
+        value={view}
+        onValueChange={setView}
+        style={styles.viewToggle}
+        buttons={[
+          { value: 'grid', label: 'Layout', icon: 'view-grid-outline' },
+          { value: 'list', label: 'List', icon: 'format-list-bulleted' },
+        ]}
+      />
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={plants}
-        keyExtractor={(item) => item.id}
-        refreshing={loading}
-        onRefresh={fetchPlants}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !loading && (
-            <Text style={styles.emptyText}>
-              No plants here yet. Tap + to add one.
-            </Text>
-          )
-        }
-        renderItem={({ item }) => (
-          <PlantCard
-            plant={item}
-            onPress={() =>
-              navigation.navigate('PlantDetail', {
-                plantId: item.id,
-                plantName: item.name,
-              })
-            }
-          />
-        )}
-      />
+      {view === 'grid' ? (
+        // The grid drags with a PanResponder, so it can't sit in a FlatList
+        // without the two fighting over the touch.
+        <ScrollView contentContainerStyle={styles.listContent}>
+          {header}
+          {growspace && (
+            <PlantGrid
+              grids={grids}
+              plants={plants}
+              onPress={openPlantDetail}
+              onMove={handleMove}
+              onUnplace={handleUnplace}
+            />
+          )}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={plants}
+          keyExtractor={(item) => item.id}
+          refreshing={loading}
+          onRefresh={load}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            !loading && <Text style={styles.emptyText}>No plants here yet. Tap + to add one.</Text>
+          }
+          renderItem={({ item }) => (
+            <PlantCard plant={item} onPress={() => openPlantDetail(item)} />
+          )}
+        />
+      )}
 
       <FAB icon="plus" style={styles.fab} onPress={openDialog} />
+
+      <GrowspaceFormDialog
+        visible={editVisible}
+        growspace={growspace}
+        onDismiss={() => setEditVisible(false)}
+        onSaved={(updated) => {
+          setEditVisible(false);
+          // The tab bar is owned by the screen above, which stays focused while
+          // its tabs are used and so never refetches on its own.
+          navigation.setOptions({ tabBarLabel: updated.name });
+          load();
+        }}
+      />
 
       <Portal>
         <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
@@ -130,6 +327,13 @@ export default function GrowspaceTabScreen({ route }) {
               style={styles.input}
             />
             <TextInput
+              label="Crop (optional)"
+              placeholder="Pepper, tomato, lettuce…"
+              value={plantType}
+              onChangeText={setPlantType}
+              style={styles.input}
+            />
+            <TextInput
               label="Watering interval (days)"
               value={intervalDays}
               onChangeText={setIntervalDays}
@@ -137,6 +341,9 @@ export default function GrowspaceTabScreen({ route }) {
               style={styles.input}
             />
             <ContainerPicker value={containerId} onChange={setContainerId} />
+            <Text variant="bodySmall" style={styles.hint}>
+              New plants wait in the holding tray until you place them.
+            </Text>
             {!!error && <Text style={styles.errorText}>{error}</Text>}
           </Dialog.Content>
           <Dialog.Actions>
@@ -156,8 +363,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingTop: 16,
     paddingBottom: 96,
+  },
+  viewToggle: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  lightRow: {
+    paddingVertical: 0,
+  },
+  mutedTitle: {
+    opacity: 0.6,
   },
   emptyText: {
     textAlign: 'center',
@@ -172,6 +389,10 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 8,
+  },
+  hint: {
+    marginTop: 8,
+    opacity: 0.7,
   },
   errorText: {
     color: 'red',

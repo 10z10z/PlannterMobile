@@ -9,7 +9,7 @@ import StationTabScreen from './StationTabScreen';
 
 const Tab = createMaterialTopTabNavigator();
 
-/** Stations sit in swipeable tabs, the same shape as the growspaces screen. */
+/** Stations sit in swipeable tabs, the same shape as the growspace screen. */
 export default function GerminationStationsScreen() {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export default function GerminationStationsScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content title="Germination" />
+        <Appbar.Content title="Sowing" />
         <Appbar.Action icon="plus" onPress={() => setDialogVisible(true)} />
       </Appbar.Header>
 
