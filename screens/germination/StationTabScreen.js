@@ -4,6 +4,7 @@ import { Button, Dialog, FAB, List, Portal, Text } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { useUnits } from '../../contexts/UnitsContext';
+import { useWeather } from '../../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
 import {
   environmentLabel,
@@ -12,6 +13,7 @@ import {
   fetchStationLights,
 } from '../../lib/germination';
 import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
+import { conditionsFor, placeLabel, readingAgeLabel } from '../../lib/weather';
 import SowingCard from '../../components/SowingCard';
 import SowingFormDialog from './SowingFormDialog';
 import CellDialog from './CellDialog';
@@ -25,6 +27,7 @@ export default function StationTabScreen({ route }) {
   const { stationId } = route.params;
   const navigation = useNavigation();
   const { system } = useUnits();
+  const { place, reading } = useWeather();
   const [station, setStation] = useState(null);
   const [sowings, setSowings] = useState([]);
   const [lights, setLights] = useState([]);
@@ -74,17 +77,21 @@ export default function StationTabScreen({ route }) {
     if (cells?.length) setTransplanting({ sowing, cells });
   };
 
+  // A station kept outdoors reads its conditions off the weather where it
+  // stands, when a place has been set in settings.
+  const conditions = conditionsFor(station, reading);
+  const live = conditions.liveTemp || conditions.liveHumidity;
+
   // Only the conditions that were actually filled in, so a windowsill with no
   // thermostat doesn't read as a row of blanks. The lights get a row of their
   // own below this one.
   const stationSummary = [
     station ? environmentLabel(station.environment) : null,
-    station?.temp_c !== null && station?.temp_c !== undefined
-      ? `${formatTemperature(station.temp_c, system)} ${tempUnit(system)}`
+    conditions.tempC !== null
+      ? `${formatTemperature(conditions.tempC, system)} ${tempUnit(system)}`
       : null,
-    station?.humidity_pct !== null && station?.humidity_pct !== undefined
-      ? `${station.humidity_pct}% RH`
-      : null,
+    conditions.humidityPct !== null ? `${conditions.humidityPct}% RH` : null,
+    live ? `${placeLabel(place)} · ${readingAgeLabel(reading)}` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -109,7 +116,9 @@ export default function StationTabScreen({ route }) {
             <List.Item
               title={station?.name ?? 'Station'}
               description={stationSummary}
-              left={(props) => <List.Icon {...props} icon="thermometer" />}
+              left={(props) => (
+                <List.Icon {...props} icon={live ? 'weather-partly-cloudy' : 'thermometer'} />
+              )}
               right={(props) => <List.Icon {...props} icon="pencil-outline" />}
               onPress={() => setEditVisible(true)}
             />

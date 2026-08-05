@@ -5,6 +5,7 @@ import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider, useThemePreference } from './contexts/ThemeContext';
 import { UnitsProvider } from './contexts/UnitsContext';
+import { WeatherProvider } from './contexts/WeatherContext';
 import RootNavigator from './navigation/RootNavigator';
 import { requestNotificationPermissions } from './lib/notifications';
 
@@ -20,10 +21,12 @@ function ThemedApp() {
   return (
     <AuthProvider>
       <UnitsProvider>
-        <PaperProvider theme={isDark ? MD3DarkTheme : MD3LightTheme}>
-          <RootNavigator />
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-        </PaperProvider>
+        <WeatherProvider>
+          <PaperProvider theme={isDark ? MD3DarkTheme : MD3LightTheme}>
+            <RootNavigator />
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+          </PaperProvider>
+        </WeatherProvider>
       </UnitsProvider>
     </AuthProvider>
   );

@@ -14,9 +14,11 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
+import { useWeather } from '../../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
 import { scheduleWateringReminder } from '../../lib/notifications';
 import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
+import { conditionsFor, placeLabel, readingAgeLabel } from '../../lib/weather';
 import {
   environmentLabel,
   fetchGrids,
@@ -42,6 +44,7 @@ export default function GrowspaceTabScreen({ route }) {
   const navigation = useNavigation();
   const { session } = useAuth();
   const { system } = useUnits();
+  const { place, reading } = useWeather();
 
   const [growspace, setGrowspace] = useState(null);
   const [grids, setGrids] = useState([]);
@@ -198,16 +201,21 @@ export default function GrowspaceTabScreen({ route }) {
 
   const sunlit = growspace?.environment === 'outdoor' && growspace?.sun_hours > 0;
 
+  // An outdoor space reads its conditions off the weather where it stands, when
+  // a place has been set in settings; otherwise these are the figures recorded
+  // for it by hand.
+  const conditions = conditionsFor(growspace, reading);
+  const live = conditions.liveTemp || conditions.liveHumidity;
+
   // Only the conditions that were actually filled in, so a windowsill with no
   // thermostat doesn't read as a row of blanks.
   const summary = [
     growspace ? environmentLabel(growspace.environment) : null,
-    growspace?.temp_c !== null && growspace?.temp_c !== undefined
-      ? `${formatTemperature(growspace.temp_c, system)} ${tempUnit(system)}`
+    conditions.tempC !== null
+      ? `${formatTemperature(conditions.tempC, system)} ${tempUnit(system)}`
       : null,
-    growspace?.humidity_pct !== null && growspace?.humidity_pct !== undefined
-      ? `${growspace.humidity_pct}% RH`
-      : null,
+    conditions.humidityPct !== null ? `${conditions.humidityPct}% RH` : null,
+    live ? `${placeLabel(place)} · ${readingAgeLabel(reading)}` : null,
     grids.length
       ? `${totalSpots(grids)} spots · ${grids.length} grid${grids.length === 1 ? '' : 's'}`
       : null,
@@ -220,7 +228,7 @@ export default function GrowspaceTabScreen({ route }) {
       <List.Item
         title={growspace?.name ?? 'Growspace'}
         description={summary}
-        left={(props) => <List.Icon {...props} icon="home-thermometer-outline" />}
+        left={(props) => <List.Icon {...props} icon={live ? 'weather-partly-cloudy' : 'home-thermometer-outline'} />}
         right={(props) => <List.Icon {...props} icon="pencil-outline" />}
         onPress={() => setEditVisible(true)}
       />

@@ -1,8 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Appbar, Button, SegmentedButtons, Text } from 'react-native-paper';
 import { useAuth } from '../contexts/AuthContext';
 import { useThemePreference } from '../contexts/ThemeContext';
 import { useUnits } from '../contexts/UnitsContext';
+import WeatherSettings from './WeatherSettings';
 
 export default function SettingsScreen() {
   const { signOut, session } = useAuth();
@@ -15,7 +16,7 @@ export default function SettingsScreen() {
         <Appbar.Content title="Settings" />
       </Appbar.Header>
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text variant="labelLarge" style={styles.sectionLabel}>Theme</Text>
         <SegmentedButtons
           value={preference}
@@ -39,12 +40,15 @@ export default function SettingsScreen() {
           style={styles.segmented}
         />
 
+        <Text variant="labelLarge" style={styles.sectionLabel}>Outdoor weather</Text>
+        <WeatherSettings />
+
         <Text variant="labelLarge" style={styles.sectionLabel}>Account</Text>
         <Text variant="bodyMedium" style={styles.email}>{session?.user?.email}</Text>
         <Button mode="outlined" onPress={signOut}>
           Log out
         </Button>
-      </View>
+      </ScrollView>
     </View>
   );
 }

@@ -64,6 +64,11 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 - Per-fertilizer contribution shown as colour-coded segments in every bar
 - Reverse calculation — what a tank that has already been poured delivered
 - Source water accounted for, from a hardness reading or a water report's Ca/Mg
+- Live outdoor conditions from Open-Meteo, which draws on the national weather
+  services: pick a place in settings and every outdoor growspace and station
+  shows the temperature and humidity there, with the figures recorded by hand
+  kept as the fallback. Off until a place is chosen, and only that place's
+  coordinates are ever sent
 - Metric/imperial unit preference — values are stored metric (litres,
   centimetres, Celsius) and converted for display
 - Row-level security in Supabase — each user only sees their own data
