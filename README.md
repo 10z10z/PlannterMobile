@@ -83,6 +83,12 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
   optional reminder at a time of day. Nothing is planted for you: the reminder
   is a nudge, and the entry opens the usual form on the day and ticks itself
   off once the work is done
+- A plan says what it is aimed at, not just where: pick the plants to water or
+  feed, or the sowings to transplant or thin, and the calendar reads "Basil,
+  Chilli +2" rather than a place. Picking nothing means the whole space for a
+  feed or a water, the same rule a recorded feeding follows. A feed carried out
+  from its plan opens with those plants already selected. Trays are planned for
+  rather than cells — which cells are ready is decided on the day
 - NPK calculator fed by the fertilizer inventory: mix several products with a
   dose slider each, and read the resulting ppm against growth-stage target
   bands for macros and micronutrients

@@ -12,6 +12,7 @@ import {
   completeScheduledAction,
   scheduleKindIcon,
   scheduleSummary,
+  targetSummary,
 } from '../../lib/scheduling';
 
 /** How much of the log the landing page carries before it becomes the calendar. */
@@ -84,7 +85,7 @@ export default function DashboardScreen({ navigation }) {
         title={action.subject}
         description={[
           scheduleSummary(action),
-          action.place,
+          targetSummary(action.targets) ?? action.place,
           slipped ? `${slipped}d late` : null,
         ]
           .filter(Boolean)
@@ -171,7 +172,10 @@ export default function DashboardScreen({ navigation }) {
               <List.Item
                 key={action.id}
                 title={action.subject}
-                description={[formatDateString(action.due_on), action.place]
+                description={[
+                  formatDateString(action.due_on),
+                  targetSummary(action.targets) ?? action.place,
+                ]
                   .filter(Boolean)
                   .join(' · ')}
                 onPress={() => openCalendar(action.due_on)}

@@ -32,6 +32,7 @@ import {
   scheduleKindIcon,
   scheduleStatus,
   scheduleSummary,
+  targetSummary,
 } from "../../lib/scheduling";
 import SowingFormDialog from "../germination/SowingFormDialog";
 import ScheduleActionDialog from "./ScheduleActionDialog";
@@ -169,6 +170,11 @@ export default function CalendarScreen({ navigation, route }) {
       setFeedingPreset({
         placeId: action.growspace_id ?? action.station_id,
         actionId: action.id,
+        // The plants the plan named arrive already picked out, which is the
+        // whole point of having named them a fortnight ago.
+        plants: (action.targets ?? [])
+          .filter((target) => target.plant_id)
+          .map((target) => ({ id: target.plant_id, name: target.label })),
       });
       return;
     }
@@ -245,7 +251,9 @@ export default function CalendarScreen({ navigation, route }) {
                     title={action.subject}
                     description={[
                       scheduleSummary(action),
-                      action.place,
+                      // What it is aimed at, or the place when it is aimed at
+                      // all of it.
+                      targetSummary(action.targets) ?? action.place,
                       action.note,
                     ]
                       .filter(Boolean)

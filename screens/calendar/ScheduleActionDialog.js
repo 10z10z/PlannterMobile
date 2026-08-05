@@ -7,11 +7,15 @@ import DateField, { toDateString } from '../../components/DateField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchPlaces, placeIcon, placeIds, placeOf } from '../../lib/places';
+import { fetchSowings } from '../../lib/germination';
 import {
   SCHEDULE_KINDS,
+  allowsWholePlace,
   formatMinutes,
   minutesOf,
   saveScheduledAction,
+  targetKindFor,
+  targetSummary,
 } from '../../lib/scheduling';
 import ErrorText from '../../components/ErrorText';
 
@@ -37,6 +41,9 @@ export default function ScheduleActionDialog({
 
   const [places, setPlaces] = useState([]);
   const [seedPacks, setSeedPacks] = useState([]);
+  // What there is to aim at in the place currently picked, and which of it is.
+  const [choices, setChoices] = useState([]);
+  const [chosenIds, setChosenIds] = useState([]);
 
   const [kind, setKind] = useState('sow');
   const [placeId, setPlaceId] = useState(null);
@@ -59,6 +66,9 @@ export default function ScheduleActionDialog({
     setDueOn(action?.due_on ?? defaultDate ?? toDateString(new Date()));
     setDueMinutes(action?.due_minutes ?? null);
     setNote(action?.note ?? '');
+    setChosenIds(
+      (action?.targets ?? []).map((target) => target.plant_id ?? target.sowing_id).filter(Boolean)
+    );
     setError('');
 
     Promise.all([
@@ -77,13 +87,73 @@ export default function ScheduleActionDialog({
 
   const place = places.find((entry) => entry.id === placeId);
   const seedPack = seedPacks.find((pack) => pack.id === seedPackId);
+  const targetKind = targetKindFor(kind, place?.type);
+
+  /**
+   * What this kind can be aimed at where it is being done: the plants standing
+   * in a growspace, or the sowings in a station.
+   *
+   * Reloaded when the place or the kind changes, and the selection is pared
+   * back to what the new list actually holds — moving a plan from one tent to
+   * another must not leave it pointing at plants standing somewhere else.
+   */
+  useEffect(() => {
+    if (!visible || !place || !targetKind) {
+      setChoices([]);
+      return;
+    }
+
+    const load =
+      targetKind === 'plants'
+        ? supabase
+            .from('plants')
+            .select('id, name')
+            .eq('growspace_id', place.id)
+            .order('created_at')
+            .then(({ data }) => (data ?? []).map((row) => ({ id: row.id, label: row.name })))
+        : fetchSowings(place.id).then((sowings) =>
+            sowings.map((sowing) => ({
+              id: sowing.id,
+              label: sowing.seed_pack_name,
+              detail: sowing.tray?.name ?? null,
+            }))
+          );
+
+    load.then((rows) => {
+      setChoices(rows);
+      const ids = new Set(rows.map((row) => row.id));
+      setChosenIds((current) => current.filter((id) => ids.has(id)));
+    });
+  }, [visible, place?.id, targetKind]);
+
+  const toggleTarget = (id) =>
+    setChosenIds((current) =>
+      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]
+    );
+
+  // The picked rows as the target list, each carrying the name it had when it
+  // was planned so the entry still reads after the row is gone.
+  const chosen = choices.filter((choice) => chosenIds.includes(choice.id));
+  const targets = chosen.map((choice) => ({
+    [targetKind === 'plants' ? 'plantId' : 'sowingId']: choice.id,
+    label: choice.label,
+  }));
+
+  // What the plan is called, if nothing was typed: the things it is aimed at.
+  // Saves typing "Basil, Chilli" under a picker that already says so.
+  const impliedSubject = targetSummary(targets) ?? (kind === 'sow' ? seedPack?.name : place?.name);
 
   const handleSave = async () => {
     if (!place) {
       setError('Pick a growspace or station');
       return;
     }
-    if (!subject.trim()) {
+    if (targetKind && !allowsWholePlace(kind) && targets.length === 0) {
+      setError(targetKind === 'plants' ? 'Pick the plants' : 'Pick what to work on');
+      return;
+    }
+    const name = subject.trim() || impliedSubject?.trim();
+    if (!name) {
       setError('Say what this is for');
       return;
     }
@@ -98,9 +168,10 @@ export default function ScheduleActionDialog({
         dueOn,
         dueMinutes,
         ...placeIds(place),
-        subject: subject.trim(),
+        subject: name,
         note,
         seedPackId: kind === 'sow' ? seedPackId : null,
+        targets,
       });
       onDone();
     } catch (saveError) {
@@ -204,9 +275,52 @@ export default function ScheduleActionDialog({
               </>
             )}
 
+            {targetKind && (
+              <>
+                <Text variant="labelLarge" style={styles.label}>
+                  {targetKind === 'plants' ? 'Which plants' : 'Which sowings'}
+                </Text>
+                {choices.length === 0 ? (
+                  <HelperText type="info">
+                    {targetKind === 'plants'
+                      ? 'No plants in this growspace yet.'
+                      : 'Nothing sown in this station yet.'}
+                  </HelperText>
+                ) : (
+                  <>
+                    <View style={styles.chips}>
+                      {choices.map((choice) => {
+                        const isOn = chosenIds.includes(choice.id);
+                        return (
+                          <Chip
+                            key={choice.id}
+                            compact
+                            mode={isOn ? 'flat' : 'outlined'}
+                            selected={isOn}
+                            showSelectedCheck={false}
+                            icon={isOn ? 'check' : undefined}
+                            onPress={() => toggleTarget(choice.id)}
+                          >
+                            {choice.label}
+                          </Chip>
+                        );
+                      })}
+                    </View>
+                    <HelperText type="info">
+                      {chosenIds.length > 0
+                        ? `${targetSummary(targets, { limit: 3 })} on the day.`
+                        : allowsWholePlace(kind)
+                          ? `Nothing picked means the whole of ${place?.name ?? 'the place'}.`
+                          : 'Pick what this is for.'}
+                    </HelperText>
+                  </>
+                )}
+              </>
+            )}
+
             <TextField
               label="What"
-              placeholder="Chilli, the whole tent, the front bed…"
+              placeholder={impliedSubject || 'Chilli, the whole tent, the front bed…'}
               value={subject}
               onChangeText={setSubject}
               style={[styles.input, styles.spacedInput]}
