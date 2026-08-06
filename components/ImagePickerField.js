@@ -63,9 +63,7 @@ export default function ImagePickerField({ value, onChange, entity }) {
         ) : value ? (
           <Image source={{ uri: value }} style={styles.thumbnail} />
         ) : (
-          <View
-            style={[styles.placeholder, { backgroundColor: theme.colors.surfaceVariant }]}
-          >
+          <View style={[styles.placeholder, { backgroundColor: theme.colors.surfaceVariant }]}>
             <MaterialCommunityIcons
               name="camera-plus-outline"
               size={28}

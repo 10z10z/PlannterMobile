@@ -193,14 +193,8 @@ export default function PlantDetailScreen({ route, navigation }) {
       {plant.image_url ? (
         <Image source={{ uri: plant.image_url }} style={styles.heroImage} />
       ) : (
-        <View
-          style={[styles.heroPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}
-        >
-          <MaterialCommunityIcons
-            name="leaf"
-            size={48}
-            color={theme.colors.onSurfaceVariant}
-          />
+        <View style={[styles.heroPlaceholder, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <MaterialCommunityIcons name="leaf" size={48} color={theme.colors.onSurfaceVariant} />
         </View>
       )}
 
@@ -236,7 +230,9 @@ export default function PlantDetailScreen({ route, navigation }) {
               : `In this growspace: ${transplantDays}d`}
           </Text>
         )}
-        <Text variant="bodyMedium">Watering interval: every {plant.watering_interval_days} days</Text>
+        <Text variant="bodyMedium">
+          Watering interval: every {plant.watering_interval_days} days
+        </Text>
         <Text variant="bodyMedium">Last watered: {formatDate(plant.last_watered_at)}</Text>
         {!!plant.containers && (
           <Text variant="bodyMedium">Container: {containerLabel(plant.containers, system)}</Text>
@@ -279,73 +275,69 @@ export default function PlantDetailScreen({ route, navigation }) {
       />
 
       <Portal>
-        <Dialog
-          visible={editVisible}
-          onDismiss={() => setEditVisible(false)}
-          style={styles.dialog}
-        >
+        <Dialog visible={editVisible} onDismiss={() => setEditVisible(false)} style={styles.dialog}>
           <Dialog.Title>Edit Plant</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
-            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
-            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
-            <TextField
-              label="Species (optional)"
-              value={species}
-              onChangeText={setSpecies}
-              style={styles.input}
-            />
+              <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
+              <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+              <TextField
+                label="Species (optional)"
+                value={species}
+                onChangeText={setSpecies}
+                style={styles.input}
+              />
 
-            {/* Free text, since a grower may keep something the guidelines
+              {/* Free text, since a grower may keep something the guidelines
                 don't cover — the picker is a shortcut to the crops that carry
                 phase guidelines, not a closed list. */}
-            <Menu
-              visible={typeMenuVisible}
-              onDismiss={() => setTypeMenuVisible(false)}
-              anchor={
-                <TextField
-                  label="Crop (optional)"
-                  value={plantType}
-                  onChangeText={setPlantType}
-                  right={
-                    <TextField.Icon icon="menu-down" onPress={() => setTypeMenuVisible(true)} />
-                  }
-                  style={styles.input}
-                />
-              }
-            >
-              {SPECIES_KEYS.map((key) => (
-                <Menu.Item
-                  key={key}
-                  title={SPECIES[key].label}
-                  leadingIcon={SPECIES[key].icon}
-                  onPress={() => {
-                    setPlantType(SPECIES[key].label);
-                    setTypeMenuVisible(false);
-                  }}
-                />
-              ))}
-            </Menu>
+              <Menu
+                visible={typeMenuVisible}
+                onDismiss={() => setTypeMenuVisible(false)}
+                anchor={
+                  <TextField
+                    label="Crop (optional)"
+                    value={plantType}
+                    onChangeText={setPlantType}
+                    right={
+                      <TextField.Icon icon="menu-down" onPress={() => setTypeMenuVisible(true)} />
+                    }
+                    style={styles.input}
+                  />
+                }
+              >
+                {SPECIES_KEYS.map((key) => (
+                  <Menu.Item
+                    key={key}
+                    title={SPECIES[key].label}
+                    leadingIcon={SPECIES[key].icon}
+                    onPress={() => {
+                      setPlantType(SPECIES[key].label);
+                      setTypeMenuVisible(false);
+                    }}
+                  />
+                ))}
+              </Menu>
 
-            <DateField
-              label="Germinated on (optional)"
-              value={germinatedOn}
-              onChange={setGerminatedOn}
-              maximumDate={new Date()}
-            />
-            <HelperText type="info">
-              What the growth phase is counted from. Transplants bring it with them.
-            </HelperText>
+              <DateField
+                label="Germinated on (optional)"
+                value={germinatedOn}
+                onChange={setGerminatedOn}
+                maximumDate={new Date()}
+              />
+              <HelperText type="info">
+                What the growth phase is counted from. Transplants bring it with them.
+              </HelperText>
 
-            <TextField
-              label="Watering interval (days)"
-              value={intervalDays}
-              onChangeText={setIntervalDays}
-              keyboardType="number-pad"
-              style={styles.input}
-            />
-            <ContainerPicker value={containerId} onChange={setContainerId} />
-            <ErrorText>{error}</ErrorText>
+              <TextField
+                label="Watering interval (days)"
+                value={intervalDays}
+                onChangeText={setIntervalDays}
+                keyboardType="number-pad"
+                style={styles.input}
+              />
+              <ContainerPicker value={containerId} onChange={setContainerId} />
+              <ErrorText>{error}</ErrorText>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>

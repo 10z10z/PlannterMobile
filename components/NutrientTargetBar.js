@@ -77,7 +77,10 @@ export default function NutrientTargetBar({ bar, compact, colors }) {
           it, which is precisely when knowing where the target sat matters most.
         */}
         <View
-          style={[styles.edge, { left: `${bar.zoneLeftPct}%`, backgroundColor: theme.colors.onSurface }]}
+          style={[
+            styles.edge,
+            { left: `${bar.zoneLeftPct}%`, backgroundColor: theme.colors.onSurface },
+          ]}
         />
         <View
           style={[

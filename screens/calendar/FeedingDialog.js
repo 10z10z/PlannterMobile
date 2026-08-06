@@ -76,33 +76,28 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
       preset?.volumeLiters ? formatVolume(preset.volumeLiters, system, { withUnit: false }) : ''
     );
 
-    Promise.all([
-      fetchPlaces(),
-      supabase.from('fertilizers').select('*').order('name'),
-    ]).then(([placeList, fertilizerRows]) => {
-      setPlaces(placeList);
-      setFertilizers(fertilizerRows.data ?? []);
+    Promise.all([fetchPlaces(), supabase.from('fertilizers').select('*').order('name')]).then(
+      ([placeList, fertilizerRows]) => {
+        setPlaces(placeList);
+        setFertilizers(fertilizerRows.data ?? []);
 
-      const chosen =
-        preset?.placeId ?? (placeList.length === 1 ? placeList[0].id : null);
-      setPlaceId(chosen);
+        const chosen = preset?.placeId ?? (placeList.length === 1 ? placeList[0].id : null);
+        setPlaceId(chosen);
 
-      // A mix handed over by the calculator keeps its products and rates; the
-      // rates are shown in the user's own units, which is how they were dialled
-      // in there too.
-      const products = preset?.products ?? [];
-      setSelectedIds(products.map((product) => product.fertilizer_id).filter(Boolean));
-      setDoses(
-        Object.fromEntries(
-          products
-            .filter((product) => product.fertilizer_id)
-            .map((product) => [
-              product.fertilizer_id,
-              formatDose(product.dose_per_liter, system),
-            ])
-        )
-      );
-    });
+        // A mix handed over by the calculator keeps its products and rates; the
+        // rates are shown in the user's own units, which is how they were dialled
+        // in there too.
+        const products = preset?.products ?? [];
+        setSelectedIds(products.map((product) => product.fertilizer_id).filter(Boolean));
+        setDoses(
+          Object.fromEntries(
+            products
+              .filter((product) => product.fertilizer_id)
+              .map((product) => [product.fertilizer_id, formatDose(product.dose_per_liter, system)])
+          )
+        );
+      }
+    );
   }, [visible]);
 
   const place = places.find((entry) => entry.id === placeId);
@@ -137,7 +132,8 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
     );
     if (!isOn && doses[fertilizer.id] === undefined) {
       // The label's own fertigation rate is the honest starting point.
-      const labelDose = Number(fertilizer.fertigation_dose_min) || Number(fertilizer.foliar_dose_min);
+      const labelDose =
+        Number(fertilizer.fertigation_dose_min) || Number(fertilizer.foliar_dose_min);
       setDoses({
         ...doses,
         [fertilizer.id]: labelDose ? formatDose(labelDose, system) : '',

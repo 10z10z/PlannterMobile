@@ -60,9 +60,7 @@ export default function FertilizersTab() {
         onRefresh={fetchFertilizers}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          !loading && (
-            <Text style={styles.emptyText}>No fertilizers yet. Tap + to add one.</Text>
-          )
+          !loading && <Text style={styles.emptyText}>No fertilizers yet. Tap + to add one.</Text>
         }
         renderItem={({ item }) => (
           <FertilizerCard

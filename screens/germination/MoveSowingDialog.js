@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Button, Dialog, List, Portal, RadioButton, Text } from 'react-native-paper';
-import {
-  environmentLabel,
-  fetchStations,
-  moveSowing,
-  otherStations,
-} from '../../lib/germination';
+import { environmentLabel, fetchStations, moveSowing, otherStations } from '../../lib/germination';
 import ErrorText from '../../components/ErrorText';
 
 /**

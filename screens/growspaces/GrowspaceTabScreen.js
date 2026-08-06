@@ -1,14 +1,6 @@
 import { useCallback, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
-import {
-  Button,
-  Dialog,
-  FAB,
-  List,
-  Portal,
-  SegmentedButtons,
-  Text,
-} from 'react-native-paper';
+import { Button, Dialog, FAB, List, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
@@ -154,9 +146,7 @@ export default function GrowspaceTabScreen({ route }) {
   const handleUnplace = async (plant) => {
     setPlants((current) =>
       current.map((entry) =>
-        entry.id === plant.id
-          ? { ...entry, grid_id: null, grid_row: null, grid_col: null }
-          : entry
+        entry.id === plant.id ? { ...entry, grid_id: null, grid_row: null, grid_col: null } : entry
       )
     );
     try {
@@ -254,7 +244,12 @@ export default function GrowspaceTabScreen({ route }) {
       <List.Item
         title={growspace?.name ?? 'Growspace'}
         description={summary}
-        left={(props) => <List.Icon {...props} icon={live ? 'weather-partly-cloudy' : 'home-thermometer-outline'} />}
+        left={(props) => (
+          <List.Icon
+            {...props}
+            icon={live ? 'weather-partly-cloudy' : 'home-thermometer-outline'}
+          />
+        )}
         right={(props) => <List.Icon {...props} icon="pencil-outline" />}
         onPress={() => setEditVisible(true)}
       />

@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, HelperText, IconButton, Menu, Text } from 'react-native-paper';
 import TextField from './TextField';
-import { fetchGrowLightsWithUsage, lightSpecs, lightTypeLabel, photoperiodLabel } from '../lib/growLights';
+import {
+  fetchGrowLightsWithUsage,
+  lightSpecs,
+  lightTypeLabel,
+  photoperiodLabel,
+} from '../lib/growLights';
 
 /**
  * Picks fixtures out of the inventory and says how many of each hang here.
@@ -41,9 +46,7 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
   };
 
   const setQuantity = (id, quantity) => {
-    onChange(
-      value.map((entry) => (entry.grow_light_id === id ? { ...entry, quantity } : entry))
-    );
+    onChange(value.map((entry) => (entry.grow_light_id === id ? { ...entry, quantity } : entry)));
   };
 
   // Kept as typed and turned into a number on save, so a decimal point survives
@@ -76,9 +79,7 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
               <View style={styles.rowText}>
                 <Text variant="bodyMedium">{light?.name ?? 'Light'}</Text>
                 <Text variant="bodySmall" style={styles.subtitle}>
-                  {light
-                    ? [lightTypeLabel(light.type), ...specs, `${free} free`].join(' · ')
-                    : ''}
+                  {light ? [lightTypeLabel(light.type), ...specs, `${free} free`].join(' · ') : ''}
                 </Text>
               </View>
               <IconButton

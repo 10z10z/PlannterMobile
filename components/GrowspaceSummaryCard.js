@@ -36,9 +36,7 @@ export default function GrowspaceSummaryCard({ growspace, onPress }) {
     humidityPct !== null && humidityPct !== undefined
       ? { icon: 'water-percent', text: `${Math.round(humidityPct)}%`, live: liveHumidity }
       : null,
-    growspace.photoperiod
-      ? { icon: 'lightbulb-on-outline', text: growspace.photoperiod }
-      : null,
+    growspace.photoperiod ? { icon: 'lightbulb-on-outline', text: growspace.photoperiod } : null,
     outdoor ? { icon: 'weather-sunny', text: sunHoursLabel(growspace.sun_hours) } : null,
   ].filter((figure) => figure && figure.text);
 

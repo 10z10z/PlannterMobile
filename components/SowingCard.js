@@ -126,43 +126,39 @@ export default function SowingCard({
               }}
             />
             <Menu
-            visible={menuVisible}
-            onDismiss={() => setMenuVisible(false)}
-            anchor={
-              <IconButton
-                {...props}
-                icon="dots-vertical"
-                onPress={() => setMenuVisible(true)}
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <IconButton {...props} icon="dots-vertical" onPress={() => setMenuVisible(true)} />
+              }
+            >
+              <Menu.Item
+                leadingIcon="check-all"
+                title="Mark all germinated"
+                onPress={() => runAction(onHold)}
               />
-            }
-          >
-            <Menu.Item
-              leadingIcon="check-all"
-              title="Mark all germinated"
-              onPress={() => runAction(onHold)}
-            />
-            <Menu.Item
-              leadingIcon="content-cut"
-              title="Thin to one per cell"
-              disabled={thinnableCells(sowing.grid).length === 0}
-              onPress={() => runAction(onThin)}
-            />
-            <Menu.Item
-              leadingIcon="content-copy"
-              title="Sow this again"
-              onPress={() => runAction(onDuplicate)}
-            />
-            <Menu.Item
-              leadingIcon="tray-arrow-up"
-              title="Move to another station"
-              onPress={() => runAction(onMove)}
-            />
-            <Divider />
-            <Menu.Item
-              leadingIcon="delete-outline"
-              title="Delete sowing"
-              onPress={() => runAction(onDelete)}
-            />
+              <Menu.Item
+                leadingIcon="content-cut"
+                title="Thin to one per cell"
+                disabled={thinnableCells(sowing.grid).length === 0}
+                onPress={() => runAction(onThin)}
+              />
+              <Menu.Item
+                leadingIcon="content-copy"
+                title="Sow this again"
+                onPress={() => runAction(onDuplicate)}
+              />
+              <Menu.Item
+                leadingIcon="tray-arrow-up"
+                title="Move to another station"
+                onPress={() => runAction(onMove)}
+              />
+              <Divider />
+              <Menu.Item
+                leadingIcon="delete-outline"
+                title="Delete sowing"
+                onPress={() => runAction(onDelete)}
+              />
             </Menu>
           </View>
         )}

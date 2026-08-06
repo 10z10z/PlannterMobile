@@ -87,8 +87,7 @@ export default function GrowLightsTab() {
           <Dialog.Title>Delete grow lights</Dialog.Title>
           <Dialog.Content>
             <Text>
-              Remove this set of lights? They will also be unassigned from any growspace using
-              them.
+              Remove this set of lights? They will also be unassigned from any growspace using them.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>

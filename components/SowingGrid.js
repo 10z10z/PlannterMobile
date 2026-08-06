@@ -85,10 +85,7 @@ export default function SowingGrid({
                         <Icon source="check" size={12} color={theme.colors.onPrimary} />
                       </View>
                     )}
-                    <Text
-                      variant="labelLarge"
-                      style={isGreen ? { color: green.text } : undefined}
-                    >
+                    <Text variant="labelLarge" style={isGreen ? { color: green.text } : undefined}>
                       {germinated}/{planted}
                     </Text>
                     {days !== null && (

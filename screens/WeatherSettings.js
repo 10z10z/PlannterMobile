@@ -5,12 +5,7 @@ import TextField from '../components/TextField';
 import { useUnits } from '../contexts/UnitsContext';
 import { useWeather } from '../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../lib/units';
-import {
-  PROVIDER_NAME,
-  placeLabel,
-  readingAgeLabel,
-  searchPlaces,
-} from '../lib/weather';
+import { PROVIDER_NAME, placeLabel, readingAgeLabel, searchPlaces } from '../lib/weather';
 
 /**
  * Picks the place an outdoor space's weather is read from.

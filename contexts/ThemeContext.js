@@ -3,12 +3,7 @@ import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 import { DarkTheme, DefaultTheme } from '@react-navigation/native';
-import {
-  DEFAULT_SCHEME,
-  navigationColors,
-  normalizeScheme,
-  schemeColors,
-} from '../lib/themes';
+import { DEFAULT_SCHEME, navigationColors, normalizeScheme, schemeColors } from '../lib/themes';
 
 const MODE_KEY = 'themePreference';
 const SCHEME_KEY = 'colorScheme';

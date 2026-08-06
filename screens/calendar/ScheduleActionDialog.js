@@ -30,13 +30,7 @@ import ErrorText from '../../components/ErrorText';
  * A growspace and a station are both just places to plan for, so both are on
  * the one list: the calendar this opens from no longer takes a side.
  */
-export default function ScheduleActionDialog({
-  visible,
-  action,
-  defaultDate,
-  onDismiss,
-  onDone,
-}) {
+export default function ScheduleActionDialog({ visible, action, defaultDate, onDismiss, onDone }) {
   const { session } = useAuth();
 
   const [places, setPlaces] = useState([]);
@@ -260,7 +254,9 @@ export default function ScheduleActionDialog({
                     <Menu.Item
                       key={pack.id}
                       title={
-                        pack.seed_count === null ? pack.name : `${pack.name} (${pack.seed_count} left)`
+                        pack.seed_count === null
+                          ? pack.name
+                          : `${pack.name} (${pack.seed_count} left)`
                       }
                       onPress={() => {
                         setSeedPackId(pack.id);
@@ -270,7 +266,9 @@ export default function ScheduleActionDialog({
                       }}
                     />
                   ))}
-                  {seedPacks.length === 0 && <Menu.Item title="No seed packs in inventory" disabled />}
+                  {seedPacks.length === 0 && (
+                    <Menu.Item title="No seed packs in inventory" disabled />
+                  )}
                 </Menu>
               </>
             )}
@@ -368,13 +366,7 @@ export default function ScheduleActionDialog({
       {timePickerOpen && (
         <DateTimePicker
           value={
-            new Date(
-              2000,
-              0,
-              1,
-              Math.floor((dueMinutes ?? 480) / 60),
-              (dueMinutes ?? 480) % 60
-            )
+            new Date(2000, 0, 1, Math.floor((dueMinutes ?? 480) / 60), (dueMinutes ?? 480) % 60)
           }
           mode="time"
           onChange={(event, selected) => {

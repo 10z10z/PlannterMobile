@@ -26,11 +26,7 @@ export default function GrowspacesStack() {
           ),
         })}
       />
-      <Stack.Screen
-        name="Calendar"
-        component={CalendarScreen}
-        options={{ headerShown: false }}
-      />
+      <Stack.Screen name="Calendar" component={CalendarScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

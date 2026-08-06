@@ -1,23 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import {
-  Button,
-  Dialog,
-  HelperText,
-  Portal,
-  SegmentedButtons,
-  Text,
-} from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatTemperature, parseTemperature, tempUnit } from '../../lib/units';
-import {
-  STATION_ENVIRONMENTS,
-  fetchStationLights,
-  saveStationLights,
-} from '../../lib/germination';
+import { STATION_ENVIRONMENTS, fetchStationLights, saveStationLights } from '../../lib/germination';
 import LightAssignmentField from '../../components/LightAssignmentField';
 import ErrorText from '../../components/ErrorText';
 
@@ -82,7 +71,10 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
       return;
     }
     const humidityValue = humidity.trim() ? Number(humidity.replace(',', '.')) : null;
-    if (humidityValue !== null && (Number.isNaN(humidityValue) || humidityValue < 0 || humidityValue > 100)) {
+    if (
+      humidityValue !== null &&
+      (Number.isNaN(humidityValue) || humidityValue < 0 || humidityValue > 100)
+    ) {
       setError('Humidity must be between 0 and 100%');
       return;
     }
@@ -170,9 +162,7 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
                 style={[styles.input, styles.half, styles.spacedInput]}
               />
             </View>
-            <HelperText type="info">
-              Optional — the conditions this station is kept at.
-            </HelperText>
+            <HelperText type="info">Optional — the conditions this station is kept at.</HelperText>
 
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 

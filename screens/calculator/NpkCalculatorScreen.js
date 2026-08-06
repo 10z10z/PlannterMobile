@@ -216,7 +216,9 @@ export default function NpkCalculatorScreen() {
   const toggleFertilizer = (fertilizer) => {
     const isSelected = selectedIds.includes(fertilizer.id);
     setSelectedIds(
-      isSelected ? selectedIds.filter((id) => id !== fertilizer.id) : [...selectedIds, fertilizer.id]
+      isSelected
+        ? selectedIds.filter((id) => id !== fertilizer.id)
+        : [...selectedIds, fertilizer.id]
     );
     if (!isSelected && doses[fertilizer.id] === undefined) {
       setDoses({ ...doses, [fertilizer.id]: defaultDose(fertilizer) });
@@ -233,7 +235,7 @@ export default function NpkCalculatorScreen() {
         fertilizer,
         dosePerLiter:
           mode === 'target'
-            ? parseDose(String(doses[fertilizer.id] ?? 0), system) ?? 0
+            ? (parseDose(String(doses[fertilizer.id] ?? 0), system) ?? 0)
             : perLiterDose(toNumber(amounts[fertilizer.id]), batchVolumeLiters),
       })),
     [selected, doses, amounts, mode, system, batchVolumeLiters]
@@ -327,9 +329,7 @@ export default function NpkCalculatorScreen() {
               onPress={() => toggleFertilizer(f)}
               // A softer fill than the stage row, so the loudest thing on screen
               // stays the one stage the whole calculation is judged against.
-              style={
-                isOn ? { backgroundColor: theme.colors.primaryContainer } : styles.chipOff
-              }
+              style={isOn ? { backgroundColor: theme.colors.primaryContainer } : styles.chipOff}
               textStyle={
                 isOn
                   ? [styles.chipTextOn, { color: theme.colors.onPrimaryContainer }]

@@ -26,12 +26,12 @@ export default function InventoryScreen() {
   return (
     <View style={styles.container}>
       <Appbar.Header>
-        <Appbar.Content
-          title={<ScreenTitle icon="package-variant-closed" label="Inventory" />}
-        />
+        <Appbar.Content title={<ScreenTitle icon="package-variant-closed" label="Inventory" />} />
       </Appbar.Header>
 
-      <Tab.Navigator screenOptions={{ tabBarScrollEnabled: true, tabBarItemStyle: { width: 'auto' } }}>
+      <Tab.Navigator
+        screenOptions={{ tabBarScrollEnabled: true, tabBarItemStyle: { width: 'auto' } }}
+      >
         {INVENTORY_TABS.map(({ name, icon, component }) => (
           <Tab.Screen
             key={name}

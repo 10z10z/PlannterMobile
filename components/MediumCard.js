@@ -16,16 +16,11 @@ export default function MediumCard({ medium, onPress, onDelete }) {
   const volume = formatVolume(medium.volume_liters, system);
   const ph = phLabel(medium);
 
-  const quantityLabel = volume
-    ? `${medium.quantity} x ${volume}`
-    : `${medium.quantity} in stock`;
+  const quantityLabel = volume ? `${medium.quantity} x ${volume}` : `${medium.quantity} in stock`;
 
   return (
     <Card
-      style={[
-        styles.card,
-        medium.low_stock && { backgroundColor: theme.colors.errorContainer },
-      ]}
+      style={[styles.card, medium.low_stock && { backgroundColor: theme.colors.errorContainer }]}
       onPress={onPress}
     >
       <Card.Title

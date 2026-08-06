@@ -32,9 +32,7 @@ export default function PlantCard({ plant, onPress }) {
         <Text variant="bodyMedium">{dueText}</Text>
         {sinceTransplant !== null && (
           <Text variant="bodySmall">
-            {sinceTransplant === 0
-              ? 'Planted here today'
-              : `${sinceTransplant}d in this growspace`}
+            {sinceTransplant === 0 ? 'Planted here today' : `${sinceTransplant}d in this growspace`}
           </Text>
         )}
         {plant.seedling_count > 1 && (

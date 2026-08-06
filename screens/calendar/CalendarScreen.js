@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Appbar, Button, Divider, List, Menu, Text } from "react-native-paper";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
-import MonthCalendar from "../../components/MonthCalendar";
-import CalendarFilterBar from "../../components/CalendarFilterBar";
-import ScreenTitle from "../../components/ScreenTitle";
-import { formatDateString, toDateString } from "../../components/DateField";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Appbar, Button, Divider, List, Menu, Text } from 'react-native-paper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import MonthCalendar from '../../components/MonthCalendar';
+import CalendarFilterBar from '../../components/CalendarFilterBar';
+import ScreenTitle from '../../components/ScreenTitle';
+import { formatDateString, toDateString } from '../../components/DateField';
 import {
   fetchActivity,
   fromDateString,
@@ -15,7 +15,7 @@ import {
   kindLabel,
   monthOf,
   monthRange,
-} from "../../lib/activity";
+} from '../../lib/activity';
 import {
   DEFAULT_FILTERS,
   filterActions,
@@ -23,7 +23,7 @@ import {
   isFiltered,
   normalizeFilters,
   toggleFilter,
-} from "../../lib/calendarFilters";
+} from '../../lib/calendarFilters';
 import {
   completeScheduledAction,
   deleteScheduledAction,
@@ -33,12 +33,12 @@ import {
   scheduleStatus,
   scheduleSummary,
   targetSummary,
-} from "../../lib/scheduling";
-import SowingFormDialog from "../germination/SowingFormDialog";
-import ScheduleActionDialog from "./ScheduleActionDialog";
-import FeedingDialog from "./FeedingDialog";
+} from '../../lib/scheduling';
+import SowingFormDialog from '../germination/SowingFormDialog';
+import ScheduleActionDialog from './ScheduleActionDialog';
+import FeedingDialog from './FeedingDialog';
 
-const FILTERS_KEY = "calendarFilters";
+const FILTERS_KEY = 'calendarFilters';
 
 /**
  * A month of what was done and what is planned, across the whole grow.
@@ -101,20 +101,20 @@ export default function CalendarScreen({ navigation, route }) {
       fetchActivity(range),
       fetchScheduled(range),
     ]);
-    if (activity.status === "fulfilled") setEntries(activity.value);
-    if (plans.status === "fulfilled") setScheduled(plans.value);
+    if (activity.status === 'fulfilled') setEntries(activity.value);
+    if (plans.status === 'fulfilled') setScheduled(plans.value);
     setLoading(false);
   }, [month]);
 
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load]),
+    }, [load])
   );
 
   const entriesByDay = useMemo(
     () => groupByDay(filterEntries(entries, filters)),
-    [entries, filters],
+    [entries, filters]
   );
   const scheduledByDay = useMemo(
     () =>
@@ -122,9 +122,9 @@ export default function CalendarScreen({ navigation, route }) {
         filterActions(scheduled, filters).map((action) => ({
           ...action,
           occurred_on: action.due_on,
-        })),
+        }))
       ),
-    [scheduled, filters],
+    [scheduled, filters]
   );
 
   const dayEntries = entriesByDay[selected] ?? [];
@@ -162,11 +162,11 @@ export default function CalendarScreen({ navigation, route }) {
    * hand, because there is no single form that could stand in for it.
    */
   const startAction = (action) => {
-    if (action.kind === "sow" && action.station_id) {
+    if (action.kind === 'sow' && action.station_id) {
       setSowingFor(action);
       return;
     }
-    if (action.kind === "feed") {
+    if (action.kind === 'feed') {
       setFeedingPreset({
         placeId: action.growspace_id ?? action.station_id,
         actionId: action.id,
@@ -185,15 +185,11 @@ export default function CalendarScreen({ navigation, route }) {
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content
-          title={<ScreenTitle icon="calendar-month-outline" label="Calendar" />}
-        />
+        <Appbar.Content title={<ScreenTitle icon="calendar-month-outline" label="Calendar" />} />
         <Menu
           visible={menuOpen}
           onDismiss={() => setMenuOpen(false)}
-          anchor={
-            <Appbar.Action icon="plus" onPress={() => setMenuOpen(true)} />
-          }
+          anchor={<Appbar.Action icon="plus" onPress={() => setMenuOpen(true)} />}
         >
           <Menu.Item
             title="Schedule an action"
@@ -217,9 +213,7 @@ export default function CalendarScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={styles.content}>
         <CalendarFilterBar
           filters={filters}
-          onToggle={(dimension, value) =>
-            applyFilters(toggleFilter(filters, dimension, value))
-          }
+          onToggle={(dimension, value) => applyFilters(toggleFilter(filters, dimension, value))}
           onReset={() => applyFilters(DEFAULT_FILTERS)}
         />
 
@@ -257,54 +251,34 @@ export default function CalendarScreen({ navigation, route }) {
                       action.note,
                     ]
                       .filter(Boolean)
-                      .join(" · ")}
-                    titleStyle={
-                      status === "done" ? styles.doneTitle : undefined
-                    }
+                      .join(' · ')}
+                    titleStyle={status === 'done' ? styles.doneTitle : undefined}
                     left={(props) => (
                       <List.Icon
                         {...props}
                         icon={
-                          status === "done"
-                            ? "check-circle-outline"
-                            : scheduleKindIcon(action.kind)
+                          status === 'done' ? 'check-circle-outline' : scheduleKindIcon(action.kind)
                         }
                       />
                     )}
                     onPress={() => openSchedule(action)}
                   />
                   <View style={styles.planActions}>
-                    {status === "done" ? (
-                      <Button
-                        compact
-                        mode="text"
-                        onPress={() => handleReopen(action)}
-                      >
+                    {status === 'done' ? (
+                      <Button compact mode="text" onPress={() => handleReopen(action)}>
                         Undo
                       </Button>
                     ) : (
                       <>
-                        <Button
-                          compact
-                          mode="text"
-                          onPress={() => startAction(action)}
-                        >
+                        <Button compact mode="text" onPress={() => startAction(action)}>
                           Do it now
                         </Button>
-                        <Button
-                          compact
-                          mode="text"
-                          onPress={() => handleComplete(action)}
-                        >
+                        <Button compact mode="text" onPress={() => handleComplete(action)}>
                           Mark done
                         </Button>
                       </>
                     )}
-                    <Button
-                      compact
-                      mode="text"
-                      onPress={() => handleDeletePlan(action)}
-                    >
+                    <Button compact mode="text" onPress={() => handleDeletePlan(action)}>
                       Remove
                     </Button>
                   </View>
@@ -323,20 +297,12 @@ export default function CalendarScreen({ navigation, route }) {
               <List.Item
                 key={entry.id}
                 title={`${kindLabel(entry.kind)} · ${entry.subject}`}
-                description={[entry.detail, entry.place]
-                  .filter(Boolean)
-                  .join(" · ")}
-                left={(props) => (
-                  <List.Icon {...props} icon={kindIcon(entry.kind)} />
-                )}
+                description={[entry.detail, entry.place].filter(Boolean).join(' · ')}
+                left={(props) => <List.Icon {...props} icon={kindIcon(entry.kind)} />}
                 right={
                   entry.derived
                     ? (props) => (
-                        <Text
-                          {...props}
-                          variant="labelSmall"
-                          style={styles.derivedTag}
-                        >
+                        <Text {...props} variant="labelSmall" style={styles.derivedTag}>
                           from records
                         </Text>
                       )
@@ -350,8 +316,8 @@ export default function CalendarScreen({ navigation, route }) {
         {!loading && dayEntries.length === 0 && dayPlans.length === 0 && (
           <Text style={styles.emptyText}>
             {dayHasHidden && isFiltered(filters)
-              ? "Nothing on this day matches the chips above."
-              : "Nothing recorded on this day. Tap + to plan something or log a feeding."}
+              ? 'Nothing on this day matches the chips above.'
+              : 'Nothing recorded on this day. Tap + to plan something or log a feeding.'}
           </Text>
         )}
       </ScrollView>
@@ -416,21 +382,21 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   planActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     paddingRight: 8,
     marginTop: -8,
   },
   doneTitle: {
-    textDecorationLine: "line-through",
+    textDecorationLine: 'line-through',
     opacity: 0.6,
   },
   derivedTag: {
-    alignSelf: "center",
+    alignSelf: 'center',
     opacity: 0.5,
   },
   emptyText: {
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 32,
     marginHorizontal: 24,
     opacity: 0.6,

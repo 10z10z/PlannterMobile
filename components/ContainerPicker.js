@@ -46,7 +46,9 @@ export default function ContainerPicker({ value, onChange }) {
             key={container.id}
             onPress={() => select(container.id)}
             title={describe(container)}
-            trailingIcon={container.inUse >= container.quantity ? 'alert-circle-outline' : undefined}
+            trailingIcon={
+              container.inUse >= container.quantity ? 'alert-circle-outline' : undefined
+            }
           />
         ))}
         {containers.length === 0 && <Menu.Item title="No containers in inventory" disabled />}

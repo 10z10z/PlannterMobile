@@ -60,7 +60,9 @@ export default function MediumsTab() {
         onRefresh={fetchMediums}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          !loading && <Text style={styles.emptyText}>No growing mediums yet. Tap + to add one.</Text>
+          !loading && (
+            <Text style={styles.emptyText}>No growing mediums yet. Tap + to add one.</Text>
+          )
         }
         renderItem={({ item }) => (
           <MediumCard

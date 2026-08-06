@@ -1,11 +1,6 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Chip, Divider, useTheme } from 'react-native-paper';
-import {
-  EVENT_GROUPS,
-  PLACE_FILTERS,
-  RECORD_FILTERS,
-  isFiltered,
-} from '../lib/calendarFilters';
+import { EVENT_GROUPS, PLACE_FILTERS, RECORD_FILTERS, isFiltered } from '../lib/calendarFilters';
 
 /**
  * The row of chips above the calendar, saying what it is showing.
@@ -42,21 +37,15 @@ export default function CalendarFilterBar({ filters, onToggle, onReset }) {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
     >
-      {PLACE_FILTERS.map((entry) =>
-        chip('places', entry, filters.places.includes(entry.value))
-      )}
+      {PLACE_FILTERS.map((entry) => chip('places', entry, filters.places.includes(entry.value)))}
 
       <Divider style={[styles.rule, { backgroundColor: theme.colors.outlineVariant }]} />
 
-      {RECORD_FILTERS.map((entry) =>
-        chip('records', entry, filters.records.includes(entry.value))
-      )}
+      {RECORD_FILTERS.map((entry) => chip('records', entry, filters.records.includes(entry.value)))}
 
       <Divider style={[styles.rule, { backgroundColor: theme.colors.outlineVariant }]} />
 
-      {EVENT_GROUPS.map((group) =>
-        chip('groups', group, filters.groups.includes(group.value))
-      )}
+      {EVENT_GROUPS.map((group) => chip('groups', group, filters.groups.includes(group.value)))}
 
       {isFiltered(filters) && (
         <View style={styles.reset}>

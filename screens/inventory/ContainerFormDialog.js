@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import {
-  Button,
-  Dialog,
-  HelperText,
-  Portal,
-  SegmentedButtons,
-  Text,
-} from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';

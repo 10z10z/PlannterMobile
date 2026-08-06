@@ -28,9 +28,7 @@ export default function SeedPackCard({ seedPack, onPress, onDelete }) {
       />
       <Card.Content>
         {!!germination && <Text variant="bodySmall">{germination}</Text>}
-        {!!seedPack.seed_count && (
-          <Text variant="bodySmall">{seedPack.seed_count} seeds</Text>
-        )}
+        {!!seedPack.seed_count && <Text variant="bodySmall">{seedPack.seed_count} seeds</Text>}
         {!!seedPack.packaged_on && (
           <Text variant="bodySmall">Packaged {formatDateString(seedPack.packaged_on)}</Text>
         )}

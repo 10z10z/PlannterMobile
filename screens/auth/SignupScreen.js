@@ -29,8 +29,12 @@ export default function SignupScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text variant="displaySmall" style={styles.logo}>🌱 Plannter</Text>
-      <Text variant="titleMedium" style={styles.title}>Create account</Text>
+      <Text variant="displaySmall" style={styles.logo}>
+        🌱 Plannter
+      </Text>
+      <Text variant="titleMedium" style={styles.title}>
+        Create account
+      </Text>
 
       <TextField
         label="Email"

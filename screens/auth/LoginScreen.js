@@ -21,8 +21,12 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text variant="displaySmall" style={styles.logo}>🌱 Plannter</Text>
-      <Text variant="titleMedium" style={styles.title}>Welcome back</Text>
+      <Text variant="displaySmall" style={styles.logo}>
+        🌱 Plannter
+      </Text>
+      <Text variant="titleMedium" style={styles.title}>
+        Welcome back
+      </Text>
 
       <TextField
         label="Email"

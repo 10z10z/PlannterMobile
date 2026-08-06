@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import {
-  Button,
-  Checkbox,
-  Chip,
-  Dialog,
-  HelperText,
-  Portal,
-  Text,
-} from 'react-native-paper';
+import { Button, Checkbox, Chip, Dialog, HelperText, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -307,9 +299,7 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
               </>
             )}
 
-            <HelperText type="info">
-              One entry covers a whole set of identical fixtures.
-            </HelperText>
+            <HelperText type="info">One entry covers a whole set of identical fixtures.</HelperText>
 
             <ErrorText>{error}</ErrorText>
           </ScrollView>

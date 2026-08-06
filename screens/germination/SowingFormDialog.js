@@ -213,7 +213,11 @@ export default function SowingFormDialog({
                 visible={openMenu === 'container'}
                 onDismiss={() => setOpenMenu(null)}
                 anchor={
-                  <Button mode="outlined" icon="cup-outline" onPress={() => setOpenMenu('container')}>
+                  <Button
+                    mode="outlined"
+                    icon="cup-outline"
+                    onPress={() => setOpenMenu('container')}
+                  >
                     {container ? describeContainer(container) : 'Pick a container'}
                   </Button>
                 }
@@ -250,7 +254,12 @@ export default function SowingFormDialog({
               </HelperText>
             )}
 
-            <DateField label="Sown on" value={sownOn} onChange={setSownOn} maximumDate={new Date()} />
+            <DateField
+              label="Sown on"
+              value={sownOn}
+              onChange={setSownOn}
+              maximumDate={new Date()}
+            />
 
             <ErrorText>{error}</ErrorText>
           </ScrollView>

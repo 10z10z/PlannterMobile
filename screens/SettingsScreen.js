@@ -9,8 +9,7 @@ import WeatherSettings from './WeatherSettings';
 
 export default function SettingsScreen({ navigation }) {
   const { signOut, session } = useAuth();
-  const { preference, setThemePreference, isDark, scheme, setColorScheme } =
-    useThemePreference();
+  const { preference, setThemePreference, isDark, scheme, setColorScheme } = useThemePreference();
   const { system, setUnitSystem } = useUnits();
 
   return (
@@ -23,7 +22,9 @@ export default function SettingsScreen({ navigation }) {
       </Appbar.Header>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text variant="labelLarge" style={styles.sectionLabel}>Light or dark</Text>
+        <Text variant="labelLarge" style={styles.sectionLabel}>
+          Light or dark
+        </Text>
         <SegmentedButtons
           value={preference}
           onValueChange={setThemePreference}
@@ -35,10 +36,14 @@ export default function SettingsScreen({ navigation }) {
           style={styles.segmented}
         />
 
-        <Text variant="labelLarge" style={styles.sectionLabel}>Colour scheme</Text>
+        <Text variant="labelLarge" style={styles.sectionLabel}>
+          Colour scheme
+        </Text>
         <SchemePicker value={scheme} onChange={setColorScheme} isDark={isDark} />
 
-        <Text variant="labelLarge" style={styles.sectionLabel}>Units</Text>
+        <Text variant="labelLarge" style={styles.sectionLabel}>
+          Units
+        </Text>
         <SegmentedButtons
           value={system}
           onValueChange={setUnitSystem}
@@ -49,11 +54,17 @@ export default function SettingsScreen({ navigation }) {
           style={styles.segmented}
         />
 
-        <Text variant="labelLarge" style={styles.sectionLabel}>Outdoor weather</Text>
+        <Text variant="labelLarge" style={styles.sectionLabel}>
+          Outdoor weather
+        </Text>
         <WeatherSettings />
 
-        <Text variant="labelLarge" style={styles.sectionLabel}>Account</Text>
-        <Text variant="bodyMedium" style={styles.email}>{session?.user?.email}</Text>
+        <Text variant="labelLarge" style={styles.sectionLabel}>
+          Account
+        </Text>
+        <Text variant="bodyMedium" style={styles.email}>
+          {session?.user?.email}
+        </Text>
         <Button mode="outlined" onPress={signOut}>
           Log out
         </Button>

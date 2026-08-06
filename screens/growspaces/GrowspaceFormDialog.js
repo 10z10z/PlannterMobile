@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import {
-  Button,
-  Dialog,
-  HelperText,
-  Portal,
-  SegmentedButtons,
-  Text,
-} from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -71,7 +64,9 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
           ? ''
           : String(growspace.sun_hours)
       );
-      fetchGrids(growspace.id).then(setGrids).catch(() => setGrids([]));
+      fetchGrids(growspace.id)
+        .then(setGrids)
+        .catch(() => setGrids([]));
       fetchGrowspaceLights(growspace.id)
         .then((rowsData) => {
           const current = rowsData.map((row) => ({
@@ -82,7 +77,9 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
           setBaseline(current);
         })
         .catch((loadError) => setError(loadError.message));
-      fetchPlants(growspace.id).then(setPlants).catch(() => setPlants([]));
+      fetchPlants(growspace.id)
+        .then(setPlants)
+        .catch(() => setPlants([]));
     } else {
       setName('');
       setDescription('');

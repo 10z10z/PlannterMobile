@@ -28,7 +28,10 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
   const days = daysSince(cell.germinated_on);
 
   const step = (delta) => {
-    const next = Math.min(Math.max((Number.isInteger(value) ? value : 0) + delta, 0), cell.seeds_planted);
+    const next = Math.min(
+      Math.max((Number.isInteger(value) ? value : 0) + delta, 0),
+      cell.seeds_planted
+    );
     setGerminated(String(next));
   };
 
@@ -81,7 +84,11 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
           <Button onPress={onTransplant} disabled={cell.germinated < 1}>
             Transplant
           </Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving || cell.seeds_planted === 0}>
+          <Button
+            onPress={handleSave}
+            loading={saving}
+            disabled={saving || cell.seeds_planted === 0}
+          >
             Save
           </Button>
         </Dialog.Actions>

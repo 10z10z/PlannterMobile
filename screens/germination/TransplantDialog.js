@@ -151,7 +151,11 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
               visible={openMenu === 'growspace'}
               onDismiss={() => setOpenMenu(null)}
               anchor={
-                <Button mode="outlined" icon="flower-outline" onPress={() => setOpenMenu('growspace')}>
+                <Button
+                  mode="outlined"
+                  icon="flower-outline"
+                  onPress={() => setOpenMenu('growspace')}
+                >
                   {selectedGrowspace ? selectedGrowspace.name : 'Pick a growspace'}
                 </Button>
               }
@@ -199,9 +203,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
                   }}
                 />
               ))}
-              {containers.length === 0 && (
-                <Menu.Item title="No containers in inventory" disabled />
-              )}
+              {containers.length === 0 && <Menu.Item title="No containers in inventory" disabled />}
             </Menu>
 
             <TextField

@@ -133,9 +133,7 @@ function PlantFace({ plant, size }) {
         { backgroundColor: theme.colors.secondaryContainer, borderColor: theme.colors.outline },
       ]}
     >
-      {!!plant.image_url && (
-        <Image source={{ uri: plant.image_url }} style={styles.faceImage} />
-      )}
+      {!!plant.image_url && <Image source={{ uri: plant.image_url }} style={styles.faceImage} />}
       {!!flag && <View style={[styles.flag, { backgroundColor: flag }]} />}
       <Text
         variant={size > 64 ? 'labelMedium' : 'labelSmall'}
@@ -310,49 +308,50 @@ export default function PlantGrid({ grids, plants, onPress, onMove, onUnplace })
               // unmount mid-drag and the ref survives to be measured on reopen.
               style={isCollapsed ? styles.folded : undefined}
               pointerEvents={isCollapsed ? 'none' : 'auto'}
-            ><View
-              ref={(node) => {
-                gridRefs.current[grid.id] = node;
-              }}
-              onLayout={measureAll}
-              style={{
-                width: grid.grid_cols * stride - GAP,
-                height: grid.grid_rows * stride - GAP,
-              }}
             >
-              {Array.from({ length: grid.grid_rows }).map((_, row) =>
-                Array.from({ length: grid.grid_cols }).map((__, col) => (
-                  <View
-                    key={`${row}:${col}`}
-                    style={[
-                      styles.slot,
-                      {
-                        width: cellSize,
-                        height: cellSize,
-                        left: col * stride,
-                        top: row * stride,
-                        borderColor: theme.colors.outlineVariant,
-                      },
-                    ]}
-                  />
-                ))
-              )}
+              <View
+                ref={(node) => {
+                  gridRefs.current[grid.id] = node;
+                }}
+                onLayout={measureAll}
+                style={{
+                  width: grid.grid_cols * stride - GAP,
+                  height: grid.grid_rows * stride - GAP,
+                }}
+              >
+                {Array.from({ length: grid.grid_rows }).map((_, row) =>
+                  Array.from({ length: grid.grid_cols }).map((__, col) => (
+                    <View
+                      key={`${row}:${col}`}
+                      style={[
+                        styles.slot,
+                        {
+                          width: cellSize,
+                          height: cellSize,
+                          left: col * stride,
+                          top: row * stride,
+                          borderColor: theme.colors.outlineVariant,
+                        },
+                      ]}
+                    />
+                  ))
+                )}
 
-              {standing.map((plant) => (
-                <Draggable
-                  key={plant.id}
-                  plant={plant}
-                  size={cellSize}
-                  left={plant.grid_col * stride}
-                  top={plant.grid_row * stride}
-                  onPress={onPress}
-                  onPickUp={handlePickUp}
-                  onDrop={handleDrop}
-                >
-                  <PlantFace plant={plant} size={cellSize} />
-                </Draggable>
-              ))}
-            </View>
+                {standing.map((plant) => (
+                  <Draggable
+                    key={plant.id}
+                    plant={plant}
+                    size={cellSize}
+                    left={plant.grid_col * stride}
+                    top={plant.grid_row * stride}
+                    onPress={onPress}
+                    onPickUp={handlePickUp}
+                    onDrop={handleDrop}
+                  >
+                    <PlantFace plant={plant} size={cellSize} />
+                  </Draggable>
+                ))}
+              </View>
             </View>
           </View>
         );

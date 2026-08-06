@@ -90,10 +90,7 @@ export default function MonthCalendar({
                       {entries.slice(0, 3).map((entry) => (
                         <View
                           key={entry.id}
-                          style={[
-                            styles.dot,
-                            { backgroundColor: dotColor(theme, entry) },
-                          ]}
+                          style={[styles.dot, { backgroundColor: dotColor(theme, entry) }]}
                         />
                       ))}
                     </View>
