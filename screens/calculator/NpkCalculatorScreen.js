@@ -14,9 +14,9 @@ import {
 } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
 import { useUnits } from '../../contexts/UnitsContext';
+import QueryBoundary from '../../components/QueryBoundary';
+import { useInventory } from '../../hooks/useInventory';
 import { doseUnit, formatDose, parseDose, parseVolume, volumeUnit } from '../../lib/units';
 import {
   MACRO_KEYS,
@@ -124,8 +124,8 @@ export default function NpkCalculatorScreen() {
   const { system } = useUnits();
   const theme = useTheme();
 
-  const [fertilizers, setFertilizers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const shelf = useInventory('fertilizers');
+  const fertilizers = useMemo(() => shelf.data ?? [], [shelf.data]);
   const [selectedIds, setSelectedIds] = useState([]);
   // Doses are held in the unit the user reads; the maths converts to per litre.
   const [doses, setDoses] = useState({});
@@ -182,30 +182,23 @@ export default function NpkCalculatorScreen() {
   const example = hardness > 0 ? hardness : 150;
   const exampleWater = waterContribution(example);
 
-  const fetchFertilizers = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('fertilizers')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error) {
-      setFertilizers(data);
-      // Keep the selection valid across edits and deletions made in Inventory.
-      const ids = new Set(data.map((f) => f.id));
-      setSelectedIds((current) => {
-        const kept = current.filter((id) => ids.has(id));
-        if (kept.length) return kept;
-        return data[0] ? [data[0].id] : [];
-      });
-    }
-    setLoading(false);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchFertilizers();
-    }, [fetchFertilizers])
-  );
+  /**
+   * Keeps the selection valid across edits and deletions made in Inventory.
+   *
+   * The shelf is now shared cache rather than this screen's own fetch, so a
+   * product deleted from the inventory tab lands here without the calculator
+   * asking — which is the point, but it does mean a mix can be left pointing at
+   * a bottle that no longer exists.
+   */
+  useEffect(() => {
+    if (!shelf.data) return;
+    const ids = new Set(shelf.data.map((fertilizer) => fertilizer.id));
+    setSelectedIds((current) => {
+      const kept = current.filter((id) => ids.has(id));
+      if (kept.length) return kept;
+      return shelf.data[0] ? [shelf.data[0].id] : [];
+    });
+  }, [shelf.data]);
 
   const selected = useMemo(
     () => selectedIds.map((id) => fertilizers.find((f) => f.id === id)).filter(Boolean),
@@ -461,14 +454,13 @@ export default function NpkCalculatorScreen() {
         <Appbar.Action icon="cog-outline" onPress={() => setSettingsOpen(true)} />
       </Appbar.Header>
 
-      {!loading && fertilizers.length === 0 ? (
-        <View style={styles.empty}>
-          <Text variant="bodyMedium" style={styles.emptyText}>
-            Add a fertilizer under Inventory first — the calculator works off your own nutrient
-            panels.
-          </Text>
-        </View>
-      ) : (
+      <QueryBoundary
+        query={shelf}
+        isEmpty={fertilizers.length === 0}
+        emptyIcon="bottle-tonic-outline"
+        emptyText="Add a fertilizer under Inventory first — the calculator works off your own nutrient panels."
+        errorText="Couldn’t load your fertilizers."
+      >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <SegmentedButtons
             value={mode}
@@ -579,7 +571,7 @@ export default function NpkCalculatorScreen() {
             </Text>
           )}
         </ScrollView>
-      )}
+      </QueryBoundary>
 
       <FeedingDialog
         visible={feedOpen}

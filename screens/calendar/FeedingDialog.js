@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
@@ -13,9 +13,12 @@ import {
 } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import DateField, { toDateString } from '../../components/DateField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
+import { messageFor } from '../../lib/errors';
+import { useInventory } from '../../hooks/useInventory';
+import { usePlaces } from '../../hooks/usePlaces';
+import { useGrowspacePlants } from '../../hooks/useGrowspaces';
+import { useDataMutation } from '../../hooks/useDataMutation';
 import {
   doseUnit,
   formatDose,
@@ -24,7 +27,7 @@ import {
   parseVolume,
   volumeUnit,
 } from '../../lib/units';
-import { fetchPlaces, placeIcon, placeIds } from '../../lib/places';
+import { placeIcon, placeIds } from '../../lib/places';
 import { recordFeeding } from '../../lib/feedings';
 import ErrorText from '../../components/ErrorText';
 
@@ -41,12 +44,18 @@ import ErrorText from '../../components/ErrorText';
  * of the two questions gets asked follows the place that was picked.
  */
 export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
-  const { session } = useAuth();
   const { system } = useUnits();
 
-  const [places, setPlaces] = useState([]);
-  const [fertilizers, setFertilizers] = useState([]);
-  const [plants, setPlants] = useState([]);
+  const placeQuery = usePlaces();
+  const places = useMemo(() => placeQuery.data ?? [], [placeQuery.data]);
+
+  // Alphabetical, because this is a picker rather than a list of what arrived
+  // most recently — the shelf itself is ordered newest first.
+  const shelf = useInventory('fertilizers');
+  const fertilizers = useMemo(
+    () => [...(shelf.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [shelf.data]
+  );
 
   const [placeId, setPlaceId] = useState(null);
   const [target, setTarget] = useState('all');
@@ -59,8 +68,16 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
   const [fedOn, setFedOn] = useState(toDateString(new Date()));
 
   const [openMenu, setOpenMenu] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const record = useDataMutation({
+    mutationFn: recordFeeding,
+    affects: 'feedingRecorded',
+    onSuccess: onDone,
+  });
+  const resetRecord = record.reset;
 
   // The preset is read when the dialog opens rather than watched, so a caller
   // can hand one over as a plain object without it refilling the form on every
@@ -71,59 +88,54 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
     setSelectedPlantIds((preset?.plants ?? []).map((plant) => plant.id));
     setNote('');
     setFedOn(toDateString(new Date()));
-    setError('');
+    setValidationError('');
+    resetRecord();
     setVolumeText(
       preset?.volumeLiters ? formatVolume(preset.volumeLiters, system, { withUnit: false }) : ''
     );
+    setPlaceId(preset?.placeId ?? null);
 
-    Promise.all([fetchPlaces(), supabase.from('fertilizers').select('*').order('name')]).then(
-      ([placeList, fertilizerRows]) => {
-        setPlaces(placeList);
-        setFertilizers(fertilizerRows.data ?? []);
-
-        const chosen = preset?.placeId ?? (placeList.length === 1 ? placeList[0].id : null);
-        setPlaceId(chosen);
-
-        // A mix handed over by the calculator keeps its products and rates; the
-        // rates are shown in the user's own units, which is how they were dialled
-        // in there too.
-        const products = preset?.products ?? [];
-        setSelectedIds(products.map((product) => product.fertilizer_id).filter(Boolean));
-        setDoses(
-          Object.fromEntries(
-            products
-              .filter((product) => product.fertilizer_id)
-              .map((product) => [product.fertilizer_id, formatDose(product.dose_per_liter, system)])
-          )
-        );
-      }
+    // A mix handed over by the calculator keeps its products and rates; the
+    // rates are shown in the user's own units, which is how they were dialled
+    // in there too.
+    const products = preset?.products ?? [];
+    setSelectedIds(products.map((product) => product.fertilizer_id).filter(Boolean));
+    setDoses(
+      Object.fromEntries(
+        products
+          .filter((product) => product.fertilizer_id)
+          .map((product) => [product.fertilizer_id, formatDose(product.dose_per_liter, system)])
+      )
     );
     // Opening is the trigger, not the preset changing; see the note above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  /**
+   * With one place there is no choice to make, so it is made.
+   *
+   * Separate from the setup above because the list now arrives from the cache
+   * rather than from a fetch this dialog waited on — it may already be there
+   * when the dialog opens, or land a moment later.
+   */
+  useEffect(() => {
+    if (!visible || placeId || places.length !== 1) return;
+    setPlaceId(places[0].id);
+  }, [visible, placeId, places]);
+
   const place = places.find((entry) => entry.id === placeId);
 
-  // The plants to choose from follow the growspace, so switching space doesn't
-  // leave a selection pointing at plants standing somewhere else — and picking
-  // a station leaves none, since a tray's cells aren't plants.
+  // The plants to choose from follow the growspace — and a station has none,
+  // since a tray's cells aren't plants that could be picked out.
+  const plantQuery = useGrowspacePlants(place?.type === 'growspace' ? placeId : null);
+  const plants = useMemo(() => plantQuery.data ?? [], [plantQuery.data]);
+
+  // Switching space mustn't leave a selection pointing at plants standing
+  // somewhere else.
   useEffect(() => {
-    if (!visible || place?.type !== 'growspace') {
-      setPlants([]);
-      return;
-    }
-    supabase
-      .from('plants')
-      .select('id, name')
-      .eq('growspace_id', placeId)
-      .order('created_at')
-      .then(({ data }) => {
-        const rows = data ?? [];
-        setPlants(rows);
-        const ids = new Set(rows.map((plant) => plant.id));
-        setSelectedPlantIds((current) => current.filter((id) => ids.has(id)));
-      });
-  }, [visible, place?.type, placeId]);
+    const ids = new Set(plants.map((plant) => plant.id));
+    setSelectedPlantIds((current) => current.filter((id) => ids.has(id)));
+  }, [plants]);
 
   const selected = selectedIds.map((id) => fertilizers.find((f) => f.id === id)).filter(Boolean);
 
@@ -148,13 +160,13 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
       current.includes(plantId) ? current.filter((id) => id !== plantId) : [...current, plantId]
     );
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!place) {
-      setError('Pick a growspace or station');
+      setValidationError('Pick a growspace or station');
       return;
     }
     if (!selected.length) {
-      setError('Pick at least one fertilizer');
+      setValidationError('Pick at least one fertilizer');
       return;
     }
 
@@ -165,7 +177,7 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
       dose_per_liter: parseDose(String(doses[fertilizer.id] ?? ''), system) ?? 0,
     }));
     if (products.some((product) => !(product.dose_per_liter > 0))) {
-      setError('Every product in the mix needs a dose');
+      setValidationError('Every product in the mix needs a dose');
       return;
     }
 
@@ -178,29 +190,21 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
           .map((plant) => ({ plant_id: plant.id, plant_name: plant.name }))
       : [];
     if (byPlant && !fedPlants.length) {
-      setError('Pick the plants that were fed');
+      setValidationError('Pick the plants that were fed');
       return;
     }
 
-    setSaving(true);
-    setError('');
-    try {
-      await recordFeeding({
-        userId: session.user.id,
-        fedOn,
-        ...placeIds(place),
-        volumeLiters: parseVolume(volumeText, system),
-        note,
-        products,
-        plants: fedPlants,
-        placeName: place?.name ?? null,
-        system,
-      });
-      onDone();
-    } catch (saveError) {
-      setError(saveError.message);
-    }
-    setSaving(false);
+    setValidationError('');
+    record.mutate({
+      fedOn,
+      ...placeIds(place),
+      volumeLiters: parseVolume(volumeText, system),
+      note,
+      products,
+      plants: fedPlants,
+      placeName: place?.name ?? null,
+      system,
+    });
   };
 
   return (
@@ -327,12 +331,14 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
               style={styles.input}
             />
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>
+              {validationError || (record.isError ? messageFor(record.error) : '')}
+            </ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={handleSave} loading={record.isPending} disabled={record.isPending}>
             Log feeding
           </Button>
         </Dialog.Actions>

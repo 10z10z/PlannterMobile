@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Menu, Portal, Text } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import TextField from '../../components/TextField';
 import DateField, { toDateString } from '../../components/DateField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
-import { fetchPlaces, placeIcon, placeIds, placeOf } from '../../lib/places';
-import { fetchSowings } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import { useInventory } from '../../hooks/useInventory';
+import { usePlaces } from '../../hooks/usePlaces';
+import { useGrowspacePlants } from '../../hooks/useGrowspaces';
+import { useStationSowings } from '../../hooks/useStations';
+import { useDataMutation } from '../../hooks/useDataMutation';
+import { placeIcon, placeIds, placeOf } from '../../lib/places';
 import {
   SCHEDULE_KINDS,
   allowsWholePlace,
@@ -31,12 +34,17 @@ import ErrorText from '../../components/ErrorText';
  * the one list: the calendar this opens from no longer takes a side.
  */
 export default function ScheduleActionDialog({ visible, action, defaultDate, onDismiss, onDone }) {
-  const { session } = useAuth();
+  const placeQuery = usePlaces();
+  const places = useMemo(() => placeQuery.data ?? [], [placeQuery.data]);
 
-  const [places, setPlaces] = useState([]);
-  const [seedPacks, setSeedPacks] = useState([]);
-  // What there is to aim at in the place currently picked, and which of it is.
-  const [choices, setChoices] = useState([]);
+  // Alphabetical, because this is a picker; the shelf itself is newest first.
+  const packShelf = useInventory('seedPacks');
+  const seedPacks = useMemo(
+    () => [...(packShelf.data ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [packShelf.data]
+  );
+
+  // Which of what there is to aim at has been picked.
   const [chosenIds, setChosenIds] = useState([]);
 
   const [kind, setKind] = useState('sow');
@@ -49,8 +57,16 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
 
   const [openMenu, setOpenMenu] = useState(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const save = useDataMutation({
+    mutationFn: saveScheduledAction,
+    affects: 'scheduleChanged',
+    onSuccess: onDone,
+  });
+  const resetSave = save.reset;
 
   useEffect(() => {
     if (!visible) return;
@@ -63,22 +79,24 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
     setChosenIds(
       (action?.targets ?? []).map((target) => target.plant_id ?? target.sowing_id).filter(Boolean)
     );
-    setError('');
-
-    Promise.all([
-      fetchPlaces(),
-      supabase.from('seed_packs').select('id, name, seed_count').order('name'),
-    ]).then(([placeList, packRows]) => {
-      setPlaces(placeList);
-      setSeedPacks(packRows.data ?? []);
-      setPlaceId(
-        placeOf(placeList, action)?.id ?? (placeList.length === 1 ? placeList[0].id : null)
-      );
-    });
+    setValidationError('');
+    resetSave();
+    setPlaceId(placeOf(places, action)?.id ?? null);
     // Read when the dialog opens, like every other form in the app: what is
     // being edited cannot change underneath it while it is up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  /**
+   * With one place there is no choice to make, so it is made.
+   *
+   * Separate from the setup above because the list arrives from the cache
+   * rather than from a fetch this dialog waited on.
+   */
+  useEffect(() => {
+    if (!visible || placeId || places.length !== 1) return;
+    setPlaceId(places[0].id);
+  }, [visible, placeId, places]);
 
   const place = places.find((entry) => entry.id === placeId);
   const seedPack = seedPacks.find((pack) => pack.id === seedPackId);
@@ -88,41 +106,33 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
    * What this kind can be aimed at where it is being done: the plants standing
    * in a growspace, or the sowings in a station.
    *
-   * Reloaded when the place or the kind changes, and the selection is pared
-   * back to what the new list actually holds — moving a plan from one tent to
-   * another must not leave it pointing at plants standing somewhere else.
+   * Both are asked for, and the one that doesn't apply is switched off with a
+   * null id rather than branched around — a hook can't be called conditionally,
+   * and a disabled query costs nothing.
    */
-  useEffect(() => {
-    if (!visible || !place || !targetKind) {
-      setChoices([]);
-      return;
+  const plantQuery = useGrowspacePlants(targetKind === 'plants' ? place?.id : null);
+  const sowingQuery = useStationSowings(targetKind === 'sowings' ? place?.id : null);
+
+  const choices = useMemo(() => {
+    if (targetKind === 'plants') {
+      return (plantQuery.data ?? []).map((row) => ({ id: row.id, label: row.name }));
     }
+    if (targetKind === 'sowings') {
+      return (sowingQuery.data ?? []).map((sowing) => ({
+        id: sowing.id,
+        label: sowing.seed_pack_name,
+        detail: sowing.tray?.name ?? null,
+      }));
+    }
+    return [];
+  }, [targetKind, plantQuery.data, sowingQuery.data]);
 
-    const load =
-      targetKind === 'plants'
-        ? supabase
-            .from('plants')
-            .select('id, name')
-            .eq('growspace_id', place.id)
-            .order('created_at')
-            .then(({ data }) => (data ?? []).map((row) => ({ id: row.id, label: row.name })))
-        : fetchSowings(place.id).then((sowings) =>
-            sowings.map((sowing) => ({
-              id: sowing.id,
-              label: sowing.seed_pack_name,
-              detail: sowing.tray?.name ?? null,
-            }))
-          );
-
-    load.then((rows) => {
-      setChoices(rows);
-      const ids = new Set(rows.map((row) => row.id));
-      setChosenIds((current) => current.filter((id) => ids.has(id)));
-    });
-    // Keyed on which place was picked, not on the object the lookup happened
-    // to return, which is a fresh one on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, place?.id, targetKind]);
+  // Moving a plan from one tent to another must not leave it pointing at plants
+  // standing somewhere else.
+  useEffect(() => {
+    const ids = new Set(choices.map((choice) => choice.id));
+    setChosenIds((current) => current.filter((id) => ids.has(id)));
+  }, [choices]);
 
   const toggleTarget = (id) =>
     setChosenIds((current) =>
@@ -141,41 +151,33 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
   // Saves typing "Basil, Chilli" under a picker that already says so.
   const impliedSubject = targetSummary(targets) ?? (kind === 'sow' ? seedPack?.name : place?.name);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!place) {
-      setError('Pick a growspace or station');
+      setValidationError('Pick a growspace or station');
       return;
     }
     if (targetKind && !allowsWholePlace(kind) && targets.length === 0) {
-      setError(targetKind === 'plants' ? 'Pick the plants' : 'Pick what to work on');
+      setValidationError(targetKind === 'plants' ? 'Pick the plants' : 'Pick what to work on');
       return;
     }
     const name = subject.trim() || impliedSubject?.trim();
     if (!name) {
-      setError('Say what this is for');
+      setValidationError('Say what this is for');
       return;
     }
 
-    setSaving(true);
-    setError('');
-    try {
-      await saveScheduledAction({
-        userId: session.user.id,
-        id: action?.id,
-        kind,
-        dueOn,
-        dueMinutes,
-        ...placeIds(place),
-        subject: name,
-        note,
-        seedPackId: kind === 'sow' ? seedPackId : null,
-        targets,
-      });
-      onDone();
-    } catch (saveError) {
-      setError(saveError.message);
-    }
-    setSaving(false);
+    setValidationError('');
+    save.mutate({
+      id: action?.id,
+      kind,
+      dueOn,
+      dueMinutes,
+      ...placeIds(place),
+      subject: name,
+      note,
+      seedPackId: kind === 'sow' ? seedPackId : null,
+      targets,
+    });
   };
 
   return (
@@ -356,12 +358,12 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
               style={styles.input}
             />
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             Save
           </Button>
         </Dialog.Actions>
