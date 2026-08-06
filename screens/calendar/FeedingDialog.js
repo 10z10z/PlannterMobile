@@ -11,7 +11,7 @@ import {
   SegmentedButtons,
   Text,
 } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import DateField, { toDateString } from '../../components/DateField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { messageFor } from '../../lib/errors';
@@ -19,14 +19,10 @@ import { useInventory } from '../../hooks/useInventory';
 import { usePlaces } from '../../hooks/usePlaces';
 import { useGrowspacePlants } from '../../hooks/useGrowspaces';
 import { useDataMutation } from '../../hooks/useDataMutation';
-import {
-  doseUnit,
-  formatDose,
-  formatVolume,
-  parseDose,
-  parseVolume,
-  volumeUnit,
-} from '../../lib/units';
+import useForm from '../../hooks/useForm';
+import { doseKey, feedingPlantsCheck, feedingSchema } from '../../lib/schemas';
+import { FEED_TARGETS } from '../../lib/enums';
+import { doseUnit, formatDose, formatVolume, volumeUnit } from '../../lib/units';
 import { placeIcon, placeIds } from '../../lib/places';
 import { recordFeeding } from '../../lib/feedings';
 import ErrorText from '../../components/ErrorText';
@@ -57,20 +53,7 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
     [shelf.data]
   );
 
-  const [placeId, setPlaceId] = useState(null);
-  const [target, setTarget] = useState('all');
-  const [selectedPlantIds, setSelectedPlantIds] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
-  // Doses are held as the user reads them; the maths converts to per litre.
-  const [doses, setDoses] = useState({});
-  const [volumeText, setVolumeText] = useState('');
-  const [note, setNote] = useState('');
-  const [fedOn, setFedOn] = useState(toDateString(new Date()));
-
   const [openMenu, setOpenMenu] = useState(false);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
 
   const record = useDataMutation({
     mutationFn: recordFeeding,
@@ -79,34 +62,48 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
   });
   const resetRecord = record.reset;
 
+  // Which products are in the mix decides which dose fields exist, so the schema
+  // is rebuilt as the chips are tapped.
+  const [selectedIds, setSelectedIds] = useState([]);
+  const selected = useMemo(
+    () => selectedIds.map((id) => fertilizers.find((f) => f.id === id)).filter(Boolean),
+    [selectedIds, fertilizers]
+  );
+
+  const form = useForm(feedingSchema(system, selected));
+  const resetForm = form.reset;
+
   // The preset is read when the dialog opens rather than watched, so a caller
   // can hand one over as a plain object without it refilling the form on every
   // render — and so anything typed since survives until the dialog is closed.
   useEffect(() => {
     if (!visible) return;
-    setTarget(preset?.plants?.length ? 'plants' : 'all');
-    setSelectedPlantIds((preset?.plants ?? []).map((plant) => plant.id));
-    setNote('');
-    setFedOn(toDateString(new Date()));
-    setValidationError('');
     resetRecord();
-    setVolumeText(
-      preset?.volumeLiters ? formatVolume(preset.volumeLiters, system, { withUnit: false }) : ''
-    );
-    setPlaceId(preset?.placeId ?? null);
 
     // A mix handed over by the calculator keeps its products and rates; the
     // rates are shown in the user's own units, which is how they were dialled
     // in there too.
-    const products = preset?.products ?? [];
-    setSelectedIds(products.map((product) => product.fertilizer_id).filter(Boolean));
-    setDoses(
-      Object.fromEntries(
-        products
-          .filter((product) => product.fertilizer_id)
-          .map((product) => [product.fertilizer_id, formatDose(product.dose_per_liter, system)])
-      )
-    );
+    const products = (preset?.products ?? []).filter((product) => product.fertilizer_id);
+    const presetIds = products.map((product) => product.fertilizer_id);
+    setSelectedIds(presetIds);
+
+    resetForm({
+      place_id: preset?.placeId ?? null,
+      target: preset?.plants?.length ? 'plants' : 'all',
+      fertilizer_ids: presetIds,
+      plant_ids: (preset?.plants ?? []).map((plant) => plant.id),
+      volume_liters: preset?.volumeLiters
+        ? formatVolume(preset.volumeLiters, system, { withUnit: false })
+        : '',
+      note: '',
+      fed_on: toDateString(new Date()),
+      ...Object.fromEntries(
+        products.map((product) => [
+          doseKey(product.fertilizer_id),
+          formatDose(product.dose_per_liter, system),
+        ])
+      ),
+    });
     // Opening is the trigger, not the preset changing; see the note above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -119,92 +116,81 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
    * when the dialog opens, or land a moment later.
    */
   useEffect(() => {
-    if (!visible || placeId || places.length !== 1) return;
-    setPlaceId(places[0].id);
-  }, [visible, placeId, places]);
+    if (!visible || form.values.place_id || places.length !== 1) return;
+    form.set('place_id', places[0].id);
+  }, [visible, form, places]);
 
-  const place = places.find((entry) => entry.id === placeId);
+  const place = places.find((entry) => entry.id === form.values.place_id);
 
   // The plants to choose from follow the growspace — and a station has none,
   // since a tray's cells aren't plants that could be picked out.
-  const plantQuery = useGrowspacePlants(place?.type === 'growspace' ? placeId : null);
+  const plantQuery = useGrowspacePlants(place?.type === 'growspace' ? form.values.place_id : null);
   const plants = useMemo(() => plantQuery.data ?? [], [plantQuery.data]);
+
+  const selectedPlantIds = useMemo(() => form.values.plant_ids ?? [], [form.values.plant_ids]);
+  const target = form.values.target;
 
   // Switching space mustn't leave a selection pointing at plants standing
   // somewhere else.
   useEffect(() => {
     const ids = new Set(plants.map((plant) => plant.id));
-    setSelectedPlantIds((current) => current.filter((id) => ids.has(id)));
-  }, [plants]);
-
-  const selected = selectedIds.map((id) => fertilizers.find((f) => f.id === id)).filter(Boolean);
+    const kept = selectedPlantIds.filter((id) => ids.has(id));
+    if (kept.length !== selectedPlantIds.length) form.set('plant_ids', kept);
+  }, [plants, selectedPlantIds, form]);
 
   const toggleFertilizer = (fertilizer) => {
     const isOn = selectedIds.includes(fertilizer.id);
-    setSelectedIds(
-      isOn ? selectedIds.filter((id) => id !== fertilizer.id) : [...selectedIds, fertilizer.id]
-    );
-    if (!isOn && doses[fertilizer.id] === undefined) {
+    const next = isOn
+      ? selectedIds.filter((id) => id !== fertilizer.id)
+      : [...selectedIds, fertilizer.id];
+    setSelectedIds(next);
+    form.set('fertilizer_ids', next);
+
+    if (!isOn && form.values[doseKey(fertilizer.id)] === undefined) {
       // The label's own fertigation rate is the honest starting point.
       const labelDose =
         Number(fertilizer.fertigation_dose_min) || Number(fertilizer.foliar_dose_min);
-      setDoses({
-        ...doses,
-        [fertilizer.id]: labelDose ? formatDose(labelDose, system) : '',
-      });
+      form.set(doseKey(fertilizer.id), labelDose ? formatDose(labelDose, system) : '');
     }
   };
 
-  const togglePlant = (plantId) =>
-    setSelectedPlantIds((current) =>
-      current.includes(plantId) ? current.filter((id) => id !== plantId) : [...current, plantId]
-    );
+  const togglePlant = (plantId) => {
+    const next = selectedPlantIds.includes(plantId)
+      ? selectedPlantIds.filter((id) => id !== plantId)
+      : [...selectedPlantIds, plantId];
+    form.set('plant_ids', next);
+  };
 
   const handleSave = () => {
-    if (!place) {
-      setValidationError('Pick a growspace or station');
-      return;
-    }
-    if (!selected.length) {
-      setValidationError('Pick at least one fertilizer');
-      return;
-    }
+    form.submit(
+      (values) => {
+        // A station is always fed whole, whatever was picked out before the place
+        // was switched to one.
+        const byPlant = values.target === 'plants' && place.type === 'growspace';
+        const fedPlants = byPlant
+          ? plants
+              .filter((plant) => values.plant_ids.includes(plant.id))
+              .map((plant) => ({ plant_id: plant.id, plant_name: plant.name }))
+          : [];
 
-    const products = selected.map((fertilizer) => ({
-      fertilizer_id: fertilizer.id,
-      fertilizer_name: fertilizer.name,
-      form: fertilizer.form,
-      dose_per_liter: parseDose(String(doses[fertilizer.id] ?? ''), system) ?? 0,
-    }));
-    if (products.some((product) => !(product.dose_per_liter > 0))) {
-      setValidationError('Every product in the mix needs a dose');
-      return;
-    }
-
-    // A station is always fed whole, whatever was picked out before the place
-    // was switched to one.
-    const byPlant = target === 'plants' && place.type === 'growspace';
-    const fedPlants = byPlant
-      ? plants
-          .filter((plant) => selectedPlantIds.includes(plant.id))
-          .map((plant) => ({ plant_id: plant.id, plant_name: plant.name }))
-      : [];
-    if (byPlant && !fedPlants.length) {
-      setValidationError('Pick the plants that were fed');
-      return;
-    }
-
-    setValidationError('');
-    record.mutate({
-      fedOn,
-      ...placeIds(place),
-      volumeLiters: parseVolume(volumeText, system),
-      note,
-      products,
-      plants: fedPlants,
-      placeName: place?.name ?? null,
-      system,
-    });
+        record.mutate({
+          fedOn: values.fed_on,
+          ...placeIds(place),
+          volumeLiters: values.volume_liters,
+          note: values.note ?? '',
+          products: selected.map((fertilizer) => ({
+            fertilizer_id: fertilizer.id,
+            fertilizer_name: fertilizer.name,
+            form: fertilizer.form,
+            dose_per_liter: values[doseKey(fertilizer.id)],
+          })),
+          plants: fedPlants,
+          placeName: place?.name ?? null,
+          system,
+        });
+      },
+      [feedingPlantsCheck(place)]
+    );
   };
 
   return (
@@ -235,13 +221,14 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
                   title={entry.name}
                   leadingIcon={placeIcon(entry.type)}
                   onPress={() => {
-                    setPlaceId(entry.id);
+                    form.set('place_id', entry.id);
                     setOpenMenu(false);
                   }}
                 />
               ))}
               {places.length === 0 && <Menu.Item title="Nothing to feed yet" disabled />}
             </Menu>
+            {!!form.errors.place_id && <HelperText type="error">{form.errors.place_id}</HelperText>}
 
             {place?.type === 'growspace' && (
               <>
@@ -250,11 +237,8 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
                 </Text>
                 <SegmentedButtons
                   value={target}
-                  onValueChange={setTarget}
-                  buttons={[
-                    { value: 'all', label: 'Whole space' },
-                    { value: 'plants', label: 'Some plants' },
-                  ]}
+                  onValueChange={(value) => form.set('target', value)}
+                  buttons={FEED_TARGETS}
                 />
                 {target === 'plants' && (
                   <View style={styles.plantList}>
@@ -270,6 +254,9 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
                     ))}
                     {plants.length === 0 && (
                       <HelperText type="info">No plants in this growspace yet.</HelperText>
+                    )}
+                    {!!form.errors.plant_ids && (
+                      <HelperText type="error">{form.errors.plant_ids}</HelperText>
                     )}
                   </View>
                 )}
@@ -300,45 +287,47 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
                 <HelperText type="info">Add a fertilizer under Inventory first.</HelperText>
               )}
             </View>
+            {!!form.errors.fertilizer_ids && (
+              <HelperText type="error">{form.errors.fertilizer_ids}</HelperText>
+            )}
 
             {selected.map((fertilizer) => (
-              <TextField
+              <FormField
                 key={fertilizer.id}
                 label={`${fertilizer.name} (${doseUnit(fertilizer.form, system)})`}
-                value={String(doses[fertilizer.id] ?? '')}
-                onChangeText={(text) => setDoses({ ...doses, [fertilizer.id]: text })}
                 keyboardType="decimal-pad"
                 dense
-                style={styles.input}
+                {...form.field(doseKey(fertilizer.id))}
               />
             ))}
 
-            <TextField
+            <FormField
               label={`Batch mixed (${volumeUnit(system)}, optional)`}
-              value={volumeText}
-              onChangeText={setVolumeText}
               keyboardType="decimal-pad"
               dense
-              style={[styles.input, styles.spacedInput]}
+              style={styles.spacedInput}
+              {...form.field('volume_liters')}
             />
 
-            <DateField label="Fed on" value={fedOn} onChange={setFedOn} maximumDate={new Date()} />
-
-            <TextField
-              label="Note (optional)"
-              value={note}
-              onChangeText={setNote}
-              style={styles.input}
+            <DateField
+              label="Fed on"
+              value={form.values.fed_on}
+              onChange={(date) => form.set('fed_on', date)}
+              maximumDate={new Date()}
             />
 
-            <ErrorText>
-              {validationError || (record.isError ? messageFor(record.error) : '')}
-            </ErrorText>
+            <FormField label="Note (optional)" {...form.field('note')} />
+
+            <ErrorText>{record.isError ? messageFor(record.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={record.isPending} disabled={record.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={record.isPending}
+            disabled={record.isPending || !form.canSubmit}
+          >
             Log feeding
           </Button>
         </Dialog.Actions>
@@ -375,9 +364,6 @@ const styles = StyleSheet.create({
   plantRow: {
     paddingVertical: 0,
     paddingHorizontal: 0,
-  },
-  input: {
-    marginBottom: 8,
   },
   spacedInput: {
     marginTop: 12,

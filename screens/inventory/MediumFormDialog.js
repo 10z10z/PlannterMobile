@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, Portal, Switch, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import { messageFor } from '../../lib/errors';
 import { useSaveInventoryItem } from '../../hooks/useInventory';
 import { useUnits } from '../../contexts/UnitsContext';
-import { formatVolume, parseVolume, volumeUnit } from '../../lib/units';
+import useForm from '../../hooks/useForm';
+import { mediumSchema, phRangeCheck } from '../../lib/schemas';
+import { formatVolume, volumeUnit } from '../../lib/units';
 import ImagePickerField from '../../components/ImagePickerField';
 import NutrientInputs, { NUTRIENT_KEYS } from '../../components/NutrientInputs';
 import ErrorText from '../../components/ErrorText';
@@ -34,72 +36,41 @@ function specsFrom(record) {
   );
 }
 
-function toNumberOrNull(text) {
-  if (text === null || text === undefined || String(text).trim() === '') return null;
-  const value = Number(String(text).replace(',', '.'));
-  return Number.isNaN(value) ? null : value;
-}
-
 export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }) {
   const { system } = useUnits();
   const isEditing = !!medium;
   const save = useSaveInventoryItem('mediums', { onSuccess: onSaved });
   const resetSave = save.reset;
 
-  const [name, setName] = useState('');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [quantity, setQuantity] = useState('1');
-  const [volume, setVolume] = useState('');
-  const [lowStock, setLowStock] = useState(false);
-  const [specs, setSpecs] = useState(emptySpecs);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const form = useForm(mediumSchema(system, NUTRIENT_KEYS), { checks: [phRangeCheck] });
+  const resetForm = form.reset;
 
   useEffect(() => {
     if (!visible) return;
-    setValidationError('');
     resetSave();
-    if (medium) {
-      setName(medium.name);
-      setImageUrl(medium.image_url);
-      setQuantity(String(medium.quantity));
-      setVolume(formatVolume(medium.volume_liters, system, { withUnit: false }));
-      setLowStock(medium.low_stock);
-      setSpecs(specsFrom(medium));
-    } else {
-      setName('');
-      setImageUrl(null);
-      setQuantity('1');
-      setVolume('');
-      setLowStock(false);
-      setSpecs(emptySpecs());
-    }
-  }, [visible, medium, system, resetSave]);
+    resetForm(
+      medium
+        ? {
+            name: medium.name,
+            image_url: medium.image_url,
+            quantity: String(medium.quantity),
+            volume_liters: formatVolume(medium.volume_liters, system, { withUnit: false }),
+            low_stock: medium.low_stock,
+            ...specsFrom(medium),
+          }
+        : {
+            name: '',
+            image_url: null,
+            quantity: '1',
+            volume_liters: '',
+            low_stock: false,
+            ...emptySpecs(),
+          }
+    );
+  }, [visible, medium, system, resetSave, resetForm]);
 
   const handleSave = () => {
-    const count = parseInt(quantity, 10);
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-    if (!count || count < 1) {
-      setValidationError('Quantity must be at least 1');
-      return;
-    }
-    setValidationError('');
-
-    save.mutate({
-      id: medium?.id,
-      values: {
-        name: name.trim(),
-        image_url: imageUrl,
-        quantity: count,
-        volume_liters: parseVolume(volume, system),
-        low_stock: lowStock,
-        ...Object.fromEntries(ALL_KEYS.map((key) => [key, toNumberOrNull(specs[key])])),
-      },
-    });
+    form.submit((values) => save.mutate({ id: medium?.id, values }));
   };
 
   return (
@@ -108,54 +79,63 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
         <Dialog.Title>{isEditing ? 'Edit Medium' : 'New Medium'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="growing_mediums" />
+            <ImagePickerField
+              value={form.values.image_url}
+              onChange={(url) => form.set('image_url', url)}
+              entity="growing_mediums"
+            />
 
-            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <FormField label="Name" {...form.field('name')} />
             <View style={styles.chips}>
               {PRESETS.map((preset) => (
-                <Chip key={preset} compact onPress={() => setName(preset)}>
+                <Chip key={preset} compact onPress={() => form.set('name', preset)}>
                   {preset}
                 </Chip>
               ))}
             </View>
 
             <View style={styles.row}>
-              <TextField
+              <FormField
                 label="How many"
-                value={quantity}
-                onChangeText={setQuantity}
                 keyboardType="number-pad"
                 dense
                 style={styles.rowField}
+                {...form.field('quantity')}
               />
-              <TextField
+              <FormField
                 label={`Volume each (${volumeUnit(system)})`}
-                value={volume}
-                onChangeText={setVolume}
                 keyboardType="decimal-pad"
                 dense
                 style={styles.rowField}
+                {...form.field('volume_liters')}
               />
             </View>
 
             <View style={styles.switchRow}>
               <Text variant="bodyMedium">Running low</Text>
-              <Switch value={lowStock} onValueChange={setLowStock} />
+              <Switch
+                value={Boolean(form.values.low_stock)}
+                onValueChange={(value) => form.set('low_stock', value)}
+              />
             </View>
 
             <Text variant="labelLarge" style={styles.optionalLabel}>
               Optional — for pre-charged soils
             </Text>
-            <NutrientInputs value={specs} onChange={setSpecs} showPh showEc />
+            <NutrientInputs field={form.field} values={form.values} showPh showEc />
 
-            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
+            <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || !form.canSubmit}
+          >
             Save
           </Button>
         </Dialog.Actions>
@@ -174,9 +154,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 8,
-  },
-  input: {
-    marginBottom: 8,
   },
   chips: {
     flexDirection: 'row',

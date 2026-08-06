@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import { messageFor } from '../../lib/errors';
 import { useSaveInventoryItem } from '../../hooks/useInventory';
+import useForm from '../../hooks/useForm';
+import { gridSizeCheck, traySchema } from '../../lib/schemas';
+import { parseWhole } from '../../lib/numbers';
 import ImagePickerField from '../../components/ImagePickerField';
 import ErrorText from '../../components/ErrorText';
 
@@ -17,68 +20,39 @@ export default function TrayFormDialog({ visible, onDismiss, onSaved, tray }) {
   const save = useSaveInventoryItem('trays', { onSuccess: onSaved });
   const resetSave = save.reset;
 
-  const [name, setName] = useState('');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [rows, setRows] = useState('');
-  const [cols, setCols] = useState('');
-  const [cellVolume, setCellVolume] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const form = useForm(traySchema, { checks: [gridSizeCheck()] });
+  const resetForm = form.reset;
 
   useEffect(() => {
     if (!visible) return;
-    setValidationError('');
     resetSave();
-    if (tray) {
-      setName(tray.name);
-      setImageUrl(tray.image_url);
-      setRows(String(tray.grid_rows));
-      setCols(String(tray.grid_cols));
-      setCellVolume(tray.cell_volume_ml === null ? '' : String(tray.cell_volume_ml));
-      setQuantity(String(tray.quantity));
-    } else {
-      setName('');
-      setImageUrl(null);
-      setRows('');
-      setCols('');
-      setCellVolume('');
-      setQuantity('1');
-    }
-  }, [visible, tray, resetSave]);
+    resetForm(
+      tray
+        ? {
+            name: tray.name,
+            image_url: tray.image_url,
+            grid_rows: String(tray.grid_rows),
+            grid_cols: String(tray.grid_cols),
+            cell_volume_ml: tray.cell_volume_ml === null ? '' : String(tray.cell_volume_ml),
+            quantity: String(tray.quantity),
+          }
+        : {
+            name: '',
+            image_url: null,
+            grid_rows: '',
+            grid_cols: '',
+            cell_volume_ml: '',
+            quantity: '1',
+          }
+    );
+  }, [visible, tray, resetSave, resetForm]);
 
-  const rowCount = parseInt(rows, 10);
-  const colCount = parseInt(cols, 10);
+  const rowCount = parseWhole(form.values.grid_rows);
+  const colCount = parseWhole(form.values.grid_cols);
   const cells = rowCount > 0 && colCount > 0 ? rowCount * colCount : null;
 
   const handleSave = () => {
-    const count = parseInt(quantity, 10);
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-    if (!rowCount || rowCount < 1 || !colCount || colCount < 1) {
-      setValidationError('Rows and columns must both be at least 1');
-      return;
-    }
-    if (!count || count < 1) {
-      setValidationError('Quantity must be at least 1');
-      return;
-    }
-    setValidationError('');
-
-    save.mutate({
-      id: tray?.id,
-      values: {
-        name: name.trim(),
-        image_url: imageUrl,
-        grid_rows: rowCount,
-        grid_cols: colCount,
-        cell_volume_ml: cellVolume.trim() ? Number(cellVolume.replace(',', '.')) : null,
-        quantity: count,
-      },
-    });
+    form.submit((values) => save.mutate({ id: tray?.id, values }));
   };
 
   return (
@@ -87,54 +61,56 @@ export default function TrayFormDialog({ visible, onDismiss, onSaved, tray }) {
         <Dialog.Title>{isEditing ? 'Edit Trays' : 'New Trays'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="trays" />
+            <ImagePickerField
+              value={form.values.image_url}
+              onChange={(url) => form.set('image_url', url)}
+              entity="trays"
+            />
 
-            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <FormField label="Name" {...form.field('name')} />
 
             <View style={styles.row}>
-              <TextField
+              <FormField
                 label="Rows"
-                value={rows}
-                onChangeText={setRows}
                 keyboardType="number-pad"
-                style={[styles.input, styles.half]}
+                style={styles.half}
+                {...form.field('grid_rows')}
               />
-              <TextField
+              <FormField
                 label="Columns"
-                value={cols}
-                onChangeText={setCols}
                 keyboardType="number-pad"
-                style={[styles.input, styles.half]}
+                style={styles.half}
+                {...form.field('grid_cols')}
               />
             </View>
             <HelperText type="info">
               {cells ? `${cells} cells per tray.` : 'Rows x columns gives the number of cells.'}
             </HelperText>
 
-            <TextField
+            <FormField
               label="Cell volume (ml, optional)"
-              value={cellVolume}
-              onChangeText={setCellVolume}
               keyboardType="decimal-pad"
-              style={styles.input}
+              {...form.field('cell_volume_ml')}
             />
-            <TextField
+            <FormField
               label="Quantity"
-              value={quantity}
-              onChangeText={setQuantity}
               keyboardType="number-pad"
-              style={styles.input}
+              hint="One entry covers a whole set of identical trays."
+              {...form.field('quantity')}
             />
-            <HelperText type="info">One entry covers a whole set of identical trays.</HelperText>
 
-            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
+            <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || !form.canSubmit}
+          >
             Save
           </Button>
         </Dialog.Actions>
@@ -153,9 +129,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 8,
-  },
-  input: {
-    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Menu, Portal, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume } from '../../lib/units';
 import { materialLabel } from '../../lib/containers';
@@ -10,7 +10,12 @@ import { messageFor } from '../../lib/errors';
 import { useGrowspaces } from '../../hooks/useGrowspaces';
 import { useInventory } from '../../hooks/useInventory';
 import { useDataMutation } from '../../hooks/useDataMutation';
+import useForm from '../../hooks/useForm';
+import { containersFitSeedlingsCheck, transplantSchema } from '../../lib/schemas';
+import { parseWhole } from '../../lib/numbers';
 import ErrorText from '../../components/ErrorText';
+
+const CHECKS = [containersFitSeedlingsCheck];
 
 /**
  * Moves germinated seedlings into a growspace, from one held cell, a selection
@@ -25,16 +30,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
   const containerShelf = useInventory('containers');
   const containers = containerShelf.data ?? [];
 
-  const [growspaceId, setGrowspaceId] = useState(null);
-  const [containerId, setContainerId] = useState(null);
-  const [seedlings, setSeedlings] = useState('1');
-  const [containerCount, setContainerCount] = useState('1');
-  const [name, setName] = useState('');
-
   const [openMenu, setOpenMenu] = useState(null);
-  // Only what this dialog checks itself; the server's objections arrive on the
-  // mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
 
   const move = useDataMutation({
     mutationFn: transplant,
@@ -45,6 +41,9 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
   });
 
   const available = (cells ?? []).reduce((sum, cell) => sum + cell.germinated, 0);
+
+  const form = useForm(transplantSchema(available), { checks: CHECKS });
+  const resetForm = form.reset;
 
   // Names where the seedlings came from, so a partial move can't be mistaken for
   // emptying the tray.
@@ -58,29 +57,31 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
 
   useEffect(() => {
     if (!visible) return;
-    setSeedlings(String(available));
-    setContainerCount(String(available || 1));
-    setName(sowing?.seed_pack_name ?? '');
-    setGrowspaceId(null);
-    setContainerId(null);
-    setValidationError('');
+    resetForm({
+      seedlings: String(available),
+      container_count: String(available || 1),
+      growspace_id: null,
+      container_id: null,
+      name: sowing?.seed_pack_name ?? '',
+    });
     move.reset();
     // Opening is the trigger; the lists come from the cache below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, available, sowing]);
+  }, [visible, available, sowing, resetForm]);
 
   // With a single growspace there is nothing to choose, so it is chosen. Kept
   // apart from the setup above because the list arrives from the cache and may
   // land after the dialog has opened.
   useEffect(() => {
-    if (!visible || growspaceId || growspaces.length !== 1) return;
-    setGrowspaceId(growspaces[0].id);
-  }, [visible, growspaceId, growspaces]);
+    if (!visible || form.values.growspace_id || growspaces.length !== 1) return;
+    form.set('growspace_id', growspaces[0].id);
+  }, [visible, form, growspaces]);
 
-  const seedlingCount = parseInt(seedlings, 10);
-  const potCount = parseInt(containerCount, 10);
-  const selectedGrowspace = growspaces.find((entry) => entry.id === growspaceId);
-  const selectedContainer = containers.find((entry) => entry.id === containerId);
+  const seedlingCount = parseWhole(form.values.seedlings);
+  const potCount = parseWhole(form.values.container_count);
+  const selectedGrowspace = growspaces.find((entry) => entry.id === form.values.growspace_id);
+  const selectedContainer = containers.find((entry) => entry.id === form.values.container_id);
+  const name = form.values.name;
 
   const describeContainer = (entry) =>
     `${formatVolume(entry.volume_liters, system)} ${materialLabel(entry.material)}`;
@@ -92,36 +93,20 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
         : `${Math.floor(seedlingCount / potCount)}-${Math.ceil(
             seedlingCount / potCount
           )} per container`
-      : null;
+      : undefined;
 
   const handleTransplant = () => {
-    if (!seedlingCount || seedlingCount < 1 || seedlingCount > available) {
-      setValidationError(`Pick between 1 and ${available} seedlings`);
-      return;
-    }
-    if (!potCount || potCount < 1 || potCount > seedlingCount) {
-      setValidationError('Containers must be between 1 and the number of seedlings');
-      return;
-    }
-    if (!growspaceId) {
-      setValidationError('Pick a growspace');
-      return;
-    }
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-
-    setValidationError('');
-    move.mutate({
-      sowing,
-      cells,
-      seedlingCount,
-      growspaceId,
-      containerId,
-      containerCount: potCount,
-      name: name.trim(),
-    });
+    form.submit((values) =>
+      move.mutate({
+        sowing,
+        cells,
+        seedlingCount: values.seedlings,
+        growspaceId: values.growspace_id,
+        containerId: values.container_id,
+        containerCount: values.container_count,
+        name: values.name,
+      })
+    );
   };
 
   return (
@@ -134,21 +119,18 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
               {`${available} seedling${available === 1 ? '' : 's'} ready in ${source}.`}
             </Text>
 
-            <TextField
+            <FormField
               label="Seedlings to move"
-              value={seedlings}
-              onChangeText={setSeedlings}
               keyboardType="number-pad"
-              style={[styles.input, styles.spacedInput]}
+              style={styles.spacedInput}
+              {...form.field('seedlings')}
             />
-            <TextField
+            <FormField
               label="Containers to use"
-              value={containerCount}
-              onChangeText={setContainerCount}
               keyboardType="number-pad"
-              style={styles.input}
+              hint={perPot}
+              {...form.field('container_count')}
             />
-            {!!perPot && <HelperText type="info">{perPot}</HelperText>}
 
             <Text variant="labelLarge" style={styles.label}>
               Growspace
@@ -171,13 +153,16 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
                   key={entry.id}
                   title={entry.name}
                   onPress={() => {
-                    setGrowspaceId(entry.id);
+                    form.set('growspace_id', entry.id);
                     setOpenMenu(null);
                   }}
                 />
               ))}
               {growspaces.length === 0 && <Menu.Item title="No growspaces yet" disabled />}
             </Menu>
+            {!!form.errors.growspace_id && (
+              <HelperText type="error">{form.errors.growspace_id}</HelperText>
+            )}
 
             <Text variant="labelLarge" style={styles.label}>
               Container
@@ -194,7 +179,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
               <Menu.Item
                 title="No container"
                 onPress={() => {
-                  setContainerId(null);
+                  form.set('container_id', null);
                   setOpenMenu(null);
                 }}
               />
@@ -204,7 +189,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
                   title={`${describeContainer(entry)} · ${entry.quantity - entry.inUse} free`}
                   trailingIcon={entry.inUse >= entry.quantity ? 'alert-circle-outline' : undefined}
                   onPress={() => {
-                    setContainerId(entry.id);
+                    form.set('container_id', entry.id);
                     setOpenMenu(null);
                   }}
                 />
@@ -212,19 +197,18 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
               {containers.length === 0 && <Menu.Item title="No containers in inventory" disabled />}
             </Menu>
 
-            <TextField
+            <FormField
               label="Plant name"
-              value={name}
-              onChangeText={setName}
-              style={[styles.input, styles.spacedInput]}
+              style={styles.spacedInput}
+              hint={
+                potCount > 1
+                  ? `Numbered "${name || 'Plant'} 1" to "${name || 'Plant'} ${potCount}".`
+                  : 'One plant is created in the growspace.'
+              }
+              {...form.field('name')}
             />
-            <HelperText type="info">
-              {potCount > 1
-                ? `Numbered "${name || 'Plant'} 1" to "${name || 'Plant'} ${potCount}".`
-                : 'One plant is created in the growspace.'}
-            </HelperText>
 
-            <ErrorText>{validationError || (move.isError ? messageFor(move.error) : '')}</ErrorText>
+            <ErrorText>{move.isError ? messageFor(move.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
@@ -232,7 +216,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
           <Button
             onPress={handleTransplant}
             loading={move.isPending}
-            disabled={move.isPending || available === 0}
+            disabled={move.isPending || available === 0 || !form.canSubmit}
           >
             Transplant
           </Button>
@@ -257,9 +241,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     opacity: 0.7,
-  },
-  input: {
-    marginBottom: 8,
   },
   spacedInput: {
     marginTop: 12,

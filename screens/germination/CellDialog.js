@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import { Button, Dialog, IconButton, Portal, Text } from 'react-native-paper';
+import FormField from '../../components/FormField';
 import { daysSince, setCellGerminated } from '../../lib/germination';
 import { messageFor } from '../../lib/errors';
 import { useDataMutation } from '../../hooks/useDataMutation';
+import useForm from '../../hooks/useForm';
+import { cellSchema } from '../../lib/schemas';
+import { parseWhole } from '../../lib/numbers';
 import ErrorText from '../../components/ErrorText';
 
 /**
@@ -13,10 +16,8 @@ import ErrorText from '../../components/ErrorText';
  * growspace.
  */
 export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, onTransplant }) {
-  const [germinated, setGerminated] = useState('0');
-  // Only what this dialog checks itself; the server's objections arrive on
-  // the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const form = useForm(cellSchema(cell?.seeds_planted ?? 0));
+  const resetForm = form.reset;
 
   const save = useDataMutation({
     mutationFn: ({ cell: target, value, sowing: parent }) =>
@@ -27,31 +28,23 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
 
   useEffect(() => {
     if (!visible || !cell) return;
-    setGerminated(String(cell.germinated));
-    setValidationError('');
-  }, [visible, cell]);
+    resetForm({ germinated: String(cell.germinated) });
+  }, [visible, cell, resetForm]);
 
   if (!cell) return null;
 
-  const value = parseInt(germinated, 10);
-  const valid = Number.isInteger(value) && value >= 0 && value <= cell.seeds_planted;
   const days = daysSince(cell.germinated_on);
 
+  // The steppers work on whatever is in the field, treating anything
+  // unparseable as nothing rather than refusing to move.
   const step = (delta) => {
-    const next = Math.min(
-      Math.max((Number.isInteger(value) ? value : 0) + delta, 0),
-      cell.seeds_planted
-    );
-    setGerminated(String(next));
+    const current = parseWhole(form.values.germinated);
+    const from = Number.isInteger(current) ? current : 0;
+    form.set('germinated', String(Math.min(Math.max(from + delta, 0), cell.seeds_planted)));
   };
 
   const handleSave = () => {
-    if (!valid) {
-      setValidationError(`Enter a number between 0 and ${cell.seeds_planted}`);
-      return;
-    }
-    setValidationError('');
-    save.mutate({ cell, value, sowing });
+    form.submit((values) => save.mutate({ cell, value: values.germinated, sowing }));
   };
 
   return (
@@ -65,22 +58,18 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
             <>
               <View style={styles.row}>
                 <IconButton icon="minus" mode="outlined" onPress={() => step(-1)} />
-                <TextField
+                <FormField
                   label="Germinated"
-                  value={germinated}
-                  onChangeText={setGerminated}
                   keyboardType="number-pad"
                   style={styles.input}
+                  hint={`Out of ${cell.seeds_planted} seed${cell.seeds_planted === 1 ? '' : 's'} sown${
+                    days !== null ? ` · first came up ${days}d ago` : ''
+                  }`}
+                  {...form.field('germinated')}
                 />
                 <IconButton icon="plus" mode="outlined" onPress={() => step(1)} />
               </View>
-              <HelperText type="info">
-                {`Out of ${cell.seeds_planted} seed${cell.seeds_planted === 1 ? '' : 's'} sown`}
-                {days !== null ? ` · first came up ${days}d ago` : ''}
-              </HelperText>
-              <ErrorText>
-                {validationError || (save.isError ? messageFor(save.error) : '')}
-              </ErrorText>
+              <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
             </>
           )}
         </Dialog.Content>
@@ -92,7 +81,7 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
           <Button
             onPress={handleSave}
             loading={save.isPending}
-            disabled={save.isPending || cell.seeds_planted === 0}
+            disabled={save.isPending || cell.seeds_planted === 0 || !form.canSubmit}
           >
             Save
           </Button>
@@ -105,7 +94,7 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   input: {
     flex: 1,

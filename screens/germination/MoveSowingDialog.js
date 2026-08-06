@@ -17,10 +17,10 @@ export default function MoveSowingDialog({ visible, sowing, stationId, onDismiss
   const stations = otherStations(stationQuery.data ?? [], stationId);
   const loading = stationQuery.isPending;
 
+  // Nothing is typed here — a station is picked or it isn't, and the Move
+  // button stays disabled until one is. So there is nothing for this dialog to
+  // check itself; only the server can object.
   const [targetId, setTargetId] = useState(null);
-  // Only what this dialog checks itself; the server's objections arrive on the
-  // mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
 
   const move = useDataMutation({
     mutationFn: ({ sowingId, toStationId }) => moveSowing(sowingId, toStationId),
@@ -33,16 +33,10 @@ export default function MoveSowingDialog({ visible, sowing, stationId, onDismiss
   useEffect(() => {
     if (!visible) return;
     setTargetId(null);
-    setValidationError('');
     resetMove();
   }, [visible, stationId, resetMove]);
 
   const handleMove = () => {
-    if (!targetId) {
-      setValidationError('Pick a station to move to');
-      return;
-    }
-    setValidationError('');
     move.mutate({ sowingId: sowing.id, toStationId: targetId });
   };
 
@@ -72,8 +66,7 @@ export default function MoveSowingDialog({ visible, sowing, stationId, onDismiss
               </RadioButton.Group>
             )}
             <ErrorText style={styles.errorText}>
-              {validationError ||
-                (move.isError ? messageFor(move.error) : '') ||
+              {(move.isError ? messageFor(move.error) : '') ||
                 (stationQuery.isError ? messageFor(stationQuery.error) : '')}
             </ErrorText>
           </ScrollView>

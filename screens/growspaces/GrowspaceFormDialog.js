@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
-import { formatTemperature, parseTemperature, tempUnit } from '../../lib/units';
+import { formatTemperature, tempUnit } from '../../lib/units';
 import {
   GROWSPACE_ENVIRONMENTS,
   fetchGrids,
@@ -14,6 +14,9 @@ import {
 } from '../../lib/growspaces';
 import { messageFor } from '../../lib/errors';
 import { useSaveGrowspace } from '../../hooks/useGrowspaces';
+import useForm from '../../hooks/useForm';
+import { growspaceSchema } from '../../lib/schemas';
+import { gridsAreValid, gridProblem } from '../../lib/grids';
 import LightAssignmentField from '../../components/LightAssignmentField';
 import GridListField from '../../components/GridListField';
 import ErrorText from '../../components/ErrorText';
@@ -27,12 +30,9 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
   const { system } = useUnits();
   const isEditing = !!growspace;
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [environment, setEnvironment] = useState('indoor');
-  const [temp, setTemp] = useState('');
-  const [humidity, setHumidity] = useState('');
-  const [sunHours, setSunHours] = useState('');
+  const form = useForm(growspaceSchema(system));
+  const resetForm = form.reset;
+
   const [grids, setGrids] = useState([]);
   const [lights, setLights] = useState([]);
   const [baseline, setBaseline] = useState([]);
@@ -42,9 +42,10 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
   // Set once a new growspace exists, so a retry after a half-failed save doesn't
   // create a second one.
   const [created, setCreated] = useState(null);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  // The grids are a list rather than a field, so their complaint can't sit under
+  // an input the way the rest do.
+  const [gridError, setGridError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const save = useSaveGrowspace({
     onSuccess: (saved) => {
@@ -61,21 +62,23 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
 
   useEffect(() => {
     if (!visible) return;
-    setValidationError('');
     resetSave();
     setCreated(null);
+    setGridError('');
+    setLoadError('');
 
     if (growspace) {
-      setName(growspace.name);
-      setDescription(growspace.description ?? '');
-      setEnvironment(growspace.environment);
-      setTemp(formatTemperature(growspace.temp_c, system));
-      setHumidity(growspace.humidity_pct === null ? '' : String(growspace.humidity_pct));
-      setSunHours(
-        growspace.sun_hours === null || growspace.sun_hours === undefined
-          ? ''
-          : String(growspace.sun_hours)
-      );
+      resetForm({
+        name: growspace.name,
+        description: growspace.description ?? '',
+        environment: growspace.environment,
+        temp: formatTemperature(growspace.temp_c, system),
+        humidity: growspace.humidity_pct === null ? '' : String(growspace.humidity_pct),
+        sunHours:
+          growspace.sun_hours === null || growspace.sun_hours === undefined
+            ? ''
+            : String(growspace.sun_hours),
+      });
       fetchGrids(growspace.id)
         .then(setGrids)
         .catch(() => setGrids([]));
@@ -88,73 +91,54 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
           setLights(current);
           setBaseline(current);
         })
-        .catch((loadError) => setValidationError(loadError.message));
+        .catch((error) => setLoadError(error.message));
       fetchPlants(growspace.id)
         .then(setPlants)
         .catch(() => setPlants([]));
     } else {
-      setName('');
-      setDescription('');
-      setEnvironment('indoor');
-      setTemp('');
-      setHumidity('');
-      setSunHours('');
+      resetForm({
+        name: '',
+        description: '',
+        environment: 'indoor',
+        temp: '',
+        humidity: '',
+        sunHours: '',
+      });
       // A new growspace starts with one grid, which is what most spaces are.
       setGrids([{ id: null, name: 'Main', grid_rows: 4, grid_cols: 4 }]);
       setLights([]);
       setBaseline([]);
       setPlants([]);
     }
-  }, [visible, growspace, system, resetSave]);
+  }, [visible, growspace, system, resetSave, resetForm]);
 
-  const gridsAreValid = grids.every(
-    (grid) => grid.grid_rows > 0 && grid.grid_cols > 0 && String(grid.name).trim()
-  );
-  const turnedLoose = gridsAreValid ? plantsLoosedBy(plants, grids) : [];
+  const environment = form.values.environment;
+  const turnedLoose = gridsAreValid(grids) ? plantsLoosedBy(plants, grids) : [];
 
   const handleSave = () => {
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-    if (!gridsAreValid) {
-      setValidationError('Every grid needs a name and at least one row and column');
-      return;
-    }
-    const humidityValue = humidity.trim() ? Number(humidity.replace(',', '.')) : null;
-    if (
-      humidityValue !== null &&
-      (Number.isNaN(humidityValue) || humidityValue < 0 || humidityValue > 100)
-    ) {
-      setValidationError('Humidity must be between 0 and 100%');
-      return;
-    }
+    const problem = gridProblem(grids);
+    setGridError(problem);
 
-    // Kept only while the space is outdoors: moving one inside shouldn't leave a
-    // figure for sun it no longer gets.
-    const sunValue =
-      environment === 'outdoor' && sunHours.trim() ? Number(sunHours.replace(',', '.')) : null;
-    if (sunValue !== null && (Number.isNaN(sunValue) || sunValue < 0 || sunValue > 24)) {
-      setValidationError('Hours of direct sun must be between 0 and 24');
-      return;
-    }
-
-    setValidationError('');
-    save.mutate({
-      // `created` is the growspace a half-failed save already made: retrying
-      // updates it rather than inserting a second one under the same name.
-      id: growspace?.id ?? created?.id,
-      values: {
-        name: name.trim(),
-        description: description.trim() || null,
-        environment,
-        temp_c: parseTemperature(temp, system),
-        humidity_pct: humidityValue,
-        sun_hours: sunValue,
-      },
-      grids,
-      lights,
-      plants,
+    form.submit((values) => {
+      if (problem) return;
+      save.mutate({
+        // `created` is the growspace a half-failed save already made: retrying
+        // updates it rather than inserting a second one under the same name.
+        id: growspace?.id ?? created?.id,
+        values: {
+          name: values.name,
+          description: values.description,
+          environment: values.environment,
+          temp_c: values.temp,
+          humidity_pct: values.humidity,
+          // Kept only while the space is outdoors: moving one inside shouldn't
+          // leave a figure for sun it no longer gets.
+          sun_hours: values.environment === 'outdoor' ? values.sunHours : null,
+        },
+        grids,
+        lights,
+        plants,
+      });
     });
   };
 
@@ -164,50 +148,44 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
         <Dialog.Title>{isEditing ? 'Edit Growspace' : 'New Growspace'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
-            <TextField
-              label="Description (optional)"
-              value={description}
-              onChangeText={setDescription}
-              style={styles.input}
-            />
+            <FormField label="Name" {...form.field('name')} />
+            <FormField label="Description (optional)" {...form.field('description')} />
 
             <Text variant="labelLarge" style={styles.label}>
               Environment
             </Text>
             <SegmentedButtons
               value={environment}
-              onValueChange={setEnvironment}
+              onValueChange={(value) => form.set('environment', value)}
               buttons={GROWSPACE_ENVIRONMENTS}
             />
 
             <View style={styles.row}>
-              <TextField
+              <FormField
                 label={`Temperature (${tempUnit(system)})`}
-                value={temp}
-                onChangeText={setTemp}
                 keyboardType="numbers-and-punctuation"
-                style={[styles.input, styles.half, styles.spacedInput]}
+                style={[styles.half, styles.spacedInput]}
+                {...form.field('temp')}
               />
-              <TextField
+              <FormField
                 label="Humidity (%)"
-                value={humidity}
-                onChangeText={setHumidity}
                 keyboardType="decimal-pad"
-                style={[styles.input, styles.half, styles.spacedInput]}
+                style={[styles.half, styles.spacedInput]}
+                hint="Optional"
+                {...form.field('humidity')}
               />
             </View>
-            <HelperText type="info">Optional — the conditions this space is kept at.</HelperText>
 
             <GridListField value={grids} onChange={setGrids} plants={plants} />
-            <HelperText type={turnedLoose.length ? 'error' : 'info'}>
-              {turnedLoose.length
-                ? `${turnedLoose.length} plant${
-                    turnedLoose.length === 1 ? '' : 's'
-                  } would go back to the holding tray when this is saved.`
-                : `${totalSpots(grids)} spots across ${grids.length} grid${
-                    grids.length === 1 ? '' : 's'
-                  }.`}
+            <HelperText type={turnedLoose.length || gridError ? 'error' : 'info'}>
+              {gridError ||
+                (turnedLoose.length
+                  ? `${turnedLoose.length} plant${
+                      turnedLoose.length === 1 ? '' : 's'
+                    } would go back to the holding tray when this is saved.`
+                  : `${totalSpots(grids)} spots across ${grids.length} grid${
+                      grids.length === 1 ? '' : 's'
+                    }.`)}
             </HelperText>
 
             {/* Outdoors the main light source isn't a fixture at all, so it
@@ -218,28 +196,28 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
                 <Text variant="labelLarge" style={styles.label}>
                   Sunlight
                 </Text>
-                <TextField
+                <FormField
                   label="Hours of direct sun"
-                  value={sunHours}
-                  onChangeText={setSunHours}
                   keyboardType="decimal-pad"
-                  right={<TextField.Affix text="h / day" />}
-                  style={styles.input}
+                  right={<FormField.Affix text="h / day" />}
+                  hint="How long the sun reaches this spot on a clear day."
+                  {...form.field('sunHours')}
                 />
-                <HelperText type="info">
-                  How long the sun reaches this spot on a clear day.
-                </HelperText>
               </>
             )}
 
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
-            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
+            <ErrorText>{loadError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || !form.canSubmit}
+          >
             {isEditing || created ? 'Save' : 'Create'}
           </Button>
         </Dialog.Actions>
@@ -263,9 +241,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
     opacity: 0.7,
-  },
-  input: {
-    marginBottom: 8,
   },
   spacedInput: {
     marginTop: 12,

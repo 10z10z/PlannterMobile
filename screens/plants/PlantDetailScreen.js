@@ -10,7 +10,9 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
+import useForm from '../../hooks/useForm';
+import { plantEditSchema } from '../../lib/schemas';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { messageFor } from '../../lib/errors';
 import { useDeletePlant, usePlant, useUpdatePlant, useWaterPlant } from '../../hooks/useGrowspaces';
@@ -52,58 +54,29 @@ export default function PlantDetailScreen({ route, navigation }) {
   const plant = plantQuery.data ?? null;
   const loading = plantQuery.isPending;
   const [editVisible, setEditVisible] = useState(false);
-  const [name, setName] = useState('');
-  const [species, setSpecies] = useState('');
-  const [intervalDays, setIntervalDays] = useState('');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [containerId, setContainerId] = useState(null);
-  const [plantType, setPlantType] = useState('');
-  const [germinatedOn, setGerminatedOn] = useState(null);
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
   const [feedVisible, setFeedVisible] = useState(false);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const form = useForm(plantEditSchema);
 
   const update = useUpdatePlant({ onSuccess: () => setEditVisible(false) });
   const water = useWaterPlant();
   const remove = useDeletePlant({ onSuccess: () => navigation.goBack() });
 
   const openEditDialog = () => {
-    setName(plant.name);
-    setSpecies(plant.species || '');
-    setIntervalDays(String(plant.watering_interval_days));
-    setImageUrl(plant.image_url);
-    setContainerId(plant.container_id);
-    setPlantType(plant.plant_type || '');
-    setGerminatedOn(plant.germinated_on);
-    setValidationError('');
+    form.reset({
+      name: plant.name,
+      species: plant.species || '',
+      plant_type: plant.plant_type || '',
+      germinated_on: plant.germinated_on,
+      watering_interval_days: String(plant.watering_interval_days),
+      image_url: plant.image_url,
+      container_id: plant.container_id,
+    });
     setEditVisible(true);
   };
 
   const handleSaveEdit = () => {
-    const interval = parseInt(intervalDays, 10);
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-    if (!interval || interval < 1) {
-      setValidationError('Watering interval must be a positive number of days');
-      return;
-    }
-    setValidationError('');
-    update.mutate({
-      plantId,
-      values: {
-        name: name.trim(),
-        species: species.trim() || null,
-        plant_type: plantType.trim() || null,
-        germinated_on: germinatedOn,
-        watering_interval_days: interval,
-        image_url: imageUrl,
-        container_id: containerId,
-      },
-    });
+    form.submit((values) => update.mutate({ plantId, values }));
   };
 
   /**
@@ -224,14 +197,13 @@ export default function PlantDetailScreen({ route, navigation }) {
           <Dialog.Title>Edit Plant</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.scrollContent}>
-              <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
-              <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
-              <TextField
-                label="Species (optional)"
-                value={species}
-                onChangeText={setSpecies}
-                style={styles.input}
+              <ImagePickerField
+                value={form.values.image_url}
+                onChange={(url) => form.set('image_url', url)}
+                entity="plants"
               />
+              <FormField label="Name" {...form.field('name')} />
+              <FormField label="Species (optional)" {...form.field('species')} />
 
               {/* Free text, since a grower may keep something the guidelines
                 don't cover — the picker is a shortcut to the crops that carry
@@ -240,14 +212,12 @@ export default function PlantDetailScreen({ route, navigation }) {
                 visible={typeMenuVisible}
                 onDismiss={() => setTypeMenuVisible(false)}
                 anchor={
-                  <TextField
+                  <FormField
                     label="Crop (optional)"
-                    value={plantType}
-                    onChangeText={setPlantType}
                     right={
-                      <TextField.Icon icon="menu-down" onPress={() => setTypeMenuVisible(true)} />
+                      <FormField.Icon icon="menu-down" onPress={() => setTypeMenuVisible(true)} />
                     }
-                    style={styles.input}
+                    {...form.field('plant_type')}
                   />
                 }
               >
@@ -257,7 +227,7 @@ export default function PlantDetailScreen({ route, navigation }) {
                     title={SPECIES[key].label}
                     leadingIcon={SPECIES[key].icon}
                     onPress={() => {
-                      setPlantType(SPECIES[key].label);
+                      form.set('plant_type', SPECIES[key].label);
                       setTypeMenuVisible(false);
                     }}
                   />
@@ -266,30 +236,33 @@ export default function PlantDetailScreen({ route, navigation }) {
 
               <DateField
                 label="Germinated on (optional)"
-                value={germinatedOn}
-                onChange={setGerminatedOn}
+                value={form.values.germinated_on}
+                onChange={(date) => form.set('germinated_on', date)}
                 maximumDate={new Date()}
               />
               <HelperText type="info">
                 What the growth phase is counted from. Transplants bring it with them.
               </HelperText>
 
-              <TextField
+              <FormField
                 label="Watering interval (days)"
-                value={intervalDays}
-                onChangeText={setIntervalDays}
                 keyboardType="number-pad"
-                style={styles.input}
+                {...form.field('watering_interval_days')}
               />
-              <ContainerPicker value={containerId} onChange={setContainerId} />
-              <ErrorText>
-                {validationError || (update.isError ? messageFor(update.error) : '')}
-              </ErrorText>
+              <ContainerPicker
+                value={form.values.container_id}
+                onChange={(id) => form.set('container_id', id)}
+              />
+              <ErrorText>{update.isError ? messageFor(update.error) : ''}</ErrorText>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setEditVisible(false)}>Cancel</Button>
-            <Button onPress={handleSaveEdit} loading={update.isPending} disabled={update.isPending}>
+            <Button
+              onPress={handleSaveEdit}
+              loading={update.isPending}
+              disabled={update.isPending || !form.canSubmit}
+            >
               Save
             </Button>
           </Dialog.Actions>

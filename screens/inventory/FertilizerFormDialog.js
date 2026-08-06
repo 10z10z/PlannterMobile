@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { messageFor } from '../../lib/errors';
 import { useSaveInventoryItem } from '../../hooks/useInventory';
-import { doseUnit, formatDose, parseDose } from '../../lib/units';
+import useForm from '../../hooks/useForm';
+import { doseRangeCheck, fertilizerSchema } from '../../lib/schemas';
+import { FERTILIZER_FORMS, FERTILIZER_ORIGINS } from '../../lib/enums';
+import { doseUnit, formatDose } from '../../lib/units';
 import ImagePickerField from '../../components/ImagePickerField';
 import NutrientInputs, { NUTRIENT_KEYS } from '../../components/NutrientInputs';
 import ErrorText from '../../components/ErrorText';
@@ -20,11 +23,10 @@ function nutrientsFrom(record) {
   );
 }
 
-function toNumberOrNull(text) {
-  if (text === null || text === undefined || String(text).trim() === '') return null;
-  const value = Number(String(text).replace(',', '.'));
-  return Number.isNaN(value) ? null : value;
-}
+const CHECKS = [
+  doseRangeCheck('foliar_dose_min', 'foliar_dose_max', 'foliar dose'),
+  doseRangeCheck('fertigation_dose_min', 'fertigation_dose_max', 'fertigation dose'),
+];
 
 /**
  * Create/edit dialog for a fertilizer. Doses are typed in the user's preferred
@@ -38,70 +40,45 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
   // below can be a dependency without re-running the form's setup every render.
   const resetSave = save.reset;
 
-  const [name, setName] = useState('');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [form, setForm] = useState('liquid');
-  const [origin, setOrigin] = useState('synthetic');
-  const [nutrients, setNutrients] = useState(emptyNutrients);
-  const [foliarMin, setFoliarMin] = useState('');
-  const [foliarMax, setFoliarMax] = useState('');
-  const [fertigationMin, setFertigationMin] = useState('');
-  const [fertigationMax, setFertigationMax] = useState('');
-  // Only the rule this form checks itself. Anything the server objects to
-  // arrives on the mutation instead, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const form = useForm(fertilizerSchema(system, NUTRIENT_KEYS), { checks: CHECKS });
+  const resetForm = form.reset;
 
   // Reset the form each time the dialog opens, for whichever record it opened on.
   useEffect(() => {
     if (!visible) return;
-    setValidationError('');
     resetSave();
-    if (fertilizer) {
-      setName(fertilizer.name);
-      setImageUrl(fertilizer.image_url);
-      setForm(fertilizer.form);
-      setOrigin(fertilizer.origin);
-      setNutrients(nutrientsFrom(fertilizer));
-      setFoliarMin(formatDose(fertilizer.foliar_dose_min, system));
-      setFoliarMax(formatDose(fertilizer.foliar_dose_max, system));
-      setFertigationMin(formatDose(fertilizer.fertigation_dose_min, system));
-      setFertigationMax(formatDose(fertilizer.fertigation_dose_max, system));
-    } else {
-      setName('');
-      setImageUrl(null);
-      setForm('liquid');
-      setOrigin('synthetic');
-      setNutrients(emptyNutrients());
-      setFoliarMin('');
-      setFoliarMax('');
-      setFertigationMin('');
-      setFertigationMax('');
-    }
-  }, [visible, fertilizer, system, resetSave]);
+    resetForm(
+      fertilizer
+        ? {
+            name: fertilizer.name,
+            image_url: fertilizer.image_url,
+            form: fertilizer.form,
+            origin: fertilizer.origin,
+            ...nutrientsFrom(fertilizer),
+            foliar_dose_min: formatDose(fertilizer.foliar_dose_min, system),
+            foliar_dose_max: formatDose(fertilizer.foliar_dose_max, system),
+            fertigation_dose_min: formatDose(fertilizer.fertigation_dose_min, system),
+            fertigation_dose_max: formatDose(fertilizer.fertigation_dose_max, system),
+          }
+        : {
+            name: '',
+            image_url: null,
+            form: 'liquid',
+            origin: 'synthetic',
+            ...emptyNutrients(),
+            foliar_dose_min: '',
+            foliar_dose_max: '',
+            fertigation_dose_min: '',
+            fertigation_dose_max: '',
+          }
+    );
+  }, [visible, fertilizer, system, resetSave, resetForm]);
 
   const handleSave = () => {
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-    setValidationError('');
-
-    const values = {
-      name: name.trim(),
-      image_url: imageUrl,
-      form,
-      origin,
-      ...Object.fromEntries(NUTRIENT_KEYS.map((key) => [key, toNumberOrNull(nutrients[key])])),
-      foliar_dose_min: parseDose(foliarMin, system),
-      foliar_dose_max: parseDose(foliarMax, system),
-      fertigation_dose_min: parseDose(fertigationMin, system),
-      fertigation_dose_max: parseDose(fertigationMax, system),
-    };
-
-    save.mutate({ id: fertilizer?.id, values });
+    form.submit((values) => save.mutate({ id: fertilizer?.id, values }));
   };
 
-  const unit = doseUnit(form, system);
+  const unit = doseUnit(form.values.form, system);
 
   return (
     <Portal>
@@ -109,55 +86,51 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
         <Dialog.Title>{isEditing ? 'Edit Fertilizer' : 'New Fertilizer'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="fertilizers" />
+            <ImagePickerField
+              value={form.values.image_url}
+              onChange={(url) => form.set('image_url', url)}
+              entity="fertilizers"
+            />
 
-            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <FormField label="Name" {...form.field('name')} />
 
             <Text variant="labelLarge" style={styles.sectionLabel}>
               Form
             </Text>
             <SegmentedButtons
-              value={form}
-              onValueChange={setForm}
-              buttons={[
-                { value: 'liquid', label: 'Liquid' },
-                { value: 'solid', label: 'Crystal' },
-              ]}
+              value={form.values.form}
+              onValueChange={(value) => form.set('form', value)}
+              buttons={FERTILIZER_FORMS}
             />
 
             <Text variant="labelLarge" style={styles.sectionLabel}>
               Type
             </Text>
             <SegmentedButtons
-              value={origin}
-              onValueChange={setOrigin}
-              buttons={[
-                { value: 'organic', label: 'Organic' },
-                { value: 'synthetic', label: 'Synthetic' },
-              ]}
+              value={form.values.origin}
+              onValueChange={(value) => form.set('origin', value)}
+              buttons={FERTILIZER_ORIGINS}
             />
 
-            <NutrientInputs value={nutrients} onChange={setNutrients} />
+            <NutrientInputs field={form.field} values={form.values} />
 
             <Text variant="labelLarge" style={styles.sectionLabel}>
               Foliar dose ({unit})
             </Text>
             <View style={styles.row}>
-              <TextField
+              <FormField
                 label="Min"
-                value={foliarMin}
-                onChangeText={setFoliarMin}
                 keyboardType="decimal-pad"
                 dense
                 style={styles.rowField}
+                {...form.field('foliar_dose_min')}
               />
-              <TextField
+              <FormField
                 label="Max"
-                value={foliarMax}
-                onChangeText={setFoliarMax}
                 keyboardType="decimal-pad"
                 dense
                 style={styles.rowField}
+                {...form.field('foliar_dose_max')}
               />
             </View>
 
@@ -165,32 +138,34 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
               Fertigation dose ({unit})
             </Text>
             <View style={styles.row}>
-              <TextField
+              <FormField
                 label="Min"
-                value={fertigationMin}
-                onChangeText={setFertigationMin}
                 keyboardType="decimal-pad"
                 dense
                 style={styles.rowField}
+                {...form.field('fertigation_dose_min')}
               />
-              <TextField
+              <FormField
                 label="Max"
-                value={fertigationMax}
-                onChangeText={setFertigationMax}
                 keyboardType="decimal-pad"
                 dense
                 style={styles.rowField}
+                {...form.field('fertigation_dose_max')}
               />
             </View>
 
-            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
+            <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || !form.canSubmit}
+          >
             Save
           </Button>
         </Dialog.Actions>
@@ -209,9 +184,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 8,
-  },
-  input: {
-    marginBottom: 8,
   },
   sectionLabel: {
     marginTop: 12,

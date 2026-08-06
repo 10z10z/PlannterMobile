@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
 import { thinSowing, thinnableCells, thinningSummary } from '../../lib/germination';
@@ -21,10 +20,8 @@ function describeLosses({ seedlings, seeds }) {
  * plainly how many go and how many stay before offering the button.
  */
 export default function ThinDialog({ visible, sowing, onDismiss, onDone }) {
-  // Only what this dialog checks itself; the server's objections arrive on
-  // the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
-
+  // Nothing is typed here, so there is nothing for this dialog to check itself;
+  // only the server can object, and its message is shown below.
   const save = useDataMutation({
     mutationFn: ({ cells: rows, sowing: parent }) => thinSowing(rows, parent),
     affects: 'sowingChanged',
@@ -35,7 +32,6 @@ export default function ThinDialog({ visible, sowing, onDismiss, onDone }) {
   const summary = thinningSummary(cells);
 
   const handleThin = () => {
-    setValidationError('');
     save.mutate({ cells, sowing });
   };
 
@@ -61,7 +57,7 @@ export default function ThinDialog({ visible, sowing, onDismiss, onDone }) {
             </>
           )}
           <ErrorText style={styles.errorText}>
-            {validationError || (save.isError ? messageFor(save.error) : '')}
+            {save.isError ? messageFor(save.error) : ''}
           </ErrorText>
         </Dialog.Content>
         <Dialog.Actions>

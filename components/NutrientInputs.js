@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
-import TextField from './TextField';
+import FormField from './FormField';
 
 export const MACRO_KEYS = ['n', 'p', 'k'];
 export const MICRO_KEYS = ['ca', 'mg', 's', 'fe', 'mn', 'zn', 'b', 'cu', 'mo'];
@@ -24,28 +24,36 @@ const LABELS = {
 
 /**
  * Nutrient percentage inputs, shared by fertilizers and (optionally) pre-charged
- * growing mediums. `value` is a plain object of column key -> string, kept as
- * typed text so partial input like "1." doesn't get mangled mid-edit.
+ * growing mediums.
+ *
+ * The values are held by the caller's form rather than here, and reached
+ * through its `field` accessor, so each figure is range-checked and reports
+ * against itself like every other input. They stay typed text so partial input
+ * like "1." doesn't get mangled mid-edit.
  *
  * Micronutrients start collapsed — most products only list NPK.
+ *
+ * @param {object} props
+ * @param {(name: string) => object} props.field The form's field accessor.
+ * @param {Record<string, any>} props.values Only read to decide whether the
+ *   micronutrients start open, which depends on whether any were filled in.
+ * @param {boolean} [props.showPh] Substrate pH, which only a medium has.
+ * @param {boolean} [props.showEc] Substrate EC, likewise.
  */
-export default function NutrientInputs({ value, onChange, showPh = false, showEc = false }) {
+export default function NutrientInputs({ field, values, showPh = false, showEc = false }) {
   const [microsOpen, setMicrosOpen] = useState(
-    MICRO_KEYS.some((key) => value[key] !== undefined && value[key] !== '')
+    MICRO_KEYS.some((key) => values[key] !== undefined && values[key] !== '')
   );
 
-  const set = (key) => (text) => onChange({ ...value, [key]: text });
-
   const renderField = (key, label, suffix) => (
-    <TextField
+    <FormField
       key={key}
       label={label}
-      value={value[key] ?? ''}
-      onChangeText={set(key)}
       keyboardType="decimal-pad"
       dense
-      right={suffix ? <TextField.Affix text={suffix} /> : undefined}
+      right={suffix ? <FormField.Affix text={suffix} /> : undefined}
       style={styles.field}
+      {...field(key)}
     />
   );
 

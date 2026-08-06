@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { messageFor } from '../../lib/errors';
 import { useSaveInventoryItem } from '../../hooks/useInventory';
-import { formatVolume, parseVolume, volumeUnit } from '../../lib/units';
+import useForm from '../../hooks/useForm';
+import { containerSchema } from '../../lib/schemas';
+import { formatVolume, volumeUnit } from '../../lib/units';
 import { CONTAINER_MATERIALS } from '../../lib/containers';
 import ImagePickerField from '../../components/ImagePickerField';
 import ErrorText from '../../components/ErrorText';
@@ -20,53 +22,26 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
   const save = useSaveInventoryItem('containers', { onSuccess: onSaved });
   const resetSave = save.reset;
 
-  const [material, setMaterial] = useState('plastic');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [volume, setVolume] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const form = useForm(containerSchema(system));
+  const resetForm = form.reset;
 
   useEffect(() => {
     if (!visible) return;
-    setValidationError('');
     resetSave();
-    if (container) {
-      setMaterial(container.material);
-      setImageUrl(container.image_url);
-      setVolume(formatVolume(container.volume_liters, system, { withUnit: false }));
-      setQuantity(String(container.quantity));
-    } else {
-      setMaterial('plastic');
-      setImageUrl(null);
-      setVolume('');
-      setQuantity('1');
-    }
-  }, [visible, container, system, resetSave]);
+    resetForm(
+      container
+        ? {
+            material: container.material,
+            image_url: container.image_url,
+            volume_liters: formatVolume(container.volume_liters, system, { withUnit: false }),
+            quantity: String(container.quantity),
+          }
+        : { material: 'plastic', image_url: null, volume_liters: '', quantity: '1' }
+    );
+  }, [visible, container, system, resetSave, resetForm]);
 
   const handleSave = () => {
-    const liters = parseVolume(volume, system);
-    const count = parseInt(quantity, 10);
-    if (!liters || liters <= 0) {
-      setValidationError('Volume is required');
-      return;
-    }
-    if (!count || count < 1) {
-      setValidationError('Quantity must be at least 1');
-      return;
-    }
-    setValidationError('');
-
-    save.mutate({
-      id: container?.id,
-      values: {
-        material,
-        image_url: imageUrl,
-        volume_liters: liters,
-        quantity: count,
-      },
-    });
+    form.submit((values) => save.mutate({ id: container?.id, values }));
   };
 
   return (
@@ -75,44 +50,46 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
         <Dialog.Title>{isEditing ? 'Edit Containers' : 'New Containers'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="containers" />
+            <ImagePickerField
+              value={form.values.image_url}
+              onChange={(url) => form.set('image_url', url)}
+              entity="containers"
+            />
 
             <Text variant="labelLarge" style={styles.sectionLabel}>
               Material
             </Text>
             <SegmentedButtons
-              value={material}
-              onValueChange={setMaterial}
+              value={form.values.material}
+              onValueChange={(value) => form.set('material', value)}
               buttons={CONTAINER_MATERIALS}
-              style={styles.input}
+              style={styles.segmented}
             />
 
-            <TextField
+            <FormField
               label={`Volume (${volumeUnit(system)})`}
-              value={volume}
-              onChangeText={setVolume}
               keyboardType="decimal-pad"
-              style={styles.input}
+              {...form.field('volume_liters')}
             />
-            <TextField
+            <FormField
               label="Quantity"
-              value={quantity}
-              onChangeText={setQuantity}
               keyboardType="number-pad"
-              style={styles.input}
+              hint="One entry covers a whole set of identical containers."
+              {...form.field('quantity')}
             />
-            <HelperText type="info">
-              One entry covers a whole set of identical containers.
-            </HelperText>
 
-            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
+            <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss} disabled={save.isPending}>
             Cancel
           </Button>
-          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || !form.canSubmit}
+          >
             Save
           </Button>
         </Dialog.Actions>
@@ -132,7 +109,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 8,
   },
-  input: {
+  segmented: {
     marginBottom: 8,
   },
   sectionLabel: {

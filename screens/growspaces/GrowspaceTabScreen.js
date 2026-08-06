@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, FAB, List, Portal, SegmentedButtons, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
+import useForm from '../../hooks/useForm';
+import { plantSchema } from '../../lib/schemas';
 import { useNavigation } from '@react-navigation/native';
 import { useUnits } from '../../contexts/UnitsContext';
 import { useWeather } from '../../contexts/WeatherContext';
@@ -60,15 +62,7 @@ export default function GrowspaceTabScreen({ route }) {
   const [editVisible, setEditVisible] = useState(false);
 
   const [dialogVisible, setDialogVisible] = useState(false);
-  const [name, setName] = useState('');
-  const [species, setSpecies] = useState('');
-  const [intervalDays, setIntervalDays] = useState('7');
-  const [plantType, setPlantType] = useState('');
-  const [imageUrl, setImageUrl] = useState(null);
-  const [containerId, setContainerId] = useState(null);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const form = useForm(plantSchema);
 
   const createPlant = useCreatePlant({ onSuccess: () => setDialogVisible(false) });
 
@@ -163,39 +157,20 @@ export default function GrowspaceTabScreen({ route }) {
   };
 
   const openDialog = () => {
-    setName('');
-    setSpecies('');
-    setIntervalDays('7');
-    setPlantType('');
-    setImageUrl(null);
-    setContainerId(null);
-    setValidationError('');
+    form.reset({
+      name: '',
+      species: '',
+      plant_type: '',
+      watering_interval_days: '7',
+      image_url: null,
+      container_id: null,
+    });
     createPlant.reset();
     setDialogVisible(true);
   };
 
   const handleCreate = () => {
-    const interval = parseInt(intervalDays, 10);
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-    if (!interval || interval < 1) {
-      setValidationError('Watering interval must be a positive number of days');
-      return;
-    }
-    setValidationError('');
-    createPlant.mutate({
-      growspaceId,
-      values: {
-        name: name.trim(),
-        species: species.trim() || null,
-        plant_type: plantType.trim() || null,
-        watering_interval_days: interval,
-        image_url: imageUrl,
-        container_id: containerId,
-      },
-    });
+    form.submit((values) => createPlant.mutate({ growspaceId, values }));
   };
 
   const sunlit = growspace?.environment === 'outdoor' && growspace?.sun_hours > 0;
@@ -335,42 +310,38 @@ export default function GrowspaceTabScreen({ route }) {
         <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
           <Dialog.Title>New Plant</Dialog.Title>
           <Dialog.Content>
-            <ImagePickerField value={imageUrl} onChange={setImageUrl} entity="plants" />
-            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
-            <TextField
-              label="Species (optional)"
-              value={species}
-              onChangeText={setSpecies}
-              style={styles.input}
+            <ImagePickerField
+              value={form.values.image_url}
+              onChange={(url) => form.set('image_url', url)}
+              entity="plants"
             />
-            <TextField
+            <FormField label="Name" {...form.field('name')} />
+            <FormField label="Species (optional)" {...form.field('species')} />
+            <FormField
               label="Crop (optional)"
               placeholder="Pepper, tomato, lettuce…"
-              value={plantType}
-              onChangeText={setPlantType}
-              style={styles.input}
+              {...form.field('plant_type')}
             />
-            <TextField
+            <FormField
               label="Watering interval (days)"
-              value={intervalDays}
-              onChangeText={setIntervalDays}
               keyboardType="number-pad"
-              style={styles.input}
+              {...form.field('watering_interval_days')}
             />
-            <ContainerPicker value={containerId} onChange={setContainerId} />
+            <ContainerPicker
+              value={form.values.container_id}
+              onChange={(id) => form.set('container_id', id)}
+            />
             <Text variant="bodySmall" style={styles.hint}>
               New plants wait in the holding tray until you place them.
             </Text>
-            <ErrorText>
-              {validationError || (createPlant.isError ? messageFor(createPlant.error) : '')}
-            </ErrorText>
+            <ErrorText>{createPlant.isError ? messageFor(createPlant.error) : ''}</ErrorText>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDialogVisible(false)}>Cancel</Button>
             <Button
               onPress={handleCreate}
               loading={createPlant.isPending}
-              disabled={createPlant.isPending}
+              disabled={createPlant.isPending || !form.canSubmit}
             >
               Create
             </Button>

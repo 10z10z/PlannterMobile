@@ -1,22 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, HelperText, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
+import useForm from '../../hooks/useForm';
+import { loginSchema } from '../../lib/schemas';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const form = useForm(loginSchema);
+  const resetForm = form.reset;
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  useEffect(() => {
+    resetForm({ email: '', password: '' });
+  }, [resetForm]);
+
+  const handleLogin = () => {
     setError('');
-    setLoading(true);
-    const { error } = await signIn(email, password);
-    setLoading(false);
-    if (error) setError(error.message);
+    form.submit(async (values) => {
+      setLoading(true);
+      const { error: failure } = await signIn(values.email, values.password);
+      setLoading(false);
+      if (failure) setError(failure.message);
+    });
   };
 
   return (
@@ -28,26 +37,29 @@ export default function LoginScreen({ navigation }) {
         Welcome back
       </Text>
 
-      <TextField
+      <FormField
         label="Email"
-        value={email}
-        onChangeText={setEmail}
         autoCapitalize="none"
+        autoComplete="email"
         keyboardType="email-address"
-        style={styles.input}
+        {...form.field('email')}
       />
-      <TextField
+      <FormField
         label="Password"
-        value={password}
-        onChangeText={setPassword}
         secureTextEntry
-        style={styles.input}
+        autoComplete="current-password"
+        {...form.field('password')}
       />
       <HelperText type="error" visible={!!error}>
         {error}
       </HelperText>
 
-      <Button mode="contained" onPress={handleLogin} loading={loading} disabled={loading}>
+      <Button
+        mode="contained"
+        onPress={handleLogin}
+        loading={loading}
+        disabled={loading || !form.canSubmit}
+      >
         Log in
       </Button>
       <Button onPress={() => navigation.navigate('Signup')} style={styles.linkButton}>
@@ -72,9 +84,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textAlign: 'center',
     opacity: 0.7,
-  },
-  input: {
-    marginBottom: 8,
   },
   linkButton: {
     marginTop: 8,

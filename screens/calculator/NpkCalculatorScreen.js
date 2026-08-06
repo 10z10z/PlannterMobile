@@ -18,6 +18,7 @@ import { useUnits } from '../../contexts/UnitsContext';
 import QueryBoundary from '../../components/QueryBoundary';
 import { useInventory } from '../../hooks/useInventory';
 import { doseUnit, formatDose, parseDose, parseVolume, volumeUnit } from '../../lib/units';
+import { parseDecimal } from '../../lib/numbers';
 import {
   MACRO_KEYS,
   STAGE_KEYS,
@@ -45,10 +46,16 @@ const WATER_KEYS = {
   mg: 'waterMgPpm',
 };
 
+/**
+ * A typed figure as a number, treating both blank and rubbish as zero.
+ *
+ * The calculator recomputes on every keystroke, so it has to have an answer for
+ * a half-typed field rather than an error — a mix showing nothing while "1." is
+ * being typed would flicker on every entry.
+ */
 function toNumber(text) {
-  if (text === null || text === undefined || String(text).trim() === '') return 0;
-  const value = Number(String(text).replace(',', '.'));
-  return Number.isNaN(value) ? 0 : value;
+  const value = parseDecimal(text);
+  return value === null || Number.isNaN(value) ? 0 : value;
 }
 
 /**

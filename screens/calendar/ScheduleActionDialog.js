@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Menu, Portal, Text } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import DateField, { toDateString } from '../../components/DateField';
 import { messageFor } from '../../lib/errors';
 import { useInventory } from '../../hooks/useInventory';
@@ -10,6 +10,8 @@ import { usePlaces } from '../../hooks/usePlaces';
 import { useGrowspacePlants } from '../../hooks/useGrowspaces';
 import { useStationSowings } from '../../hooks/useStations';
 import { useDataMutation } from '../../hooks/useDataMutation';
+import useForm from '../../hooks/useForm';
+import { scheduledActionSchema, subjectCheck, targetsRequiredCheck } from '../../lib/schemas';
 import { placeIcon, placeIds, placeOf } from '../../lib/places';
 import {
   SCHEDULE_KINDS,
@@ -44,22 +46,8 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
     [packShelf.data]
   );
 
-  // Which of what there is to aim at has been picked.
-  const [chosenIds, setChosenIds] = useState([]);
-
-  const [kind, setKind] = useState('sow');
-  const [placeId, setPlaceId] = useState(null);
-  const [subject, setSubject] = useState('');
-  const [seedPackId, setSeedPackId] = useState(null);
-  const [dueOn, setDueOn] = useState(toDateString(new Date()));
-  const [dueMinutes, setDueMinutes] = useState(null);
-  const [note, setNote] = useState('');
-
   const [openMenu, setOpenMenu] = useState(null);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
 
   const save = useDataMutation({
     mutationFn: saveScheduledAction,
@@ -68,20 +56,24 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
   });
   const resetSave = save.reset;
 
+  const form = useForm(scheduledActionSchema);
+  const resetForm = form.reset;
+
   useEffect(() => {
     if (!visible) return;
-    setKind(action?.kind ?? 'feed');
-    setSubject(action?.subject ?? '');
-    setSeedPackId(action?.seed_pack_id ?? null);
-    setDueOn(action?.due_on ?? defaultDate ?? toDateString(new Date()));
-    setDueMinutes(action?.due_minutes ?? null);
-    setNote(action?.note ?? '');
-    setChosenIds(
-      (action?.targets ?? []).map((target) => target.plant_id ?? target.sowing_id).filter(Boolean)
-    );
-    setValidationError('');
     resetSave();
-    setPlaceId(placeOf(places, action)?.id ?? null);
+    resetForm({
+      kind: action?.kind ?? 'feed',
+      place_id: placeOf(places, action)?.id ?? null,
+      subject: action?.subject ?? '',
+      seed_pack_id: action?.seed_pack_id ?? null,
+      due_on: action?.due_on ?? defaultDate ?? toDateString(new Date()),
+      due_minutes: action?.due_minutes ?? null,
+      note: action?.note ?? '',
+      target_ids: (action?.targets ?? [])
+        .map((target) => target.plant_id ?? target.sowing_id)
+        .filter(Boolean),
+    });
     // Read when the dialog opens, like every other form in the app: what is
     // being edited cannot change underneath it while it is up.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,13 +86,15 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
    * rather than from a fetch this dialog waited on.
    */
   useEffect(() => {
-    if (!visible || placeId || places.length !== 1) return;
-    setPlaceId(places[0].id);
-  }, [visible, placeId, places]);
+    if (!visible || form.values.place_id || places.length !== 1) return;
+    form.set('place_id', places[0].id);
+  }, [visible, form, places]);
 
-  const place = places.find((entry) => entry.id === placeId);
-  const seedPack = seedPacks.find((pack) => pack.id === seedPackId);
+  const kind = form.values.kind;
+  const place = places.find((entry) => entry.id === form.values.place_id);
+  const seedPack = seedPacks.find((pack) => pack.id === form.values.seed_pack_id);
   const targetKind = targetKindFor(kind, place?.type);
+  const chosenIds = useMemo(() => form.values.target_ids ?? [], [form.values.target_ids]);
 
   /**
    * What this kind can be aimed at where it is being done: the plants standing
@@ -131,12 +125,14 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
   // standing somewhere else.
   useEffect(() => {
     const ids = new Set(choices.map((choice) => choice.id));
-    setChosenIds((current) => current.filter((id) => ids.has(id)));
-  }, [choices]);
+    const kept = chosenIds.filter((id) => ids.has(id));
+    if (kept.length !== chosenIds.length) form.set('target_ids', kept);
+  }, [choices, chosenIds, form]);
 
   const toggleTarget = (id) =>
-    setChosenIds((current) =>
-      current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]
+    form.set(
+      'target_ids',
+      chosenIds.includes(id) ? chosenIds.filter((entry) => entry !== id) : [...chosenIds, id]
     );
 
   // The picked rows as the target list, each carrying the name it had when it
@@ -152,32 +148,24 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
   const impliedSubject = targetSummary(targets) ?? (kind === 'sow' ? seedPack?.name : place?.name);
 
   const handleSave = () => {
-    if (!place) {
-      setValidationError('Pick a growspace or station');
-      return;
-    }
-    if (targetKind && !allowsWholePlace(kind) && targets.length === 0) {
-      setValidationError(targetKind === 'plants' ? 'Pick the plants' : 'Pick what to work on');
-      return;
-    }
-    const name = subject.trim() || impliedSubject?.trim();
-    if (!name) {
-      setValidationError('Say what this is for');
-      return;
-    }
-
-    setValidationError('');
-    save.mutate({
-      id: action?.id,
-      kind,
-      dueOn,
-      dueMinutes,
-      ...placeIds(place),
-      subject: name,
-      note,
-      seedPackId: kind === 'sow' ? seedPackId : null,
-      targets,
-    });
+    form.submit(
+      (values) =>
+        save.mutate({
+          id: action?.id,
+          kind: values.kind,
+          dueOn: values.due_on,
+          dueMinutes: values.due_minutes,
+          ...placeIds(place),
+          subject: values.subject || impliedSubject?.trim(),
+          note: values.note ?? '',
+          seedPackId: values.kind === 'sow' ? values.seed_pack_id : null,
+          targets,
+        }),
+      [
+        subjectCheck(impliedSubject),
+        targetsRequiredCheck(targetKind, allowsWholePlace(kind), choices.length > 0),
+      ]
+    );
   };
 
   return (
@@ -198,7 +186,7 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
                   mode={entry.value === kind ? 'flat' : 'outlined'}
                   selected={entry.value === kind}
                   showSelectedCheck={false}
-                  onPress={() => setKind(entry.value)}
+                  onPress={() => form.set('kind', entry.value)}
                 >
                   {entry.label}
                 </Chip>
@@ -227,13 +215,14 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
                   title={entry.name}
                   leadingIcon={placeIcon(entry.type)}
                   onPress={() => {
-                    setPlaceId(entry.id);
+                    form.set('place_id', entry.id);
                     setOpenMenu(null);
                   }}
                 />
               ))}
               {places.length === 0 && <Menu.Item title="Nothing to plan for yet" disabled />}
             </Menu>
+            {!!form.errors.place_id && <HelperText type="error">{form.errors.place_id}</HelperText>}
 
             {kind === 'sow' && (
               <>
@@ -252,7 +241,7 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
                   <Menu.Item
                     title="No pack chosen yet"
                     onPress={() => {
-                      setSeedPackId(null);
+                      form.set('seed_pack_id', null);
                       setOpenMenu(null);
                     }}
                   />
@@ -265,9 +254,11 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
                           : `${pack.name} (${pack.seed_count} left)`
                       }
                       onPress={() => {
-                        setSeedPackId(pack.id);
+                        form.set('seed_pack_id', pack.id);
                         // The pack names the job unless something was typed.
-                        setSubject((current) => current.trim() || pack.name);
+                        if (!String(form.values.subject ?? '').trim()) {
+                          form.set('subject', pack.name);
+                        }
                         setOpenMenu(null);
                       }}
                     />
@@ -310,60 +301,63 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
                         );
                       })}
                     </View>
-                    <HelperText type="info">
-                      {chosenIds.length > 0
-                        ? `${targetSummary(targets, { limit: 3 })} on the day.`
-                        : allowsWholePlace(kind)
-                          ? `Nothing picked means the whole of ${place?.name ?? 'the place'}.`
-                          : 'Pick what this is for.'}
+                    <HelperText type={form.errors.target_ids ? 'error' : 'info'}>
+                      {form.errors.target_ids ||
+                        (chosenIds.length > 0
+                          ? `${targetSummary(targets, { limit: 3 })} on the day.`
+                          : allowsWholePlace(kind)
+                            ? `Nothing picked means the whole of ${place?.name ?? 'the place'}.`
+                            : 'Pick what this is for.')}
                     </HelperText>
                   </>
                 )}
               </>
             )}
 
-            <TextField
+            <FormField
               label="What"
               placeholder={impliedSubject || 'Chilli, the whole tent, the front bed…'}
-              value={subject}
-              onChangeText={setSubject}
-              style={[styles.input, styles.spacedInput]}
+              style={styles.spacedInput}
+              {...form.field('subject')}
             />
 
-            <DateField label="On" value={dueOn} onChange={setDueOn} />
+            <DateField
+              label="On"
+              value={form.values.due_on}
+              onChange={(date) => form.set('due_on', date)}
+            />
 
             <Text variant="labelLarge" style={styles.label}>
               Remind me
             </Text>
             <View style={styles.timeRow}>
               <Button mode="outlined" icon="clock-outline" onPress={() => setTimePickerOpen(true)}>
-                {formatMinutes(dueMinutes) ?? 'No reminder'}
+                {formatMinutes(form.values.due_minutes) ?? 'No reminder'}
               </Button>
-              {dueMinutes !== null && (
-                <Button mode="text" onPress={() => setDueMinutes(null)}>
+              {form.values.due_minutes !== null && (
+                <Button mode="text" onPress={() => form.set('due_minutes', null)}>
                   Clear
                 </Button>
               )}
             </View>
             <HelperText type="info">
-              {dueMinutes === null
+              {form.values.due_minutes === null
                 ? 'Without a time this is a note on the day, with no notification.'
                 : 'A notification on this device at that time. Nothing is planted for you.'}
             </HelperText>
 
-            <TextField
-              label="Note (optional)"
-              value={note}
-              onChangeText={setNote}
-              style={styles.input}
-            />
+            <FormField label="Note (optional)" {...form.field('note')} />
 
-            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
+            <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || !form.canSubmit}
+          >
             Save
           </Button>
         </Dialog.Actions>
@@ -372,12 +366,18 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
       {timePickerOpen && (
         <DateTimePicker
           value={
-            new Date(2000, 0, 1, Math.floor((dueMinutes ?? 480) / 60), (dueMinutes ?? 480) % 60)
+            new Date(
+              2000,
+              0,
+              1,
+              Math.floor((form.values.due_minutes ?? 480) / 60),
+              (form.values.due_minutes ?? 480) % 60
+            )
           }
           mode="time"
           onChange={(event, selected) => {
             setTimePickerOpen(false);
-            if (event.type === 'set' && selected) setDueMinutes(minutesOf(selected));
+            if (event.type === 'set' && selected) form.set('due_minutes', minutesOf(selected));
           }}
         />
       )}
@@ -410,9 +410,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  input: {
-    marginBottom: 8,
   },
   spacedInput: {
     marginTop: 12,

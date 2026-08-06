@@ -9,7 +9,7 @@ import {
   SegmentedButtons,
   Text,
 } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume } from '../../lib/units';
 import { materialLabel } from '../../lib/containers';
@@ -17,6 +17,9 @@ import { trayGridLabel } from '../../lib/trays';
 import { messageFor } from '../../lib/errors';
 import { useInventory } from '../../hooks/useInventory';
 import { useDataMutation } from '../../hooks/useDataMutation';
+import useForm from '../../hooks/useForm';
+import { seedsAvailableCheck, sowingSchema, sowingTargetCheck } from '../../lib/schemas';
+import { SOW_TARGETS } from '../../lib/enums';
 import { createSowing, originalSeedsPerCell } from '../../lib/germination';
 import DateField, { toDateString } from '../../components/DateField';
 import ErrorText from '../../components/ErrorText';
@@ -65,29 +68,7 @@ export default function SowingFormDialog({
     [containerShelf.data]
   );
 
-  /**
-   * What is picked is held as an id rather than the row itself.
-   *
-   * The lists come from the cache now, and can arrive after this dialog opens
-   * or change underneath it while it's up. Keeping the id and looking the row
-   * up on each render means the form follows the shelf — and a pack deleted
-   * mid-edit simply comes up blank rather than leaving a stale copy selected.
-   */
-  const [packId, setPackId] = useState(null);
-  const [trayId, setTrayId] = useState(null);
-  const [containerId, setContainerId] = useState(null);
-  const [target, setTarget] = useState('tray');
-  const [seedsPerCell, setSeedsPerCell] = useState('1');
-  const [sownOn, setSownOn] = useState(toDateString(new Date()));
-
-  const seedPack = seedPacks.find((pack) => pack.id === packId) ?? null;
-  const tray = trays.find((entry) => entry.id === trayId) ?? null;
-  const container = containers.find((entry) => entry.id === containerId) ?? null;
-
   const [openMenu, setOpenMenu] = useState(null);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
 
   const sow = useDataMutation({
     mutationFn: createSowing,
@@ -96,57 +77,64 @@ export default function SowingFormDialog({
   });
   const resetSow = sow.reset;
 
+  /**
+   * What is picked is held as an id rather than the row itself.
+   *
+   * The lists come from the cache now, and can arrive after this dialog opens
+   * or change underneath it while it's up. Keeping the id and looking the row
+   * up on each render means the form follows the shelf — and a pack deleted
+   * mid-edit simply comes up blank rather than leaving a stale copy selected.
+   */
+  const form = useForm(sowingSchema);
+  const resetForm = form.reset;
+
+  const seedPack = seedPacks.find((pack) => pack.id === form.values.seed_pack_id) ?? null;
+  const tray = trays.find((entry) => entry.id === form.values.tray_id) ?? null;
+  const container = containers.find((entry) => entry.id === form.values.container_id) ?? null;
+  const target = form.values.target;
+
+  const cellCount = target === 'tray' ? (tray ? tray.grid_rows * tray.grid_cols : null) : 1;
+
+  // Rebuilt each render because the pack and the tray it checks against are
+  // picked while the dialog is open.
+  const checks = [sowingTargetCheck, seedsAvailableCheck(seedPack, cellCount)];
+
   useEffect(() => {
     if (!visible) return;
-    setTarget(template?.container_id ? 'container' : 'tray');
-    setSeedsPerCell(template ? String(originalSeedsPerCell(template.grid)) : '1');
-    setSownOn(toDateString(new Date()));
-    setValidationError('');
     resetSow();
-
     // Sowing again from an existing sowing carries its pack and its tray over;
     // a sowing planned on the calendar brings only the pack. Either way these
     // are ids, so a row that has since been deleted resolves to nothing rather
     // than to a stale copy of itself.
-    setPackId(template?.seed_pack_id ?? seedPackId ?? null);
-    setTrayId(template?.tray_id ?? null);
-    setContainerId(template?.container_id ?? null);
-  }, [visible, template, seedPackId, resetSow]);
+    resetForm({
+      seed_pack_id: template?.seed_pack_id ?? seedPackId ?? null,
+      target: template?.container_id ? 'container' : 'tray',
+      tray_id: template?.tray_id ?? null,
+      container_id: template?.container_id ?? null,
+      seeds_per_cell: template ? String(originalSeedsPerCell(template.grid)) : '1',
+      sown_on: toDateString(new Date()),
+    });
+  }, [visible, template, seedPackId, resetSow, resetForm]);
 
-  const perCell = parseInt(seedsPerCell, 10);
-  const cellCount = target === 'tray' ? (tray ? tray.grid_rows * tray.grid_cols : null) : 1;
+  const perCell = Number(form.values.seeds_per_cell);
   const totalSeeds = cellCount && perCell > 0 ? cellCount * perCell : null;
 
   const describeContainer = (entry) =>
     `${formatVolume(entry.volume_liters, system)} ${materialLabel(entry.material)}`;
 
   const handleSave = () => {
-    if (!seedPack) {
-      setValidationError('Pick a seed pack');
-      return;
-    }
-    if (target === 'tray' && !tray) {
-      setValidationError('Pick a tray');
-      return;
-    }
-    if (target === 'container' && !container) {
-      setValidationError('Pick a container');
-      return;
-    }
-    if (!perCell || perCell < 1) {
-      setValidationError('Seeds must be at least 1');
-      return;
-    }
-
-    setValidationError('');
-    sow.mutate({
-      stationId,
-      seedPack,
-      tray: target === 'tray' ? tray : null,
-      container: target === 'container' ? container : null,
-      seedsPerCell: perCell,
-      sownOn,
-    });
+    form.submit(
+      (values) =>
+        sow.mutate({
+          stationId,
+          seedPack,
+          tray: values.target === 'tray' ? tray : null,
+          container: values.target === 'container' ? container : null,
+          seedsPerCell: values.seeds_per_cell,
+          sownOn: values.sown_on,
+        }),
+      checks
+    );
   };
 
   return (
@@ -174,24 +162,24 @@ export default function SowingFormDialog({
                     pack.seed_count === null ? pack.name : `${pack.name} (${pack.seed_count} left)`
                   }
                   onPress={() => {
-                    setPackId(pack.id);
+                    form.set('seed_pack_id', pack.id);
                     setOpenMenu(null);
                   }}
                 />
               ))}
               {seedPacks.length === 0 && <Menu.Item title="No seed packs in inventory" disabled />}
             </Menu>
+            {!!form.errors.seed_pack_id && (
+              <HelperText type="error">{form.errors.seed_pack_id}</HelperText>
+            )}
 
             <Text variant="labelLarge" style={styles.label}>
               Sow into
             </Text>
             <SegmentedButtons
               value={target}
-              onValueChange={setTarget}
-              buttons={[
-                { value: 'tray', label: 'Tray' },
-                { value: 'container', label: 'Container' },
-              ]}
+              onValueChange={(value) => form.set('target', value)}
+              buttons={SOW_TARGETS}
               style={styles.input}
             />
 
@@ -213,7 +201,7 @@ export default function SowingFormDialog({
                       entry.inUse >= entry.quantity ? 'alert-circle-outline' : undefined
                     }
                     onPress={() => {
-                      setTrayId(entry.id);
+                      form.set('tray_id', entry.id);
                       setOpenMenu(null);
                     }}
                   />
@@ -239,7 +227,7 @@ export default function SowingFormDialog({
                     key={entry.id}
                     title={describeContainer(entry)}
                     onPress={() => {
-                      setContainerId(entry.id);
+                      form.set('container_id', entry.id);
                       setOpenMenu(null);
                     }}
                   />
@@ -249,36 +237,45 @@ export default function SowingFormDialog({
                 )}
               </Menu>
             )}
-
-            <TextField
-              label={target === 'tray' ? 'Seeds per cell' : 'Seeds'}
-              value={seedsPerCell}
-              onChangeText={setSeedsPerCell}
-              keyboardType="number-pad"
-              style={[styles.input, styles.spacedInput]}
-            />
-            {!!totalSeeds && (
-              <HelperText type="info">
-                {`${totalSeeds} seeds in total`}
-                {seedPack?.seed_count !== null && seedPack
-                  ? `, leaving ${seedPack.seed_count - totalSeeds} in the pack`
-                  : ''}
+            {!!(form.errors.tray_id || form.errors.container_id) && (
+              <HelperText type="error">
+                {form.errors.tray_id || form.errors.container_id}
               </HelperText>
             )}
 
+            <FormField
+              label={target === 'tray' ? 'Seeds per cell' : 'Seeds'}
+              keyboardType="number-pad"
+              style={styles.spacedInput}
+              hint={
+                totalSeeds
+                  ? `${totalSeeds} seeds in total${
+                      seedPack && seedPack.seed_count !== null
+                        ? `, leaving ${seedPack.seed_count - totalSeeds} in the pack`
+                        : ''
+                    }`
+                  : undefined
+              }
+              {...form.field('seeds_per_cell')}
+            />
+
             <DateField
               label="Sown on"
-              value={sownOn}
-              onChange={setSownOn}
+              value={form.values.sown_on}
+              onChange={(date) => form.set('sown_on', date)}
               maximumDate={new Date()}
             />
 
-            <ErrorText>{validationError || (sow.isError ? messageFor(sow.error) : '')}</ErrorText>
+            <ErrorText>{sow.isError ? messageFor(sow.error) : ''}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={sow.isPending} disabled={sow.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={sow.isPending}
+            disabled={sow.isPending || !form.canSubmit}
+          >
             Sow
           </Button>
         </Dialog.Actions>

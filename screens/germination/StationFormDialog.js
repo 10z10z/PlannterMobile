@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
-import { formatTemperature, parseTemperature, tempUnit } from '../../lib/units';
+import { formatTemperature, tempUnit } from '../../lib/units';
 import { STATION_ENVIRONMENTS, fetchStationLights } from '../../lib/germination';
 import { messageFor } from '../../lib/errors';
 import { useSaveStation } from '../../hooks/useStations';
+import useForm from '../../hooks/useForm';
+import { stationSchema } from '../../lib/schemas';
 import LightAssignmentField from '../../components/LightAssignmentField';
 import ErrorText from '../../components/ErrorText';
 
@@ -20,10 +22,9 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
   const { system } = useUnits();
   const isEditing = !!station;
 
-  const [name, setName] = useState('');
-  const [environment, setEnvironment] = useState('indoor');
-  const [temp, setTemp] = useState('');
-  const [humidity, setHumidity] = useState('');
+  const form = useForm(stationSchema(system));
+  const resetForm = form.reset;
+
   const [lights, setLights] = useState([]);
   // What the station already had saved, so the free counts can add its own
   // lights back in rather than showing them as taken.
@@ -31,9 +32,7 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
   // Set once a new station exists, so a retry after a half-failed save doesn't
   // create a second one.
   const [created, setCreated] = useState(null);
-  // Only what this form checks itself; anything the server objects to arrives
-  // on the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const save = useSaveStation({
     onSuccess: (saved) => {
@@ -51,15 +50,17 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
 
   useEffect(() => {
     if (!visible) return;
-    setValidationError('');
     resetSave();
     setCreated(null);
+    setLoadError('');
 
     if (station) {
-      setName(station.name);
-      setEnvironment(station.environment);
-      setTemp(formatTemperature(station.temp_c, system));
-      setHumidity(station.humidity_pct === null ? '' : String(station.humidity_pct));
+      resetForm({
+        name: station.name,
+        environment: station.environment,
+        temp: formatTemperature(station.temp_c, system),
+        humidity: station.humidity_pct === null ? '' : String(station.humidity_pct),
+      });
       fetchStationLights(station.id)
         .then((rows) => {
           const current = rows.map((row) => ({
@@ -69,44 +70,29 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
           setLights(current);
           setBaseline(current);
         })
-        .catch((loadError) => setValidationError(messageFor(loadError)));
+        .catch((error) => setLoadError(messageFor(error)));
     } else {
-      setName('');
-      setEnvironment('indoor');
-      setTemp('');
-      setHumidity('');
+      resetForm({ name: '', environment: 'indoor', temp: '', humidity: '' });
       setLights([]);
       setBaseline([]);
     }
-  }, [visible, station, system, resetSave]);
+  }, [visible, station, system, resetSave, resetForm]);
 
   const handleSave = () => {
-    if (!name.trim()) {
-      setValidationError('Name is required');
-      return;
-    }
-    const humidityValue = humidity.trim() ? Number(humidity.replace(',', '.')) : null;
-    if (
-      humidityValue !== null &&
-      (Number.isNaN(humidityValue) || humidityValue < 0 || humidityValue > 100)
-    ) {
-      setValidationError('Humidity must be between 0 and 100%');
-      return;
-    }
-
-    setValidationError('');
-    save.mutate({
-      // `created` is the station a half-failed save already made: retrying
-      // updates it rather than inserting a second one under the same name.
-      id: station?.id ?? created?.id,
-      values: {
-        name: name.trim(),
-        environment,
-        temp_c: parseTemperature(temp, system),
-        humidity_pct: humidityValue,
-      },
-      lights,
-    });
+    form.submit((values) =>
+      save.mutate({
+        // `created` is the station a half-failed save already made: retrying
+        // updates it rather than inserting a second one under the same name.
+        id: station?.id ?? created?.id,
+        values: {
+          name: values.name,
+          environment: values.environment,
+          temp_c: values.temp,
+          humidity_pct: values.humidity,
+        },
+        lights,
+      })
+    );
   };
 
   return (
@@ -115,43 +101,45 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
         <Dialog.Title>{isEditing ? 'Edit Station' : 'New Station'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <TextField label="Name" value={name} onChangeText={setName} style={styles.input} />
+            <FormField label="Name" {...form.field('name')} />
 
             <Text variant="labelLarge" style={styles.label}>
               Environment
             </Text>
             <SegmentedButtons
-              value={environment}
-              onValueChange={setEnvironment}
+              value={form.values.environment}
+              onValueChange={(value) => form.set('environment', value)}
               buttons={STATION_ENVIRONMENTS}
             />
 
             <View style={styles.row}>
-              <TextField
+              <FormField
                 label={`Temperature (${tempUnit(system)})`}
-                value={temp}
-                onChangeText={setTemp}
                 keyboardType="numbers-and-punctuation"
-                style={[styles.input, styles.half, styles.spacedInput]}
+                style={[styles.half, styles.spacedInput]}
+                {...form.field('temp')}
               />
-              <TextField
+              <FormField
                 label="Humidity (%)"
-                value={humidity}
-                onChangeText={setHumidity}
                 keyboardType="decimal-pad"
-                style={[styles.input, styles.half, styles.spacedInput]}
+                style={[styles.half, styles.spacedInput]}
+                hint="Optional"
+                {...form.field('humidity')}
               />
             </View>
-            <HelperText type="info">Optional — the conditions this station is kept at.</HelperText>
 
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
-            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
+            <ErrorText>{loadError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || !form.canSubmit}
+          >
             {isEditing || created ? 'Save' : 'Create'}
           </Button>
         </Dialog.Actions>
@@ -175,9 +163,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
     opacity: 0.7,
-  },
-  input: {
-    marginBottom: 8,
   },
   spacedInput: {
     marginTop: 12,

@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
-import TextField from '../../components/TextField';
+import { Button, Dialog, IconButton, Portal, Text } from 'react-native-paper';
+import FormField from '../../components/FormField';
 import { setSowingGerminated } from '../../lib/germination';
 import { messageFor } from '../../lib/errors';
 import { useDataMutation } from '../../hooks/useDataMutation';
+import useForm from '../../hooks/useForm';
+import { cellSchema } from '../../lib/schemas';
+import { parseWhole } from '../../lib/numbers';
 import ErrorText from '../../components/ErrorText';
 
 /**
@@ -12,10 +15,11 @@ import ErrorText from '../../components/ErrorText';
  * card gets here, rather than tapping through every cell.
  */
 export default function BatchGerminationDialog({ visible, sowing, onDismiss, onSaved }) {
-  const [germinated, setGerminated] = useState('1');
-  // Only what this dialog checks itself; the server's objections arrive on
-  // the mutation, and both are shown in the same place.
-  const [validationError, setValidationError] = useState('');
+  const cells = (sowing?.grid ?? []).flat().filter((cell) => cell && cell.seeds_planted > 0);
+  const maxPerCell = cells.reduce((most, cell) => Math.max(most, cell.seeds_planted), 0);
+
+  const form = useForm(cellSchema(maxPerCell, 'Germinated per cell'));
+  const resetForm = form.reset;
 
   const save = useDataMutation({
     mutationFn: ({ cells: rows, count, sowing: parent }) =>
@@ -24,36 +28,27 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
     onSuccess: onSaved,
   });
 
-  const cells = (sowing?.grid ?? []).flat().filter((cell) => cell && cell.seeds_planted > 0);
-  const maxPerCell = cells.reduce((most, cell) => Math.max(most, cell.seeds_planted), 0);
-
   useEffect(() => {
     if (!visible) return;
-    setGerminated('1');
-    setValidationError('');
-  }, [visible]);
+    resetForm({ germinated: '1' });
+  }, [visible, resetForm]);
 
   if (!sowing) return null;
 
-  const value = parseInt(germinated, 10);
-  const valid = Number.isInteger(value) && value >= 0 && value <= maxPerCell;
-
+  // The steppers work on whatever is in the field, treating anything
+  // unparseable as nothing rather than refusing to move.
   const step = (delta) => {
-    const next = Math.min(Math.max((Number.isInteger(value) ? value : 0) + delta, 0), maxPerCell);
-    setGerminated(String(next));
+    const current = parseWhole(form.values.germinated);
+    const from = Number.isInteger(current) ? current : 0;
+    form.set('germinated', String(Math.min(Math.max(from + delta, 0), maxPerCell)));
   };
 
-  const apply = async (count) => {
-    setValidationError('');
+  const apply = (count) => {
     save.mutate({ cells, count, sowing });
   };
 
   const handleSave = () => {
-    if (!valid) {
-      setValidationError(`Enter a number between 0 and ${maxPerCell}`);
-      return;
-    }
-    apply(value);
+    form.submit((values) => apply(values.germinated));
   };
 
   return (
@@ -67,18 +62,17 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
             <>
               <View style={styles.row}>
                 <IconButton icon="minus" mode="outlined" onPress={() => step(-1)} />
-                <TextField
+                <FormField
                   label="Germinated per cell"
-                  value={germinated}
-                  onChangeText={setGerminated}
                   keyboardType="number-pad"
                   style={styles.input}
+                  hint={`Applied to all ${cells.length} cell${
+                    cells.length === 1 ? '' : 's'
+                  }. A cell holding fewer seeds than this is filled, not overfilled.`}
+                  {...form.field('germinated')}
                 />
                 <IconButton icon="plus" mode="outlined" onPress={() => step(1)} />
               </View>
-              <HelperText type="info">
-                {`Applied to all ${cells.length} cell${cells.length === 1 ? '' : 's'}. A cell holding fewer seeds than this is filled, not overfilled.`}
-              </HelperText>
               <View style={styles.shortcuts}>
                 <Button onPress={() => apply(maxPerCell)} disabled={save.isPending}>
                   All germinated
@@ -87,9 +81,7 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
                   Reset to none
                 </Button>
               </View>
-              <ErrorText>
-                {validationError || (save.isError ? messageFor(save.error) : '')}
-              </ErrorText>
+              <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
             </>
           )}
         </Dialog.Content>
@@ -98,7 +90,7 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
           <Button
             onPress={handleSave}
             loading={save.isPending}
-            disabled={save.isPending || cells.length === 0}
+            disabled={save.isPending || cells.length === 0 || !form.canSubmit}
           >
             Apply
           </Button>
@@ -111,7 +103,7 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   input: {
     flex: 1,
