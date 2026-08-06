@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Appbar, Button, Divider, List, Menu, Text } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
 import MonthCalendar from '../../components/MonthCalendar';
 import CalendarFilterBar from '../../components/CalendarFilterBar';
+import {
+  useActivity,
+  useCompleteAction,
+  useReopenAction,
+  useScheduled,
+} from '../../hooks/useDashboard';
+import { useDataMutation } from '../../hooks/useDataMutation';
 import ScreenTitle from '../../components/ScreenTitle';
 import { formatDateString, toDateString } from '../../components/DateField';
 import {
-  fetchActivity,
   fromDateString,
   groupByDay,
   kindIcon,
@@ -25,10 +30,7 @@ import {
   toggleFilter,
 } from '../../lib/calendarFilters';
 import {
-  completeScheduledAction,
   deleteScheduledAction,
-  fetchScheduled,
-  reopenScheduledAction,
   scheduleKindIcon,
   scheduleStatus,
   scheduleSummary,
@@ -60,9 +62,15 @@ export default function CalendarScreen({ navigation, route }) {
 
   const [month, setMonth] = useState(() => monthOf(fromDateString(opensOn)));
   const [selected, setSelected] = useState(opensOn);
-  const [entries, setEntries] = useState([]);
-  const [scheduled, setScheduled] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const range = useMemo(() => monthRange(month), [month]);
+  // Two reads rather than one: what was done and what is planned are separate
+  // questions, and one of them failing shouldn't empty the month of the other.
+  const activityQuery = useActivity(range);
+  const scheduledQuery = useScheduled(range);
+
+  const entries = useMemo(() => activityQuery.data ?? [], [activityQuery.data]);
+  const scheduled = useMemo(() => scheduledQuery.data ?? [], [scheduledQuery.data]);
+  const loading = activityQuery.isPending || scheduledQuery.isPending;
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -89,28 +97,6 @@ export default function CalendarScreen({ navigation, route }) {
     setFilters(next);
     AsyncStorage.setItem(FILTERS_KEY, JSON.stringify(next));
   };
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const range = monthRange(month);
-    // Settled apart rather than together: what was done and what is planned are
-    // two different reads, and one of them failing shouldn't empty the month of
-    // the other. Whichever fails keeps what it had, and changing month or
-    // reopening retries.
-    const [activity, plans] = await Promise.allSettled([
-      fetchActivity(range),
-      fetchScheduled(range),
-    ]);
-    if (activity.status === 'fulfilled') setEntries(activity.value);
-    if (plans.status === 'fulfilled') setScheduled(plans.value);
-    setLoading(false);
-  }, [month]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
 
   const entriesByDay = useMemo(
     () => groupByDay(filterEntries(entries, filters)),
@@ -141,20 +127,16 @@ export default function CalendarScreen({ navigation, route }) {
     setScheduleOpen(true);
   };
 
-  const handleComplete = async (action) => {
-    await completeScheduledAction(action.id, selected);
-    load();
-  };
+  const complete = useCompleteAction();
+  const reopen = useReopenAction();
+  const removePlan = useDataMutation({
+    mutationFn: deleteScheduledAction,
+    affects: 'scheduleChanged',
+  });
 
-  const handleReopen = async (action) => {
-    await reopenScheduledAction(action.id);
-    load();
-  };
-
-  const handleDeletePlan = async (action) => {
-    await deleteScheduledAction(action.id);
-    load();
-  };
+  const handleComplete = (action) => complete.mutate({ actionId: action.id, doneOn: selected });
+  const handleReopen = (action) => reopen.mutate(action.id);
+  const handleDeletePlan = (action) => removePlan.mutate(action.id);
 
   /**
    * Carrying out a plan opens the real form. Sowing has one; feeding has the
@@ -330,7 +312,6 @@ export default function CalendarScreen({ navigation, route }) {
         onDone={() => {
           setScheduleOpen(false);
           setEditingAction(null);
-          load();
         }}
       />
 
@@ -338,12 +319,12 @@ export default function CalendarScreen({ navigation, route }) {
         visible={!!feedingPreset}
         preset={feedingPreset}
         onDismiss={() => setFeedingPreset(null)}
-        onDone={async () => {
+        onDone={() => {
           // A feed done from a plan ticks the plan off with it.
-          if (feedingPreset?.actionId)
-            await completeScheduledAction(feedingPreset.actionId, selected);
+          if (feedingPreset?.actionId) {
+            complete.mutate({ actionId: feedingPreset.actionId, doneOn: selected });
+          }
           setFeedingPreset(null);
-          load();
         }}
       />
 
@@ -352,10 +333,9 @@ export default function CalendarScreen({ navigation, route }) {
         stationId={sowingFor?.station_id}
         seedPackId={sowingFor?.seed_pack_id}
         onDismiss={() => setSowingFor(null)}
-        onSaved={async () => {
-          await completeScheduledAction(sowingFor.id, selected);
+        onSaved={() => {
+          complete.mutate({ actionId: sowingFor.id, doneOn: selected });
           setSowingFor(null);
-          load();
         }}
       />
     </View>

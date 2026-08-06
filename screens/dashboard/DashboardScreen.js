@@ -1,19 +1,13 @@
-import { useCallback, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Appbar, Button, Divider, IconButton, List, Text, useTheme } from 'react-native-paper';
-import { useFocusEffect } from '@react-navigation/native';
 import ScreenTitle from '../../components/ScreenTitle';
 import GrowspaceSummaryCard from '../../components/GrowspaceSummaryCard';
 import { formatDateString, toDateString } from '../../components/DateField';
 import { kindIcon, kindLabel } from '../../lib/activity';
 import { daysSince } from '../../lib/dates';
-import { RECENT_DAYS, SOON_DAYS, fetchDashboard } from '../../lib/dashboard';
-import {
-  completeScheduledAction,
-  scheduleKindIcon,
-  scheduleSummary,
-  targetSummary,
-} from '../../lib/scheduling';
+import { RECENT_DAYS, SOON_DAYS } from '../../lib/dashboard';
+import { useCompleteAction, useDashboard } from '../../hooks/useDashboard';
+import { scheduleKindIcon, scheduleSummary, targetSummary } from '../../lib/scheduling';
 
 /** How much of the log the landing page carries before it becomes the calendar. */
 const RECENT_SHOWN = 8;
@@ -34,25 +28,10 @@ export default function DashboardScreen({ navigation }) {
   const theme = useTheme();
   const today = toDateString(new Date());
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const dashboard = useDashboard(today);
+  const data = dashboard.data ?? null;
 
-  const load = useCallback(async () => {
-    try {
-      setData(await fetchDashboard({ today }));
-    } catch {
-      // Leave what is on screen; pulling down or reopening tries again.
-    }
-    setLoading(false);
-    setRefreshing(false);
-  }, [today]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  const complete = useCompleteAction();
 
   const openCalendar = (date) => navigation.navigate('Calendar', { date });
 
@@ -64,10 +43,9 @@ export default function DashboardScreen({ navigation }) {
       params: { screen: growspace.id },
     });
 
-  const markDone = async (action) => {
-    await completeScheduledAction(action.id, today);
-    load();
-  };
+  // Ticking a job off is the only thing this screen does itself; everything
+  // else is a way into the screen that does the work properly.
+  const markDone = (action) => complete.mutate({ actionId: action.id, doneOn: today });
 
   const schedule = data?.schedule;
   const growspaces = data?.growspaces ?? [];
@@ -137,13 +115,7 @@ export default function DashboardScreen({ navigation }) {
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load();
-            }}
-          />
+          <RefreshControl refreshing={dashboard.isRefetching} onRefresh={dashboard.refetch} />
         }
       >
         {schedule?.overdue.length > 0 && (
@@ -232,13 +204,13 @@ export default function DashboardScreen({ navigation }) {
           </>
         )}
 
-        {!loading && !growspaces.length && !recent.length && (
+        {!dashboard.isPending && !growspaces.length && !recent.length && (
           <Text style={styles.emptyText}>
             Nothing here yet. Add a growspace or sow something, and this page fills in.
           </Text>
         )}
 
-        {!loading && recent.length === 0 && growspaces.length > 0 && (
+        {!dashboard.isPending && recent.length === 0 && growspaces.length > 0 && (
           <Text variant="bodySmall" style={styles.quietText}>
             Nothing recorded in the last {RECENT_DAYS} days.
           </Text>
