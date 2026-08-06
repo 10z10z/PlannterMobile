@@ -72,6 +72,15 @@ function sliderMax(fertilizer, system) {
  *
  * Both modes render it, so a mix reads the same whether the dose was dialled in
  * with a slider or measured back out of a tank that has already been poured.
+ *
+ * @param {object} props
+ * @param {string} props.name
+ * @param {string} props.color
+ * @param {import('react').ReactNode} props.readout
+ * @param {import('react').ReactNode} props.control
+ * @param {import('../../lib/nutrients').NutrientResult} props.part
+ * @param {number} props.total
+ * @param {import('react').ReactNode} [props.action] Trailing button, if the mode has one.
  */
 function ProductCard({ name, color, readout, control, part, total, action }) {
   const share = total > 0 ? Math.round((part.total / total) * 100) : 0;
@@ -437,7 +446,7 @@ export default function NpkCalculatorScreen() {
 
       <Text variant="bodySmall" style={styles.note}>
         Target bands are typical hydroponic ranges, not advice for a particular plant. Your species,
-        medium, water and light will all shift what "on target" really means — treat them as a
+        medium, water and light will all shift what “on target” really means — treat them as a
         starting point and trust what the plants tell you.
       </Text>
     </>
@@ -633,7 +642,7 @@ export default function NpkCalculatorScreen() {
                   />
                 </View>
                 <Text variant="bodySmall" style={styles.note}>
-                  Measured figures from a lab analysis or your utility's annual report, used as
+                  Measured figures from a lab analysis or your utility’s annual report, used as
                   given — no estimating. If the report quotes calcium as CaCO₃ rather than Ca,
                   divide it by 2.5 first.
                 </Text>
@@ -642,7 +651,7 @@ export default function NpkCalculatorScreen() {
 
             <Text variant="bodySmall" style={styles.note}>
               Leave the fields empty for rainwater or RO. Both sets of numbers are kept, so
-              switching between the two doesn't lose either.
+              switching between the two doesn’t lose either.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>

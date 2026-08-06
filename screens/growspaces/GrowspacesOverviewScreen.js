@@ -69,7 +69,9 @@ export default function GrowspacesOverviewScreen({ navigation, route }) {
         </View>
       ) : (
         !loading && (
-          <Tab.Navigator initialRouteName={initialRouteName}>
+          // Routes are named by growspace id at runtime, so there is no param
+          // list to give this one. id: see navigation/types.js.
+          <Tab.Navigator id={undefined} initialRouteName={initialRouteName}>
             {growspaces.map((growspace) => (
               <Tab.Screen
                 key={growspace.id}

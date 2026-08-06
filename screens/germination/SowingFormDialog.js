@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import {
   Button,
   Dialog,
@@ -32,6 +32,14 @@ import ErrorText from '../../components/ErrorText';
  *
  * `seedPackId` does the lighter version of the same thing for a sowing that was
  * planned on the calendar: the pack is chosen, and nothing else is assumed.
+ *
+ * @param {object} props
+ * @param {boolean} props.visible
+ * @param {() => void} props.onDismiss
+ * @param {() => void} props.onSaved
+ * @param {string} [props.stationId] The station to sow into, when one is known.
+ * @param {object} [props.template] An existing sowing to copy into the form.
+ * @param {string} [props.seedPackId] Preselects the pack, for a planned sowing.
  */
 export default function SowingFormDialog({
   visible,

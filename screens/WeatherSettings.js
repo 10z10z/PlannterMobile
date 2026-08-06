@@ -83,7 +83,7 @@ export default function WeatherSettings() {
         />
       ) : (
         <Text variant="bodyMedium" style={styles.intro}>
-          Pick the place your outdoor spaces are in, and they'll show the temperature and humidity
+          Pick the place your outdoor spaces are in, and they’ll show the temperature and humidity
           there instead of figures you keep up to date by hand.
         </Text>
       )}

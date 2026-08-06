@@ -13,6 +13,11 @@ import { STATUS_LABELS } from '../lib/nutrients';
  * `colors` maps a fertilizer id to its colour in the mix. Given one, the fill
  * is drawn as stacked per-product segments instead of a single block, so the
  * bar reads as "who contributed what" as well as "how much".
+ *
+ * @param {object} props
+ * @param {import('../lib/nutrients').NutrientBar} props.bar
+ * @param {boolean} [props.compact] Thins the track and drops the status caption.
+ * @param {Record<string, string>} [props.colors] Fertilizer id to mix colour.
  */
 export default function NutrientTargetBar({ bar, compact, colors }) {
   const theme = useTheme();

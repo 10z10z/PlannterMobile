@@ -12,25 +12,46 @@ import GerminationStack from './GerminationStack';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
 import NpkCalculatorScreen from '../screens/calculator/NpkCalculatorScreen';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+/** @typedef {import('./types').AuthParamList} AuthParamList */
+/** @typedef {import('./types').TabParamList} TabParamList */
+
+const Stack = /** @type {typeof createNativeStackNavigator<AuthParamList, undefined>} */ (
+  createNativeStackNavigator
+)();
+const Tab = /** @type {typeof createBottomTabNavigator<TabParamList, undefined>} */ (
+  createBottomTabNavigator
+)();
 
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    /* id: see the note in ./types.js */
+    <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
     </Stack.Navigator>
   );
 }
 
+/**
+ * A tab's icon, as the render function `tabBarIcon` wants.
+ *
+ * Named rather than returned anonymously so React DevTools and any component
+ * stack in a crash report say which tab it was, instead of "Unknown".
+ *
+ * @param {keyof typeof MaterialCommunityIcons.glyphMap} name
+ */
 function tabIcon(name) {
-  return ({ color, size }) => <MaterialCommunityIcons name={name} color={color} size={size} />;
+  const TabIcon = ({ color, size }) => (
+    <MaterialCommunityIcons name={name} color={color} size={size} />
+  );
+  TabIcon.displayName = `TabIcon(${name})`;
+  return TabIcon;
 }
 
 function AppTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    /* id: see the note in ./types.js */
+    <Tab.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       {/* The route names are what the rest of the app navigates by, so the
           labels are set separately rather than by renaming the routes. */}
       <Tab.Screen

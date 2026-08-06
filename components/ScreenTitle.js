@@ -9,6 +9,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
  * header confirms where you are in the same language the tab bar used to get
  * you there. It sits inside `Appbar.Content` rather than beside it, because an
  * `Appbar.Action` would be a button, and this is a label.
+ *
+ * @param {object} props
+ * @param {keyof typeof MaterialCommunityIcons.glyphMap} props.icon A glyph name,
+ *   checked against the set the font actually ships, so a typo is caught here
+ *   rather than showing up as a blank square on a header.
+ * @param {import('react').ReactNode} props.label
+ * @param {string} [props.color] Defaults to the theme's on-surface tone.
  */
 export default function ScreenTitle({ icon, label, color }) {
   const theme = useTheme();

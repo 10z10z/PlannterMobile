@@ -77,6 +77,7 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
     });
     // Read when the dialog opens, like every other form in the app: what is
     // being edited cannot change underneath it while it is up.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const place = places.find((entry) => entry.id === placeId);
@@ -118,6 +119,9 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
       const ids = new Set(rows.map((row) => row.id));
       setChosenIds((current) => current.filter((id) => ids.has(id)));
     });
+    // Keyed on which place was picked, not on the object the lookup happened
+    // to return, which is a fresh one on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, place?.id, targetKind]);
 
   const toggleTarget = (id) =>

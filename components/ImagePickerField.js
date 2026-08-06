@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { uploadImage } from '../lib/storage';
 import ErrorText from './ErrorText';
 
+/** @type {import('expo-image-picker').ImagePickerOptions} */
 const IMAGE_OPTIONS = { mediaTypes: ['images'], quality: 0.7, allowsEditing: true };
 
 export default function ImagePickerField({ value, onChange, entity }) {

@@ -8,6 +8,10 @@ import { Text, useTheme } from 'react-native-paper';
  * carries an error tone worked out against its own surfaces, and a fixed red
  * that looked fine over one background is the thing that gives a repainted app
  * away over the next.
+ *
+ * @param {object} props
+ * @param {import('react').ReactNode} props.children The message, or falsy for nothing at all.
+ * @param {import('react-native').StyleProp<import('react-native').TextStyle>} [props.style]
  */
 export default function ErrorText({ children, style }) {
   const theme = useTheme();

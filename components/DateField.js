@@ -27,6 +27,13 @@ export function formatDateString(value) {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+/**
+ * @param {object} props
+ * @param {string} props.label
+ * @param {string} props.value A "YYYY-MM-DD" date string, or '' for unset.
+ * @param {(value: string) => void} props.onChange
+ * @param {Date} [props.maximumDate] Latest date the picker will offer.
+ */
 export default function DateField({ label, value, onChange, maximumDate }) {
   const [pickerVisible, setPickerVisible] = useState(false);
   const display = formatDateString(value);

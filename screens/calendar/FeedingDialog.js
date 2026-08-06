@@ -98,6 +98,8 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
         );
       }
     );
+    // Opening is the trigger, not the preset changing; see the note above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const place = places.find((entry) => entry.id === placeId);

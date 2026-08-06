@@ -86,7 +86,7 @@ export default function MediumsTab() {
         <Dialog visible={!!pendingDelete} onDismiss={() => setPendingDelete(null)}>
           <Dialog.Title>Delete medium</Dialog.Title>
           <Dialog.Content>
-            <Text>Remove "{pendingDelete?.name}" from your inventory?</Text>
+            <Text>Remove “{pendingDelete?.name}” from your inventory?</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setPendingDelete(null)}>Cancel</Button>

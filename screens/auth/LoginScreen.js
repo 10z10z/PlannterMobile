@@ -51,7 +51,7 @@ export default function LoginScreen({ navigation }) {
         Log in
       </Button>
       <Button onPress={() => navigation.navigate('Signup')} style={styles.linkButton}>
-        Don't have an account? Sign up
+        Don’t have an account? Sign up
       </Button>
     </View>
   );

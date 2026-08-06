@@ -8,6 +8,15 @@ import { useTheme } from 'react-native-paper';
  *
  * A press jumps the thumb to where it landed and drags on from there, which is
  * the behaviour a tap-then-nudge dose adjustment wants.
+ *
+ * @param {object} props
+ * @param {number} props.value
+ * @param {(value: number) => void} props.onChange
+ * @param {number} [props.min]
+ * @param {number} [props.max]
+ * @param {number} [props.step]
+ * @param {boolean} [props.disabled]
+ * @param {string} [props.color] Defaults to the theme's primary.
  */
 export default function DoseSlider({
   value,

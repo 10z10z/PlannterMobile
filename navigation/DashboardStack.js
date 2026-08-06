@@ -3,7 +3,11 @@ import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import CalendarScreen from '../screens/calendar/CalendarScreen';
 
-const Stack = createNativeStackNavigator();
+/** @typedef {import('./types').DashboardParamList} DashboardParamList */
+
+const Stack = /** @type {typeof createNativeStackNavigator<DashboardParamList, undefined>} */ (
+  createNativeStackNavigator
+)();
 
 /**
  * The landing tab, and the two screens reached from its header.
@@ -15,7 +19,8 @@ const Stack = createNativeStackNavigator();
  */
 export default function DashboardStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    /* id: see the note in ./types.js */
+    <Stack.Navigator id={undefined} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Calendar" component={CalendarScreen} />

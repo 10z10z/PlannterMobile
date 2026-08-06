@@ -35,7 +35,12 @@ import ErrorText from '../../components/ErrorText';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
-  const navigation = useNavigation();
+  // Named so that pushing a plant is checked against the stack this tab sits
+  // in; a bare useNavigation() knows no route names and takes any params.
+  const navigation =
+    /** @type {import('@react-navigation/native').NavigationProp<import('../../navigation/types').GrowspacesParamList>} */ (
+      useNavigation()
+    );
   const { session } = useAuth();
   const { system } = useUnits();
   const { place, reading } = useWeather();

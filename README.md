@@ -1,5 +1,7 @@
 # Plant Growspace Tracker
 
+[![CI](https://github.com/10z10z/PlannterMobile/actions/workflows/ci.yml/badge.svg)](https://github.com/10z10z/PlannterMobile/actions/workflows/ci.yml)
+
 A React Native (Expo) app for tracking plants across growspaces, with local push
 notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 
@@ -126,12 +128,13 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 2. Create a free project at [supabase.com](https://supabase.com), then run the
    files in `supabase/migrations/` in filename order in its SQL Editor to set up
    the tables, storage bucket, and RLS policies.
-3. Copy your Supabase Project URL and anon public key (Project Settings → API)
-   into a `.env` file at the project root:
+3. Copy `.env.example` to `.env` at the project root and fill in your Supabase
+   Project URL and anon public key (Project Settings → API):
    ```
    EXPO_PUBLIC_SUPABASE_URL=your-project-url
    EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    ```
+   Expo reads `.env` once, at startup, so restart the dev server after editing it.
 4. Start the dev server:
    ```
    npx expo start
@@ -143,11 +146,33 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 ```
 lib/            Supabase client, storage uploads, unit conversion, notifications, colour schemes
 contexts/       Auth, theme and unit-preference providers
-navigation/     Root navigator (auth stack vs. bottom tabs)
+navigation/     Root navigator (auth stack vs. bottom tabs) and route param types
 screens/        Login/Signup, Dashboard, Growspaces, Plant detail, Germination, Inventory, NPK calculator, Calendar, Settings
 components/     Reusable cards, image picker, nutrient and date inputs
 supabase/       Database migrations
 ```
+
+## Development
+
+The growing logic — unit conversion, nutrient maths, germination and transplant
+rules, calendar derivation, scheduling — lives in `lib/` as pure functions, away
+from the screens that draw it, so it can be tested without a device or a
+database. That is what the 368 tests cover.
+
+```
+npm run verify         Lint, format check, typecheck and test — what CI runs
+npm run lint           ESLint
+npm run format         Prettier, writing in place
+npm run typecheck      tsc --noEmit, over JSDoc-annotated JS
+npm test               Jest
+npm run test:coverage  Jest with a coverage summary
+```
+
+Types are JSDoc rather than TypeScript files: `tsconfig.json` sets `checkJs`, so
+the annotations in `lib/` and on component props are checked on every run
+without the codebase leaving JavaScript. `navigation/types.js` names every route
+and its params, so a screen pushed with the wrong ones fails the typecheck
+rather than the phone.
 
 ## Roadmap
 

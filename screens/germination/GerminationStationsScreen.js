@@ -54,7 +54,9 @@ export default function GerminationStationsScreen({ navigation }) {
         </View>
       ) : (
         !loading && (
-          <Tab.Navigator>
+          // Routes are named by station id at runtime, so there is no param
+          // list to give this one. id: see navigation/types.js.
+          <Tab.Navigator id={undefined}>
             {stations.map((station) => (
               <Tab.Screen
                 key={station.id}

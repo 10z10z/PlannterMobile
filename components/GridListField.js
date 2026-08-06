@@ -85,7 +85,7 @@ export default function GridListField({ value, onChange, plants = [] }) {
 
       {value.length === 0 && (
         <HelperText type="info" visible>
-          No grids yet — plants will wait in the holding tray until there's somewhere to put them.
+          No grids yet — plants will wait in the holding tray until there’s somewhere to put them.
         </HelperText>
       )}
 
