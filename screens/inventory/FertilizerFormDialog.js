@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
+import { messageFor } from '../../lib/errors';
+import { useSaveFertilizer } from '../../hooks/useFertilizers';
 import { doseUnit, formatDose, parseDose } from '../../lib/units';
 import ImagePickerField from '../../components/ImagePickerField';
 import NutrientInputs, { NUTRIENT_KEYS } from '../../components/NutrientInputs';
@@ -31,9 +31,12 @@ function toNumberOrNull(text) {
  * units and converted to per-litre on save.
  */
 export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fertilizer }) {
-  const { session } = useAuth();
   const { system } = useUnits();
   const isEditing = !!fertilizer;
+  const save = useSaveFertilizer({ onSuccess: onSaved });
+  // Stable across renders, unlike the mutation object around it, so the reset
+  // below can be a dependency without re-running the form's setup every render.
+  const resetSave = save.reset;
 
   const [name, setName] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
@@ -44,13 +47,15 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
   const [foliarMax, setFoliarMax] = useState('');
   const [fertigationMin, setFertigationMin] = useState('');
   const [fertigationMax, setFertigationMax] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only the rule this form checks itself. Anything the server objects to
+  // arrives on the mutation instead, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
 
   // Reset the form each time the dialog opens, for whichever record it opened on.
   useEffect(() => {
     if (!visible) return;
-    setError('');
+    setValidationError('');
+    resetSave();
     if (fertilizer) {
       setName(fertilizer.name);
       setImageUrl(fertilizer.image_url);
@@ -72,17 +77,16 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
       setFertigationMin('');
       setFertigationMax('');
     }
-  }, [visible, fertilizer, system]);
+  }, [visible, fertilizer, system, resetSave]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
-    setSaving(true);
-    setError('');
+    setValidationError('');
 
-    const payload = {
+    const values = {
       name: name.trim(),
       image_url: imageUrl,
       form,
@@ -94,16 +98,7 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
       fertigation_dose_max: parseDose(fertigationMax, system),
     };
 
-    const { error: saveError } = isEditing
-      ? await supabase.from('fertilizers').update(payload).eq('id', fertilizer.id)
-      : await supabase.from('fertilizers').insert({ ...payload, user_id: session.user.id });
-
-    setSaving(false);
-    if (saveError) {
-      setError(saveError.message);
-      return;
-    }
-    onSaved();
+    save.mutate({ id: fertilizer?.id, values });
   };
 
   const unit = doseUnit(form, system);
@@ -188,12 +183,14 @@ export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fert
               />
             </View>
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={onDismiss} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             Save
           </Button>
         </Dialog.Actions>

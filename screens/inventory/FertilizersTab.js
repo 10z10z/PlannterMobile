@@ -1,33 +1,20 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Button, Dialog, FAB, Portal, Text } from 'react-native-paper';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
 import FertilizerCard from '../../components/FertilizerCard';
+import QueryBoundary from '../../components/QueryBoundary';
+import ErrorText from '../../components/ErrorText';
+import { messageFor } from '../../lib/errors';
+import { useDeleteFertilizer, useFertilizers } from '../../hooks/useFertilizers';
 import FertilizerFormDialog from './FertilizerFormDialog';
 
 export default function FertilizersTab() {
-  const [fertilizers, setFertilizers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const fertilizers = useFertilizers();
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
 
-  const fetchFertilizers = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('fertilizers')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error) setFertilizers(data);
-    setLoading(false);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchFertilizers();
-    }, [fetchFertilizers])
-  );
+  const remove = useDeleteFertilizer({ onSuccess: () => setPendingDelete(null) });
 
   const openCreate = () => {
     setEditing(null);
@@ -39,56 +26,80 @@ export default function FertilizersTab() {
     setFormVisible(true);
   };
 
-  const handleSaved = () => {
-    setFormVisible(false);
-    fetchFertilizers();
-  };
-
-  const handleDelete = async () => {
-    const id = pendingDelete.id;
-    setPendingDelete(null);
-    await supabase.from('fertilizers').delete().eq('id', id);
-    fetchFertilizers();
-  };
+  const rows = fertilizers.data ?? [];
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={fertilizers}
-        keyExtractor={(item) => item.id}
-        refreshing={loading}
-        onRefresh={fetchFertilizers}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !loading && <Text style={styles.emptyText}>No fertilizers yet. Tap + to add one.</Text>
-        }
-        renderItem={({ item }) => (
-          <FertilizerCard
-            fertilizer={item}
-            onPress={() => openEdit(item)}
-            onDelete={() => setPendingDelete(item)}
-          />
-        )}
-      />
+      <QueryBoundary
+        query={fertilizers}
+        isEmpty={rows.length === 0}
+        emptyIcon="bottle-tonic-outline"
+        emptyText="No fertilizers yet. Tap + to add the first one."
+        errorText="Couldn’t load your fertilizers."
+      >
+        <FlatList
+          data={rows}
+          keyExtractor={(item) => item.id}
+          // Refetching, not first-loading: the spinner belongs to the pull, and
+          // the list underneath stays put while it happens.
+          refreshing={fertilizers.isRefetching}
+          onRefresh={fertilizers.refetch}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => (
+            <FertilizerCard
+              fertilizer={item}
+              onPress={() => openEdit(item)}
+              onDelete={() => setPendingDelete(item)}
+            />
+          )}
+        />
+      </QueryBoundary>
 
-      <FAB icon="plus" style={styles.fab} onPress={openCreate} />
+      <FAB
+        icon="plus"
+        style={styles.fab}
+        onPress={openCreate}
+        accessibilityLabel="Add fertilizer"
+      />
 
       <FertilizerFormDialog
         visible={formVisible}
         onDismiss={() => setFormVisible(false)}
-        onSaved={handleSaved}
+        onSaved={() => setFormVisible(false)}
         fertilizer={editing}
       />
 
       <Portal>
-        <Dialog visible={!!pendingDelete} onDismiss={() => setPendingDelete(null)}>
+        <Dialog
+          visible={!!pendingDelete}
+          onDismiss={() => {
+            remove.reset();
+            setPendingDelete(null);
+          }}
+        >
           <Dialog.Title>Delete fertilizer</Dialog.Title>
           <Dialog.Content>
             <Text>Remove “{pendingDelete?.name}” from your inventory?</Text>
+            {/* A delete that fails now says so, in the dialog that asked for it,
+                rather than closing on a row that is still there. */}
+            <ErrorText>{remove.isError ? messageFor(remove.error) : ''}</ErrorText>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setPendingDelete(null)}>Cancel</Button>
-            <Button onPress={handleDelete}>Delete</Button>
+            <Button
+              onPress={() => {
+                remove.reset();
+                setPendingDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onPress={() => remove.mutate(pendingDelete.id)}
+              loading={remove.isPending}
+              disabled={remove.isPending}
+            >
+              Delete
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -103,12 +114,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingTop: 16,
     paddingBottom: 96,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 48,
-    marginHorizontal: 24,
-    opacity: 0.6,
   },
   fab: {
     position: 'absolute',
