@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatTemperature, parseTemperature, tempUnit } from '../../lib/units';
 import {
@@ -12,10 +10,10 @@ import {
   fetchGrowspaceLights,
   fetchPlants,
   plantsLoosedBy,
-  saveGrids,
-  saveGrowspaceLights,
   totalSpots,
 } from '../../lib/growspaces';
+import { messageFor } from '../../lib/errors';
+import { useSaveGrowspace } from '../../hooks/useGrowspaces';
 import LightAssignmentField from '../../components/LightAssignmentField';
 import GridListField from '../../components/GridListField';
 import ErrorText from '../../components/ErrorText';
@@ -26,7 +24,6 @@ import ErrorText from '../../components/ErrorText';
  * together, and both are things a grower changes as the space fills up.
  */
 export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onSaved }) {
-  const { session } = useAuth();
   const { system } = useUnits();
   const isEditing = !!growspace;
 
@@ -45,12 +42,27 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
   // Set once a new growspace exists, so a retry after a half-failed save doesn't
   // create a second one.
   const [created, setCreated] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const save = useSaveGrowspace({
+    onSuccess: (saved) => {
+      setCreated(saved);
+      onSaved(saved);
+    },
+    // A save that got the growspace in but not its grids still made one.
+    // Holding on to it is what makes pressing save again a retry.
+    onError: (failure) => {
+      if (failure?.growspace) setCreated(failure.growspace);
+    },
+  });
+  const resetSave = save.reset;
 
   useEffect(() => {
     if (!visible) return;
-    setError('');
+    setValidationError('');
+    resetSave();
     setCreated(null);
 
     if (growspace) {
@@ -76,7 +88,7 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
           setLights(current);
           setBaseline(current);
         })
-        .catch((loadError) => setError(loadError.message));
+        .catch((loadError) => setValidationError(loadError.message));
       fetchPlants(growspace.id)
         .then(setPlants)
         .catch(() => setPlants([]));
@@ -93,20 +105,20 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
       setBaseline([]);
       setPlants([]);
     }
-  }, [visible, growspace, system]);
+  }, [visible, growspace, system, resetSave]);
 
   const gridsAreValid = grids.every(
     (grid) => grid.grid_rows > 0 && grid.grid_cols > 0 && String(grid.name).trim()
   );
   const turnedLoose = gridsAreValid ? plantsLoosedBy(plants, grids) : [];
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
     if (!gridsAreValid) {
-      setError('Every grid needs a name and at least one row and column');
+      setValidationError('Every grid needs a name and at least one row and column');
       return;
     }
     const humidityValue = humidity.trim() ? Number(humidity.replace(',', '.')) : null;
@@ -114,7 +126,7 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
       humidityValue !== null &&
       (Number.isNaN(humidityValue) || humidityValue < 0 || humidityValue > 100)
     ) {
-      setError('Humidity must be between 0 and 100%');
+      setValidationError('Humidity must be between 0 and 100%');
       return;
     }
 
@@ -123,68 +135,27 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
     const sunValue =
       environment === 'outdoor' && sunHours.trim() ? Number(sunHours.replace(',', '.')) : null;
     if (sunValue !== null && (Number.isNaN(sunValue) || sunValue < 0 || sunValue > 24)) {
-      setError('Hours of direct sun must be between 0 and 24');
+      setValidationError('Hours of direct sun must be between 0 and 24');
       return;
     }
 
-    setSaving(true);
-    setError('');
-
-    const payload = {
-      name: name.trim(),
-      description: description.trim() || null,
-      environment,
-      temp_c: parseTemperature(temp, system),
-      humidity_pct: humidityValue,
-      sun_hours: sunValue,
-    };
-
-    let target = growspace ?? created;
-    if (target) {
-      const { error: updateError } = await supabase
-        .from('growspaces')
-        .update(payload)
-        .eq('id', target.id);
-      if (updateError) {
-        setSaving(false);
-        setError(updateError.message);
-        return;
-      }
-    } else {
-      const { data, error: insertError } = await supabase
-        .from('growspaces')
-        .insert({ ...payload, user_id: session.user.id })
-        .select()
-        .single();
-      if (insertError) {
-        setSaving(false);
-        setError(insertError.message);
-        return;
-      }
-      target = data;
-      setCreated(data);
-    }
-
-    // The growspace itself is saved by this point, so a failure below costs only
-    // the grids or the lights, and pressing save again retries just those.
-    try {
-      await saveGrids(session.user.id, target.id, grids, plants);
-    } catch (gridsError) {
-      setSaving(false);
-      setError(`Growspace saved, but its grids weren't: ${gridsError.message}`);
-      return;
-    }
-
-    try {
-      await saveGrowspaceLights(session.user.id, target.id, lights);
-    } catch (lightsError) {
-      setSaving(false);
-      setError(`Growspace saved, but its lights weren't: ${lightsError.message}`);
-      return;
-    }
-
-    setSaving(false);
-    onSaved({ ...target, ...payload });
+    setValidationError('');
+    save.mutate({
+      // `created` is the growspace a half-failed save already made: retrying
+      // updates it rather than inserting a second one under the same name.
+      id: growspace?.id ?? created?.id,
+      values: {
+        name: name.trim(),
+        description: description.trim() || null,
+        environment,
+        temp_c: parseTemperature(temp, system),
+        humidity_pct: humidityValue,
+        sun_hours: sunValue,
+      },
+      grids,
+      lights,
+      plants,
+    });
   };
 
   return (
@@ -263,12 +234,12 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
 
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             {isEditing || created ? 'Save' : 'Create'}
           </Button>
         </Dialog.Actions>

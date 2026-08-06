@@ -1,9 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Appbar, Button, Text } from 'react-native-paper';
+import { Appbar, Button } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
+import { useGrowspaces } from '../../hooks/useGrowspaces';
+import QueryBoundary from '../../components/QueryBoundary';
 import ScreenTitle from '../../components/ScreenTitle';
 import GrowspaceTabScreen from './GrowspaceTabScreen';
 import GrowspaceFormDialog from './GrowspaceFormDialog';
@@ -11,25 +11,9 @@ import GrowspaceFormDialog from './GrowspaceFormDialog';
 const Tab = createMaterialTopTabNavigator();
 
 export default function GrowspacesOverviewScreen({ navigation, route }) {
-  const [growspaces, setGrowspaces] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const growspaceQuery = useGrowspaces();
+  const growspaces = growspaceQuery.data ?? [];
   const [dialogVisible, setDialogVisible] = useState(false);
-
-  const fetchGrowspaces = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('growspaces')
-      .select('*')
-      .order('created_at', { ascending: true });
-    if (!error) setGrowspaces(data);
-    setLoading(false);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchGrowspaces();
-    }, [fetchGrowspaces])
-  );
 
   const openDialog = () => setDialogVisible(true);
 
@@ -58,41 +42,38 @@ export default function GrowspacesOverviewScreen({ navigation, route }) {
         <Appbar.Action icon="plus" onPress={openDialog} />
       </Appbar.Header>
 
-      {!loading && growspaces.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text variant="bodyLarge" style={styles.emptyText}>
-            No growspaces yet.
-          </Text>
+      <QueryBoundary
+        query={growspaceQuery}
+        isEmpty={growspaces.length === 0}
+        emptyIcon="flower-outline"
+        emptyText="No growspaces yet."
+        errorText="Couldn’t load your growspaces."
+        emptyAction={
           <Button mode="contained" icon="plus" onPress={openDialog}>
             Create a growspace to start growing
           </Button>
-        </View>
-      ) : (
-        !loading && (
-          // Routes are named by growspace id at runtime, so there is no param
-          // list to give this one. id: see navigation/types.js.
-          <Tab.Navigator id={undefined} initialRouteName={initialRouteName}>
-            {growspaces.map((growspace) => (
-              <Tab.Screen
-                key={growspace.id}
-                name={growspace.id}
-                component={GrowspaceTabScreen}
-                initialParams={{ growspaceId: growspace.id }}
-                options={{ tabBarLabel: growspace.name }}
-              />
-            ))}
-          </Tab.Navigator>
-        )
-      )}
+        }
+      >
+        {/* Routes are named by growspace id at runtime, so there is no param
+            list to give this one. id: see navigation/types.js. */}
+        <Tab.Navigator id={undefined} initialRouteName={initialRouteName}>
+          {growspaces.map((growspace) => (
+            <Tab.Screen
+              key={growspace.id}
+              name={growspace.id}
+              component={GrowspaceTabScreen}
+              initialParams={{ growspaceId: growspace.id }}
+              options={{ tabBarLabel: growspace.name }}
+            />
+          ))}
+        </Tab.Navigator>
+      </QueryBoundary>
 
       <GrowspaceFormDialog
         visible={dialogVisible}
         growspace={null}
         onDismiss={() => setDialogVisible(false)}
-        onSaved={() => {
-          setDialogVisible(false);
-          fetchGrowspaces();
-        }}
+        onSaved={() => setDialogVisible(false)}
       />
     </View>
   );

@@ -1,23 +1,16 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, FAB, List, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 import { useUnits } from '../../contexts/UnitsContext';
 import { useWeather } from '../../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
-import { scheduleWateringReminder } from '../../lib/notifications';
-import { recordEvent, recordMove } from '../../lib/activity';
+import { recordMove } from '../../lib/activity';
 import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
 import { conditionsFor, placeLabel, readingAgeLabel } from '../../lib/weather';
 import {
   environmentLabel,
-  fetchGrids,
-  fetchGrowspace,
-  fetchGrowspaceLights,
-  fetchPlants,
   sunHoursLabel,
   placePlant,
   positionOf,
@@ -29,9 +22,18 @@ import PlantCard from '../../components/PlantCard';
 import PlantGrid from '../../components/PlantGrid';
 import ImagePickerField from '../../components/ImagePickerField';
 import ContainerPicker from '../../components/ContainerPicker';
-import { toDateString } from '../../components/DateField';
 import GrowspaceFormDialog from './GrowspaceFormDialog';
 import ErrorText from '../../components/ErrorText';
+import { messageFor } from '../../lib/errors';
+import { invalidateFor, keys } from '../../lib/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useCreatePlant,
+  useGrowspace,
+  useGrowspaceGrids,
+  useGrowspaceLights,
+  useGrowspacePlants,
+} from '../../hooks/useGrowspaces';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
@@ -41,15 +43,19 @@ export default function GrowspaceTabScreen({ route }) {
     /** @type {import('@react-navigation/native').NavigationProp<import('../../navigation/types').GrowspacesParamList>} */ (
       useNavigation()
     );
-  const { session } = useAuth();
   const { system } = useUnits();
   const { place, reading } = useWeather();
 
-  const [growspace, setGrowspace] = useState(null);
-  const [grids, setGrids] = useState([]);
-  const [plants, setPlants] = useState([]);
-  const [lights, setLights] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const growspaceQuery = useGrowspace(growspaceId);
+  const gridQuery = useGrowspaceGrids(growspaceId);
+  const plantQuery = useGrowspacePlants(growspaceId);
+  const lightQuery = useGrowspaceLights(growspaceId);
+
+  const growspace = growspaceQuery.data ?? null;
+  const grids = gridQuery.data ?? [];
+  const plants = plantQuery.data ?? [];
+  const lights = lightQuery.data ?? [];
   const [view, setView] = useState('grid');
   const [editVisible, setEditVisible] = useState(false);
 
@@ -60,33 +66,32 @@ export default function GrowspaceTabScreen({ route }) {
   const [plantType, setPlantType] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
   const [containerId, setContainerId] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [growspaceRow, gridRows, plantRows, lightRows] = await Promise.all([
-        fetchGrowspace(growspaceId),
-        fetchGrids(growspaceId),
-        fetchPlants(growspaceId),
-        fetchGrowspaceLights(growspaceId),
-      ]);
-      setGrowspace(growspaceRow);
-      setGrids(gridRows);
-      setPlants(plantRows);
-      setLights(lightRows);
-    } catch {
-      // Leave the previous state in place; pull-to-refresh retries.
-    }
-    setLoading(false);
-  }, [growspaceId]);
+  const createPlant = useCreatePlant({ onSuccess: () => setDialogVisible(false) });
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  /**
+   * Moves a plant on screen before the write lands.
+   *
+   * Dragging has to feel immediate — waiting a round trip to see the pot land
+   * would make the grid feel broken — so the cached list is edited directly and
+   * the invalidation that follows the write confirms or corrects it.
+   */
+  const placeOptimistically = (update) =>
+    queryClient.setQueryData(
+      keys.growspaces.plants(growspaceId),
+      (/** @type {any[] | undefined} */ current) => (current ?? []).map(update)
+    );
+
+  /** Pulling down refreshes all four, since they are one screen. */
+  const refreshAll = () => {
+    growspaceQuery.refetch();
+    gridQuery.refetch();
+    plantQuery.refetch();
+    lightQuery.refetch();
+  };
 
   const openPlantDetail = (plant) =>
     navigation.navigate('PlantDetail', { plantId: plant.id, plantName: plant.name });
@@ -113,24 +118,21 @@ export default function GrowspaceTabScreen({ route }) {
     });
 
     if (drop.type === 'move') {
-      setPlants((current) =>
-        current.map((entry) => (entry.id === plant.id ? { ...entry, ...at(cell) } : entry))
-      );
+      placeOptimistically((entry) => (entry.id === plant.id ? { ...entry, ...at(cell) } : entry));
       try {
         await placePlant(plant.id, cell);
         await recordMove({ plant, detail: spotLabel(cell), growspaceId });
       } catch {
-        // Put the optimistic move back where it was.
+        // The invalidation below puts the optimistic move back.
       }
+      invalidateFor(queryClient, 'plantMoved');
     } else {
       const from = positionOf(plant);
-      setPlants((current) =>
-        current.map((entry) => {
-          if (entry.id === plant.id) return { ...entry, ...at(cell) };
-          if (entry.id === drop.occupant.id) return { ...entry, ...at(from) };
-          return entry;
-        })
-      );
+      placeOptimistically((entry) => {
+        if (entry.id === plant.id) return { ...entry, ...at(cell) };
+        if (entry.id === drop.occupant.id) return { ...entry, ...at(from) };
+        return entry;
+      });
       try {
         await swapPlants(plant, drop.occupant);
         // A swap moves two plants, and both have a day of their own to record.
@@ -141,26 +143,23 @@ export default function GrowspaceTabScreen({ route }) {
           growspaceId,
         });
       } catch {
-        // Same — the reload below is the source of truth.
+        // Same — the invalidation below is the source of truth.
       }
+      invalidateFor(queryClient, 'plantMoved');
     }
-
-    load();
   };
 
   const handleUnplace = async (plant) => {
-    setPlants((current) =>
-      current.map((entry) =>
-        entry.id === plant.id ? { ...entry, grid_id: null, grid_row: null, grid_col: null } : entry
-      )
+    placeOptimistically((entry) =>
+      entry.id === plant.id ? { ...entry, grid_id: null, grid_row: null, grid_col: null } : entry
     );
     try {
       await placePlant(plant.id, null);
       await recordMove({ plant, detail: spotLabel(null), growspaceId });
     } catch {
-      // The reload puts it back if the write failed.
+      // The invalidation below puts it back if the write failed.
     }
-    load();
+    invalidateFor(queryClient, 'plantMoved');
   };
 
   const openDialog = () => {
@@ -170,54 +169,33 @@ export default function GrowspaceTabScreen({ route }) {
     setPlantType('');
     setImageUrl(null);
     setContainerId(null);
-    setError('');
+    setValidationError('');
+    createPlant.reset();
     setDialogVisible(true);
   };
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     const interval = parseInt(intervalDays, 10);
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
     if (!interval || interval < 1) {
-      setError('Watering interval must be a positive number of days');
+      setValidationError('Watering interval must be a positive number of days');
       return;
     }
-    setSaving(true);
-    const nowIso = new Date().toISOString();
-    const { data, error: insertError } = await supabase
-      .from('plants')
-      .insert({
+    setValidationError('');
+    createPlant.mutate({
+      growspaceId,
+      values: {
         name: name.trim(),
         species: species.trim() || null,
         plant_type: plantType.trim() || null,
-        transplanted_on: toDateString(new Date()),
         watering_interval_days: interval,
-        last_watered_at: nowIso,
         image_url: imageUrl,
         container_id: containerId,
-        user_id: session.user.id,
-        growspace_id: growspaceId,
-      })
-      .select()
-      .single();
-    setSaving(false);
-    if (insertError) {
-      setError(insertError.message);
-      return;
-    }
-    await scheduleWateringReminder(data);
-    await recordEvent({
-      userId: session.user.id,
-      kind: 'planted',
-      subject: data.name,
-      detail: data.plant_type || data.species || null,
-      growspaceId,
-      plantId: data.id,
+      },
     });
-    setDialogVisible(false);
-    load();
   };
 
   const sunlit = growspace?.environment === 'outdoor' && growspace?.sun_hours > 0;
@@ -320,12 +298,18 @@ export default function GrowspaceTabScreen({ route }) {
         <FlatList
           data={plants}
           keyExtractor={(item) => item.id}
-          refreshing={loading}
-          onRefresh={load}
+          refreshing={plantQuery.isRefetching}
+          onRefresh={refreshAll}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={header}
           ListEmptyComponent={
-            !loading && <Text style={styles.emptyText}>No plants here yet. Tap + to add one.</Text>
+            !plantQuery.isPending && (
+              <Text style={styles.emptyText}>
+                {plantQuery.isError
+                  ? messageFor(plantQuery.error, 'Couldn’t load the plants in here.')
+                  : 'No plants here yet. Tap + to add one.'}
+              </Text>
+            )
           }
           renderItem={({ item }) => (
             <PlantCard plant={item} onPress={() => openPlantDetail(item)} />
@@ -344,7 +328,6 @@ export default function GrowspaceTabScreen({ route }) {
           // The tab bar is owned by the screen above, which stays focused while
           // its tabs are used and so never refetches on its own.
           navigation.setOptions({ tabBarLabel: updated.name });
-          load();
         }}
       />
 
@@ -378,11 +361,17 @@ export default function GrowspaceTabScreen({ route }) {
             <Text variant="bodySmall" style={styles.hint}>
               New plants wait in the holding tray until you place them.
             </Text>
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>
+              {validationError || (createPlant.isError ? messageFor(createPlant.error) : '')}
+            </ErrorText>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDialogVisible(false)}>Cancel</Button>
-            <Button onPress={handleCreate} loading={saving} disabled={saving}>
+            <Button
+              onPress={handleCreate}
+              loading={createPlant.isPending}
+              disabled={createPlant.isPending}
+            >
               Create
             </Button>
           </Dialog.Actions>

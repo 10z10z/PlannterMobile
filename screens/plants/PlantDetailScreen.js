@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
@@ -12,10 +12,8 @@ import {
 } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
-import { cancelWateringReminder, scheduleWateringReminder } from '../../lib/notifications';
-import { recordEvent } from '../../lib/activity';
+import { messageFor } from '../../lib/errors';
+import { useDeletePlant, usePlant, useUpdatePlant, useWaterPlant } from '../../hooks/useGrowspaces';
 import FeedingDialog from '../calendar/FeedingDialog';
 import ImagePickerField from '../../components/ImagePickerField';
 import ContainerPicker from '../../components/ContainerPicker';
@@ -50,8 +48,9 @@ export default function PlantDetailScreen({ route, navigation }) {
   const { plantId } = route.params;
   const { system } = useUnits();
   const theme = useTheme();
-  const [plant, setPlant] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const plantQuery = usePlant(plantId);
+  const plant = plantQuery.data ?? null;
+  const loading = plantQuery.isPending;
   const [editVisible, setEditVisible] = useState(false);
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('');
@@ -62,26 +61,13 @@ export default function PlantDetailScreen({ route, navigation }) {
   const [germinatedOn, setGerminatedOn] = useState(null);
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
   const [feedVisible, setFeedVisible] = useState(false);
-  const [watering, setWatering] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
 
-  const fetchPlant = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('plants')
-      .select('*, containers(material, volume_liters)')
-      .eq('id', plantId)
-      .single();
-    if (!error) setPlant(data);
-    setLoading(false);
-  }, [plantId]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchPlant();
-    }, [fetchPlant])
-  );
+  const update = useUpdatePlant({ onSuccess: () => setEditVisible(false) });
+  const water = useWaterPlant();
+  const remove = useDeletePlant({ onSuccess: () => navigation.goBack() });
 
   const openEditDialog = () => {
     setName(plant.name);
@@ -91,24 +77,24 @@ export default function PlantDetailScreen({ route, navigation }) {
     setContainerId(plant.container_id);
     setPlantType(plant.plant_type || '');
     setGerminatedOn(plant.germinated_on);
-    setError('');
+    setValidationError('');
     setEditVisible(true);
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     const interval = parseInt(intervalDays, 10);
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
     if (!interval || interval < 1) {
-      setError('Watering interval must be a positive number of days');
+      setValidationError('Watering interval must be a positive number of days');
       return;
     }
-    setSaving(true);
-    const { data, error } = await supabase
-      .from('plants')
-      .update({
+    setValidationError('');
+    update.mutate({
+      plantId,
+      values: {
         name: name.trim(),
         species: species.trim() || null,
         plant_type: plantType.trim() || null,
@@ -116,18 +102,8 @@ export default function PlantDetailScreen({ route, navigation }) {
         watering_interval_days: interval,
         image_url: imageUrl,
         container_id: containerId,
-      })
-      .eq('id', plantId)
-      .select('*, containers(material, volume_liters)')
-      .single();
-    setSaving(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    setPlant(data);
-    await scheduleWateringReminder(data);
-    setEditVisible(false);
+      },
+    });
   };
 
   /**
@@ -135,41 +111,10 @@ export default function PlantDetailScreen({ route, navigation }) {
    * itself only keeps the most recent watering, so this log is what makes the
    * ones before it recoverable at all.
    */
-  const handleWater = async () => {
-    setWatering(true);
-    const wateredAt = new Date().toISOString();
-    const { data, error: waterError } = await supabase
-      .from('plants')
-      .update({ last_watered_at: wateredAt })
-      .eq('id', plantId)
-      .select('*, containers(material, volume_liters)')
-      .single();
-    setWatering(false);
-    if (waterError) return;
+  const handleWater = () => water.mutate(plantId);
 
-    setPlant(data);
-    await scheduleWateringReminder(data);
-    await recordEvent({
-      kind: 'watered',
-      subject: data.name,
-      detail: `Every ${data.watering_interval_days} days`,
-      growspaceId: data.growspace_id,
-      plantId: data.id,
-    });
-  };
-
-  const handleDelete = async () => {
-    await cancelWateringReminder(plantId);
-    // Logged first, so the entry can still name what was pulled.
-    await recordEvent({
-      kind: 'removed',
-      subject: plant.name,
-      detail: plantTypeLabel(plant) ?? plant.species ?? null,
-      growspaceId: plant.growspace_id,
-    });
-    await supabase.from('plants').delete().eq('id', plantId);
-    navigation.goBack();
-  };
+  const handleDelete = () =>
+    remove.mutate({ plant, detail: plantTypeLabel(plant) ?? plant.species ?? null });
 
   if (loading || !plant) {
     return (
@@ -244,8 +189,8 @@ export default function PlantDetailScreen({ route, navigation }) {
           mode="contained-tonal"
           icon="water-outline"
           onPress={handleWater}
-          loading={watering}
-          disabled={watering}
+          loading={water.isPending}
+          disabled={water.isPending}
           style={styles.careButton}
         >
           Water now
@@ -337,12 +282,14 @@ export default function PlantDetailScreen({ route, navigation }) {
                 style={styles.input}
               />
               <ContainerPicker value={containerId} onChange={setContainerId} />
-              <ErrorText>{error}</ErrorText>
+              <ErrorText>
+                {validationError || (update.isError ? messageFor(update.error) : '')}
+              </ErrorText>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setEditVisible(false)}>Cancel</Button>
-            <Button onPress={handleSaveEdit} loading={saving} disabled={saving}>
+            <Button onPress={handleSaveEdit} loading={update.isPending} disabled={update.isPending}>
               Save
             </Button>
           </Dialog.Actions>
