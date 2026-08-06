@@ -14,9 +14,11 @@ are in place and green. Still no component tests. RLS policies and indexes are
 in place on every table.
 
 **Phase order:** 0 guardrails (done) → 1 data layer → 2 validation → 3 test
-depth → 4 polish → 5 ship and present. A slice of phase 5 — screenshots and the
-architecture doc — is worth pulling forward so the repo is presentable
-throughout rather than only at the end.
+depth → 4 polish. **Tier 4 is deliberately parked** until the feature set
+settles: more features are coming, and screenshots, store copy and an
+architecture doc written now would only be rewritten. The point of phases 1–4 is
+that whatever gets built next lands on a foundation that already handles its
+errors, validates its inputs and is testable.
 
 ---
 
@@ -44,38 +46,30 @@ The gaps here are the ones that produce a bad demo on a flaky train wifi.
 
 ### Error handling
 
-- [ ] **Fetches fail silently.** `if (!error) setGrowspaces(data)` — six places
-      do this (`GrowspacesOverviewScreen.js:24` and friends), plus eight
-      `.catch(() => …)` swallows. A dropped request leaves an empty list that
-      looks exactly like "you have no growspaces". Every load needs the
-      loading / empty / **error + retry** triad, not two thirds of it.
-- [ ] **No error boundary anywhere.** One bad render white-screens the app with
-      no way back. Add a root `ErrorBoundary` with a "something went wrong /
-      reload" fallback, and per-tab boundaries so one broken screen doesn't
-      take the shell down.
-- [ ] **Raw Supabase errors are shown to users.** `setError(error.message)`
-      surfaces `duplicate key value violates unique constraint` and
-      `JWT expired` verbatim. Add `lib/errors.js`:
-      map Postgres/PostgREST/GoTrue codes to human sentences, fall back to a
-      generic one, log the raw error. Unit-testable, so test it.
-- [ ] **No loading indicator on first paint.** Screens render `!loading && …`,
-      i.e. nothing at all while loading. Skeletons or a centred spinner.
+- [x] **A query cache.** TanStack Query adopted: `lib/queryClient.js` wires
+      `focusManager` to AppState and `onlineManager` to NetInfo, which is what
+      React Native needs before either works. `lib/queryKeys.js` holds every key
+      and, in `AFFECTED_BY`, what each _action_ invalidates — so a mutation
+      names what it did rather than remembering which four caches it dirtied.
+- [x] **Error boundaries.** `components/ErrorBoundary.js` at the root and around
+      each of the five tabs, so a screen that throws takes only itself down.
+- [x] **Raw Supabase errors no longer reach users.** `lib/errors.js` maps
+      Postgres SQLSTATE, PostgREST and GoTrue codes to sentences, with text
+      matching for the older GoTrue releases that send wording without a code.
+      29 tests, one of which asserts no raw database text can get through.
+- [x] **Retry on transient failure only.** `isRetryable` splits a dropped
+      connection from a constraint that will fail identically forever. Writes
+      are never retried — none of them are idempotent, and a lost response
+      would sow a tray twice.
+- [ ] **Apply the triad to every screen.** `components/QueryBoundary.js` gives
+      loading / error + retry / empty in one place, and fertilizers is converted
+      as the reference. The other 21 screens still swallow their failures.
+- [ ] **Offline banner.** NetInfo is installed and queries already pause when
+      the connection goes, but nothing tells the user that is why.
 - [ ] **Session expiry is unhandled.** If the refresh token dies the next query
-      just fails. Listen for `onAuthStateChange` → `TOKEN_REFRESHED` /
-      `SIGNED_OUT` and route back to login with an explanation.
-
-### Offline and network
-
-- [ ] **No network awareness.** Add `@react-native-community/netinfo`, an
-      offline banner, and "you're offline" copy on failed writes instead of a
-      Postgres timeout string.
-- [ ] **No retry on transient failure.** Wrap the data layer in retry with
-      backoff for network-class errors only (never for 4xx).
-- [ ] **Consider a query cache.** TanStack Query would delete most of the
-      hand-rolled `useFocusEffect` + `useState` + refetch scaffolding across 23
-      screens, and gives caching, dedupe, retry, stale-while-revalidate and
-      optimistic updates for free. This is the single biggest architectural
-      upgrade available and reads as a deliberate choice to a reviewer.
+      just fails. `isAuthExpired` recognises it; nothing acts on it yet. Listen
+      for `onAuthStateChange` → `SIGNED_OUT` and route back to login with an
+      explanation.
 - [ ] **Optimistic updates for the cheap actions** — ticking a job off the
       dashboard, watering a plant, marking a cell germinated. They currently
       round-trip before the UI moves.

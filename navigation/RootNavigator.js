@@ -11,6 +11,7 @@ import GrowspacesStack from './GrowspacesStack';
 import GerminationStack from './GerminationStack';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
 import NpkCalculatorScreen from '../screens/calculator/NpkCalculatorScreen';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 /** @typedef {import('./types').AuthParamList} AuthParamList */
 /** @typedef {import('./types').TabParamList} TabParamList */
@@ -48,6 +49,36 @@ function tabIcon(name) {
   return TabIcon;
 }
 
+/**
+ * A tab behind its own error boundary.
+ *
+ * Each tab gets one so that a screen which throws takes only itself down — the
+ * bar stays up and the other four still work, which also means the grower can
+ * carry on with the rest of the app instead of force-quitting.
+ *
+ * Built once at module scope rather than inline in `component={...}`: a fresh
+ * component identity on each render would remount the whole tab, throwing away
+ * its scroll position and its navigation state.
+ *
+ * @param {import('react').ComponentType<any>} Screen
+ * @param {string} label Names the tab in the fallback, so it says which broke.
+ */
+function guarded(Screen, label) {
+  const Guarded = (props) => (
+    <ErrorBoundary label={label}>
+      <Screen {...props} />
+    </ErrorBoundary>
+  );
+  Guarded.displayName = `Guarded(${label})`;
+  return Guarded;
+}
+
+const GuardedDashboard = guarded(DashboardStack, 'The dashboard');
+const GuardedGrowspaces = guarded(GrowspacesStack, 'Growspaces');
+const GuardedGermination = guarded(GerminationStack, 'Sowing');
+const GuardedInventory = guarded(InventoryScreen, 'Inventory');
+const GuardedNpk = guarded(NpkCalculatorScreen, 'The NPK calculator');
+
 function AppTabs() {
   return (
     /* id: see the note in ./types.js */
@@ -56,27 +87,27 @@ function AppTabs() {
           labels are set separately rather than by renaming the routes. */}
       <Tab.Screen
         name="Home"
-        component={DashboardStack}
+        component={GuardedDashboard}
         options={{ tabBarIcon: tabIcon('view-dashboard-outline'), title: 'Home' }}
       />
       <Tab.Screen
         name="Growspaces"
-        component={GrowspacesStack}
+        component={GuardedGrowspaces}
         options={{ tabBarIcon: tabIcon('flower-outline'), title: 'Growspace' }}
       />
       <Tab.Screen
         name="Germination"
-        component={GerminationStack}
+        component={GuardedGermination}
         options={{ tabBarIcon: tabIcon('sprout-outline'), title: 'Sowing' }}
       />
       <Tab.Screen
         name="Inventory"
-        component={InventoryScreen}
+        component={GuardedInventory}
         options={{ tabBarIcon: tabIcon('package-variant-closed') }}
       />
       <Tab.Screen
         name="NPK"
-        component={NpkCalculatorScreen}
+        component={GuardedNpk}
         options={{ tabBarIcon: tabIcon('calculator-variant-outline'), title: 'NPK Calc' }}
       />
       {/* Settings has no tab of its own: it sits behind the gear on the
