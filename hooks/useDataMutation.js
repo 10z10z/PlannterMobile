@@ -23,8 +23,13 @@ import { invalidateFor } from '../lib/queryKeys';
  * @param {(data: TData, variables: TVariables) => void | Promise<void>} [params.onSuccess]
  *   Anything this particular caller wants afterwards — closing its dialog,
  *   showing a message. Runs once the caches are already marked stale.
+ * @param {(error: any, variables: TVariables) => void} [params.onError]
+ *   For the writes that can half-succeed. A caller that needs to remember what
+ *   *did* land — so a retry finishes the job rather than starting a second one —
+ *   reads it off the error here. Showing the message is not this: every screen
+ *   already renders `messageFor(mutation.error)`.
  */
-export function useDataMutation({ mutationFn, affects, onSuccess }) {
+export function useDataMutation({ mutationFn, affects, onSuccess, onError }) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -35,6 +40,12 @@ export function useDataMutation({ mutationFn, affects, onSuccess }) {
       // just changed sitting there until the next focus.
       await invalidateFor(queryClient, affects);
       await onSuccess?.(data, variables);
+    },
+    onError: async (error, variables) => {
+      // A half-failed write still changed something, so the caches are stale
+      // whichever way it ended.
+      await invalidateFor(queryClient, affects);
+      onError?.(error, variables);
     },
   });
 }

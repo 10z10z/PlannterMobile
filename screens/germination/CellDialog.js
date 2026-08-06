@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { daysSince, setCellGerminated } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import { useDataMutation } from '../../hooks/useDataMutation';
 import ErrorText from '../../components/ErrorText';
 
 /**
@@ -12,13 +14,21 @@ import ErrorText from '../../components/ErrorText';
  */
 export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, onTransplant }) {
   const [germinated, setGerminated] = useState('0');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this dialog checks itself; the server's objections arrive on
+  // the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const save = useDataMutation({
+    mutationFn: ({ cell: target, value, sowing: parent }) =>
+      setCellGerminated(target, value, parent),
+    affects: 'sowingChanged',
+    onSuccess: onSaved,
+  });
 
   useEffect(() => {
     if (!visible || !cell) return;
     setGerminated(String(cell.germinated));
-    setError('');
+    setValidationError('');
   }, [visible, cell]);
 
   if (!cell) return null;
@@ -35,20 +45,13 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
     setGerminated(String(next));
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!valid) {
-      setError(`Enter a number between 0 and ${cell.seeds_planted}`);
+      setValidationError(`Enter a number between 0 and ${cell.seeds_planted}`);
       return;
     }
-    setSaving(true);
-    setError('');
-    try {
-      await setCellGerminated(cell, value, sowing);
-      onSaved();
-    } catch (saveError) {
-      setError(saveError.message);
-    }
-    setSaving(false);
+    setValidationError('');
+    save.mutate({ cell, value, sowing });
   };
 
   return (
@@ -75,7 +78,9 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
                 {`Out of ${cell.seeds_planted} seed${cell.seeds_planted === 1 ? '' : 's'} sown`}
                 {days !== null ? ` · first came up ${days}d ago` : ''}
               </HelperText>
-              <ErrorText>{error}</ErrorText>
+              <ErrorText>
+                {validationError || (save.isError ? messageFor(save.error) : '')}
+              </ErrorText>
             </>
           )}
         </Dialog.Content>
@@ -86,8 +91,8 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
           </Button>
           <Button
             onPress={handleSave}
-            loading={saving}
-            disabled={saving || cell.seeds_planted === 0}
+            loading={save.isPending}
+            disabled={save.isPending || cell.seeds_planted === 0}
           >
             Save
           </Button>

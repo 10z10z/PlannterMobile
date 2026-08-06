@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Appbar, Button, Text } from 'react-native-paper';
+import { Appbar, Button } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { useFocusEffect } from '@react-navigation/native';
-import { fetchStations } from '../../lib/germination';
 import ScreenTitle from '../../components/ScreenTitle';
+import QueryBoundary from '../../components/QueryBoundary';
+import { useStations } from '../../hooks/useStations';
 import StationFormDialog from './StationFormDialog';
 import StationTabScreen from './StationTabScreen';
 
@@ -12,25 +12,9 @@ const Tab = createMaterialTopTabNavigator();
 
 /** Stations sit in swipeable tabs, the same shape as the growspace screen. */
 export default function GerminationStationsScreen({ navigation }) {
-  const [stations, setStations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const stationQuery = useStations();
+  const stations = stationQuery.data ?? [];
   const [dialogVisible, setDialogVisible] = useState(false);
-
-  const loadStations = useCallback(async () => {
-    setLoading(true);
-    try {
-      setStations(await fetchStations());
-    } catch {
-      // Leave the previous list in place.
-    }
-    setLoading(false);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadStations();
-    }, [loadStations])
-  );
 
   return (
     <View style={styles.container}>
@@ -43,41 +27,38 @@ export default function GerminationStationsScreen({ navigation }) {
         <Appbar.Action icon="plus" onPress={() => setDialogVisible(true)} />
       </Appbar.Header>
 
-      {!loading && stations.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text variant="bodyLarge" style={styles.emptyText}>
-            No germination stations yet.
-          </Text>
+      <QueryBoundary
+        query={stationQuery}
+        isEmpty={stations.length === 0}
+        emptyIcon="sprout-outline"
+        emptyText="No germination stations yet."
+        errorText="Couldn’t load your germination stations."
+        emptyAction={
           <Button mode="contained" icon="plus" onPress={() => setDialogVisible(true)}>
             Create a station to start sowing
           </Button>
-        </View>
-      ) : (
-        !loading && (
-          // Routes are named by station id at runtime, so there is no param
-          // list to give this one. id: see navigation/types.js.
-          <Tab.Navigator id={undefined}>
-            {stations.map((station) => (
-              <Tab.Screen
-                key={station.id}
-                name={station.id}
-                component={StationTabScreen}
-                initialParams={{ stationId: station.id }}
-                options={{ tabBarLabel: station.name }}
-              />
-            ))}
-          </Tab.Navigator>
-        )
-      )}
+        }
+      >
+        {/* Routes are named by station id at runtime, so there is no param
+            list to give this one. id: see navigation/types.js. */}
+        <Tab.Navigator id={undefined}>
+          {stations.map((station) => (
+            <Tab.Screen
+              key={station.id}
+              name={station.id}
+              component={StationTabScreen}
+              initialParams={{ stationId: station.id }}
+              options={{ tabBarLabel: station.name }}
+            />
+          ))}
+        </Tab.Navigator>
+      </QueryBoundary>
 
       <StationFormDialog
         visible={dialogVisible}
         station={null}
         onDismiss={() => setDialogVisible(false)}
-        onSaved={() => {
-          setDialogVisible(false);
-          loadStations();
-        }}
+        onSaved={() => setDialogVisible(false)}
       />
     </View>
   );

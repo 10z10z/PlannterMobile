@@ -1,18 +1,19 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Button, Dialog, FAB, List, Portal, Text } from 'react-native-paper';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
+import { useNavigation } from '@react-navigation/native';
 import { useUnits } from '../../contexts/UnitsContext';
 import { useWeather } from '../../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
+import { environmentLabel } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import ErrorText from '../../components/ErrorText';
 import {
-  environmentLabel,
-  fetchSowings,
-  fetchStation,
-  fetchStationLights,
-} from '../../lib/germination';
-import { recordEvent } from '../../lib/activity';
+  useDeleteSowing,
+  useStation,
+  useStationLights,
+  useStationSowings,
+} from '../../hooks/useStations';
 import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
 import { conditionsFor, placeLabel, readingAgeLabel } from '../../lib/weather';
 import SowingCard from '../../components/SowingCard';
@@ -29,10 +30,13 @@ export default function StationTabScreen({ route }) {
   const navigation = useNavigation();
   const { system } = useUnits();
   const { place, reading } = useWeather();
-  const [station, setStation] = useState(null);
-  const [sowings, setSowings] = useState([]);
-  const [lights, setLights] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const stationQuery = useStation(stationId);
+  const sowingQuery = useStationSowings(stationId);
+  const lightQuery = useStationLights(stationId);
+
+  const station = stationQuery.data ?? null;
+  const sowings = sowingQuery.data ?? [];
+  const lights = lightQuery.data ?? [];
   const [formVisible, setFormVisible] = useState(false);
   // The sowing the form is copying, when it was opened by "Sow this again".
   const [template, setTemplate] = useState(null);
@@ -49,28 +53,14 @@ export default function StationTabScreen({ route }) {
   const [moving, setMoving] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [stationRow, sowingRows, lightRows] = await Promise.all([
-        fetchStation(stationId),
-        fetchSowings(stationId),
-        fetchStationLights(stationId),
-      ]);
-      setStation(stationRow);
-      setSowings(sowingRows);
-      setLights(lightRows);
-    } catch {
-      // Leave the previous list in place; pull-to-refresh retries.
-    }
-    setLoading(false);
-  }, [stationId]);
+  const removeSowing = useDeleteSowing({ onSuccess: () => setPendingDelete(null) });
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  /** Pulling down refreshes all three, since they are one screen. */
+  const refreshAll = () => {
+    stationQuery.refetch();
+    sowingQuery.refetch();
+    lightQuery.refetch();
+  };
 
   // The card hands over the cells it means: everything ready by default, or just
   // the ones picked in selection mode.
@@ -97,28 +87,13 @@ export default function StationTabScreen({ route }) {
     .filter(Boolean)
     .join(' · ');
 
-  const handleDelete = async () => {
-    const sowing = pendingDelete;
-    setPendingDelete(null);
-    // Logged before the row goes, so the entry can name what was removed while
-    // the sowing is still there to be read.
-    await recordEvent({
-      kind: 'removed',
-      subject: sowing.seed_pack_name,
-      detail: 'Sowing removed',
-      stationId,
-    });
-    await supabase.from('sowings').delete().eq('id', sowing.id);
-    load();
-  };
-
   return (
     <View style={styles.container}>
       <FlatList
         data={sowings}
         keyExtractor={(item) => item.id}
-        refreshing={loading}
-        onRefresh={load}
+        refreshing={sowingQuery.isRefetching}
+        onRefresh={refreshAll}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
@@ -156,9 +131,11 @@ export default function StationTabScreen({ route }) {
           </View>
         }
         ListEmptyComponent={
-          !loading && (
+          !sowingQuery.isPending && (
             <Text style={styles.emptyText}>
-              Nothing sown here yet. Tap + to plant a seed pack into a tray or a container.
+              {sowingQuery.isError
+                ? messageFor(sowingQuery.error, 'Couldn’t load what is sown here.')
+                : 'Nothing sown here yet. Tap + to plant a seed pack into a tray or a container.'}
             </Text>
           )
         }
@@ -195,7 +172,6 @@ export default function StationTabScreen({ route }) {
         onDismiss={() => setFormVisible(false)}
         onSaved={() => {
           setFormVisible(false);
-          load();
         }}
       />
 
@@ -208,7 +184,6 @@ export default function StationTabScreen({ route }) {
           // The tab bar is owned by the screen above, which stays focused while
           // its tabs are used and so never refetches on its own.
           navigation.setOptions({ tabBarLabel: updated.name });
-          load();
         }}
       />
 
@@ -219,7 +194,6 @@ export default function StationTabScreen({ route }) {
         onDismiss={() => setActiveCell(null)}
         onSaved={() => {
           setActiveCell(null);
-          load();
         }}
         onTransplant={() => {
           setTransplanting({ sowing: activeCell.sowing, cells: [activeCell.cell] });
@@ -233,7 +207,6 @@ export default function StationTabScreen({ route }) {
         onDismiss={() => setBatchSowing(null)}
         onSaved={() => {
           setBatchSowing(null);
-          load();
         }}
       />
 
@@ -244,7 +217,6 @@ export default function StationTabScreen({ route }) {
         onDismiss={() => setTransplanting(null)}
         onDone={() => {
           setTransplanting(null);
-          load();
         }}
       />
 
@@ -254,7 +226,6 @@ export default function StationTabScreen({ route }) {
         onDismiss={() => setThinning(null)}
         onDone={() => {
           setThinning(null);
-          load();
         }}
       />
 
@@ -266,7 +237,6 @@ export default function StationTabScreen({ route }) {
         onDone={() => {
           setMoving(null);
           // The sowing now belongs to another tab, so it drops off this list.
-          load();
         }}
       />
 
@@ -277,10 +247,25 @@ export default function StationTabScreen({ route }) {
             <Text>
               Remove this sowing and its grid? The seeds it used are not returned to the pack.
             </Text>
+            <ErrorText>{removeSowing.isError ? messageFor(removeSowing.error) : ''}</ErrorText>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setPendingDelete(null)}>Cancel</Button>
-            <Button onPress={handleDelete}>Delete</Button>
+            <Button
+              onPress={() => {
+                removeSowing.reset();
+                setPendingDelete(null);
+              }}
+              disabled={removeSowing.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onPress={() => removeSowing.mutate({ sowing: pendingDelete, stationId })}
+              loading={removeSowing.isPending}
+              disabled={removeSowing.isPending}
+            >
+              Delete
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

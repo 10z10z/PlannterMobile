@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
 import { thinSowing, thinnableCells, thinningSummary } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import { useDataMutation } from '../../hooks/useDataMutation';
 import ErrorText from '../../components/ErrorText';
 
 /** "8 seedlings and 4 seeds", leaving out whichever side is zero. */
@@ -19,22 +21,22 @@ function describeLosses({ seedlings, seeds }) {
  * plainly how many go and how many stay before offering the button.
  */
 export default function ThinDialog({ visible, sowing, onDismiss, onDone }) {
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this dialog checks itself; the server's objections arrive on
+  // the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const save = useDataMutation({
+    mutationFn: ({ cells: rows, sowing: parent }) => thinSowing(rows, parent),
+    affects: 'sowingChanged',
+    onSuccess: onDone,
+  });
 
   const cells = thinnableCells(sowing?.grid);
   const summary = thinningSummary(cells);
 
-  const handleThin = async () => {
-    setSaving(true);
-    setError('');
-    try {
-      await thinSowing(cells, sowing);
-      onDone();
-    } catch (thinError) {
-      setError(thinError.message);
-    }
-    setSaving(false);
+  const handleThin = () => {
+    setValidationError('');
+    save.mutate({ cells, sowing });
   };
 
   return (
@@ -58,11 +60,17 @@ export default function ThinDialog({ visible, sowing, onDismiss, onDone }) {
               </Text>
             </>
           )}
-          <ErrorText style={styles.errorText}>{error}</ErrorText>
+          <ErrorText style={styles.errorText}>
+            {validationError || (save.isError ? messageFor(save.error) : '')}
+          </ErrorText>
         </Dialog.Content>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleThin} loading={saving} disabled={saving || summary.cells === 0}>
+          <Button
+            onPress={handleThin}
+            loading={save.isPending}
+            disabled={save.isPending || summary.cells === 0}
+          >
             Thin
           </Button>
         </Dialog.Actions>

@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Menu, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume } from '../../lib/units';
-import { fetchContainersWithUsage, materialLabel } from '../../lib/containers';
+import { materialLabel } from '../../lib/containers';
 import { germinatedCells, transplant } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import { useGrowspaces } from '../../hooks/useGrowspaces';
+import { useInventory } from '../../hooks/useInventory';
+import { useDataMutation } from '../../hooks/useDataMutation';
 import ErrorText from '../../components/ErrorText';
 
 /**
@@ -16,11 +18,13 @@ import ErrorText from '../../components/ErrorText';
  * split is even, and each container becomes one plant carrying its count.
  */
 export default function TransplantDialog({ visible, sowing, cells, onDismiss, onDone }) {
-  const { session } = useAuth();
   const { system } = useUnits();
 
-  const [growspaces, setGrowspaces] = useState([]);
-  const [containers, setContainers] = useState([]);
+  const growspaceQuery = useGrowspaces();
+  const growspaces = useMemo(() => growspaceQuery.data ?? [], [growspaceQuery.data]);
+  const containerShelf = useInventory('containers');
+  const containers = containerShelf.data ?? [];
+
   const [growspaceId, setGrowspaceId] = useState(null);
   const [containerId, setContainerId] = useState(null);
   const [seedlings, setSeedlings] = useState('1');
@@ -28,8 +32,17 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
   const [name, setName] = useState('');
 
   const [openMenu, setOpenMenu] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this dialog checks itself; the server's objections arrive on the
+  // mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const move = useDataMutation({
+    mutationFn: transplant,
+    // The seedlings leave the station side and arrive as plants in a growspace,
+    // taking containers out of the free count on the way.
+    affects: 'transplanted',
+    onSuccess: onDone,
+  });
 
   const available = (cells ?? []).reduce((sum, cell) => sum + cell.germinated, 0);
 
@@ -50,18 +63,19 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
     setName(sowing?.seed_pack_name ?? '');
     setGrowspaceId(null);
     setContainerId(null);
-    setError('');
-
-    Promise.all([
-      supabase.from('growspaces').select('*').order('created_at'),
-      fetchContainersWithUsage().catch(() => []),
-    ]).then(([growspaceRows, containerRows]) => {
-      setGrowspaces(growspaceRows.data ?? []);
-      setContainers(containerRows);
-      // With a single growspace there is nothing to choose, so it's preselected.
-      if (growspaceRows.data?.length === 1) setGrowspaceId(growspaceRows.data[0].id);
-    });
+    setValidationError('');
+    move.reset();
+    // Opening is the trigger; the lists come from the cache below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, available, sowing]);
+
+  // With a single growspace there is nothing to choose, so it is chosen. Kept
+  // apart from the setup above because the list arrives from the cache and may
+  // land after the dialog has opened.
+  useEffect(() => {
+    if (!visible || growspaceId || growspaces.length !== 1) return;
+    setGrowspaceId(growspaces[0].id);
+  }, [visible, growspaceId, growspaces]);
 
   const seedlingCount = parseInt(seedlings, 10);
   const potCount = parseInt(containerCount, 10);
@@ -80,42 +94,34 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
           )} per container`
       : null;
 
-  const handleTransplant = async () => {
+  const handleTransplant = () => {
     if (!seedlingCount || seedlingCount < 1 || seedlingCount > available) {
-      setError(`Pick between 1 and ${available} seedlings`);
+      setValidationError(`Pick between 1 and ${available} seedlings`);
       return;
     }
     if (!potCount || potCount < 1 || potCount > seedlingCount) {
-      setError('Containers must be between 1 and the number of seedlings');
+      setValidationError('Containers must be between 1 and the number of seedlings');
       return;
     }
     if (!growspaceId) {
-      setError('Pick a growspace');
+      setValidationError('Pick a growspace');
       return;
     }
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
 
-    setSaving(true);
-    setError('');
-    try {
-      await transplant({
-        userId: session.user.id,
-        sowing,
-        cells,
-        seedlingCount,
-        growspaceId,
-        containerId,
-        containerCount: potCount,
-        name: name.trim(),
-      });
-      onDone();
-    } catch (transplantError) {
-      setError(transplantError.message);
-    }
-    setSaving(false);
+    setValidationError('');
+    move.mutate({
+      sowing,
+      cells,
+      seedlingCount,
+      growspaceId,
+      containerId,
+      containerCount: potCount,
+      name: name.trim(),
+    });
   };
 
   return (
@@ -218,12 +224,16 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
                 : 'One plant is created in the growspace.'}
             </HelperText>
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (move.isError ? messageFor(move.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleTransplant} loading={saving} disabled={saving || available === 0}>
+          <Button
+            onPress={handleTransplant}
+            loading={move.isPending}
+            disabled={move.isPending || available === 0}
+          >
             Transplant
           </Button>
         </Dialog.Actions>

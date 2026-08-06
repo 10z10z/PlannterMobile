@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatTemperature, parseTemperature, tempUnit } from '../../lib/units';
-import { STATION_ENVIRONMENTS, fetchStationLights, saveStationLights } from '../../lib/germination';
+import { STATION_ENVIRONMENTS, fetchStationLights } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import { useSaveStation } from '../../hooks/useStations';
 import LightAssignmentField from '../../components/LightAssignmentField';
 import ErrorText from '../../components/ErrorText';
 
@@ -17,7 +17,6 @@ import ErrorText from '../../components/ErrorText';
  * is kept.
  */
 export default function StationFormDialog({ visible, station, onDismiss, onSaved }) {
-  const { session } = useAuth();
   const { system } = useUnits();
   const isEditing = !!station;
 
@@ -32,12 +31,28 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
   // Set once a new station exists, so a retry after a half-failed save doesn't
   // create a second one.
   const [created, setCreated] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const save = useSaveStation({
+    onSuccess: (saved) => {
+      setCreated(saved);
+      onSaved(saved);
+    },
+    // A save that got the station in but not its lights still made a station.
+    // Holding on to it is what makes pressing save again a retry rather than a
+    // second station under the same name.
+    onError: (failure) => {
+      if (failure?.station) setCreated(failure.station);
+    },
+  });
+  const resetSave = save.reset;
 
   useEffect(() => {
     if (!visible) return;
-    setError('');
+    setValidationError('');
+    resetSave();
     setCreated(null);
 
     if (station) {
@@ -54,7 +69,7 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
           setLights(current);
           setBaseline(current);
         })
-        .catch((loadError) => setError(loadError.message));
+        .catch((loadError) => setValidationError(messageFor(loadError)));
     } else {
       setName('');
       setEnvironment('indoor');
@@ -63,11 +78,11 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
       setLights([]);
       setBaseline([]);
     }
-  }, [visible, station, system]);
+  }, [visible, station, system, resetSave]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
     const humidityValue = humidity.trim() ? Number(humidity.replace(',', '.')) : null;
@@ -75,58 +90,23 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
       humidityValue !== null &&
       (Number.isNaN(humidityValue) || humidityValue < 0 || humidityValue > 100)
     ) {
-      setError('Humidity must be between 0 and 100%');
+      setValidationError('Humidity must be between 0 and 100%');
       return;
     }
 
-    setSaving(true);
-    setError('');
-
-    const payload = {
-      name: name.trim(),
-      environment,
-      temp_c: parseTemperature(temp, system),
-      humidity_pct: humidityValue,
-    };
-
-    let target = station ?? created;
-    if (target) {
-      const { error: updateError } = await supabase
-        .from('germination_stations')
-        .update(payload)
-        .eq('id', target.id);
-      if (updateError) {
-        setSaving(false);
-        setError(updateError.message);
-        return;
-      }
-    } else {
-      const { data, error: insertError } = await supabase
-        .from('germination_stations')
-        .insert({ ...payload, user_id: session.user.id })
-        .select()
-        .single();
-      if (insertError) {
-        setSaving(false);
-        setError(insertError.message);
-        return;
-      }
-      target = data;
-      setCreated(data);
-    }
-
-    // The station itself is saved by this point, so a failure here costs only
-    // the light assignments, and pressing save again retries just those.
-    try {
-      await saveStationLights(session.user.id, target.id, lights);
-    } catch (lightsError) {
-      setSaving(false);
-      setError(`Station saved, but its lights weren't: ${lightsError.message}`);
-      return;
-    }
-
-    setSaving(false);
-    onSaved({ ...target, ...payload });
+    setValidationError('');
+    save.mutate({
+      // `created` is the station a half-failed save already made: retrying
+      // updates it rather than inserting a second one under the same name.
+      id: station?.id ?? created?.id,
+      values: {
+        name: name.trim(),
+        environment,
+        temp_c: parseTemperature(temp, system),
+        humidity_pct: humidityValue,
+      },
+      lights,
+    });
   };
 
   return (
@@ -166,12 +146,12 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
 
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             {isEditing || created ? 'Save' : 'Create'}
           </Button>
         </Dialog.Actions>

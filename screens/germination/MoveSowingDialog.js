@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Button, Dialog, List, Portal, RadioButton, Text } from 'react-native-paper';
-import { environmentLabel, fetchStations, moveSowing, otherStations } from '../../lib/germination';
+import { environmentLabel, moveSowing, otherStations } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import { useStations } from '../../hooks/useStations';
+import { useDataMutation } from '../../hooks/useDataMutation';
 import ErrorText from '../../components/ErrorText';
 
 /**
@@ -10,37 +13,37 @@ import ErrorText from '../../components/ErrorText';
  * comes along untouched.
  */
 export default function MoveSowingDialog({ visible, sowing, stationId, onDismiss, onDone }) {
-  const [stations, setStations] = useState([]);
+  const stationQuery = useStations();
+  const stations = otherStations(stationQuery.data ?? [], stationId);
+  const loading = stationQuery.isPending;
+
   const [targetId, setTargetId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this dialog checks itself; the server's objections arrive on the
+  // mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const move = useDataMutation({
+    mutationFn: ({ sowingId, toStationId }) => moveSowing(sowingId, toStationId),
+    // Both stations change: the sowing leaves one and arrives in the other.
+    affects: 'sowingChanged',
+    onSuccess: onDone,
+  });
+  const resetMove = move.reset;
 
   useEffect(() => {
     if (!visible) return;
     setTargetId(null);
-    setError('');
-    setLoading(true);
-    fetchStations()
-      .then((rows) => setStations(otherStations(rows, stationId)))
-      .catch((fetchError) => setError(fetchError.message))
-      .finally(() => setLoading(false));
-  }, [visible, stationId]);
+    setValidationError('');
+    resetMove();
+  }, [visible, stationId, resetMove]);
 
-  const handleMove = async () => {
+  const handleMove = () => {
     if (!targetId) {
-      setError('Pick a station to move to');
+      setValidationError('Pick a station to move to');
       return;
     }
-    setSaving(true);
-    setError('');
-    try {
-      await moveSowing(sowing.id, targetId);
-      onDone();
-    } catch (moveError) {
-      setError(moveError.message);
-    }
-    setSaving(false);
+    setValidationError('');
+    move.mutate({ sowingId: sowing.id, toStationId: targetId });
   };
 
   return (
@@ -68,12 +71,20 @@ export default function MoveSowingDialog({ visible, sowing, stationId, onDismiss
                 ))}
               </RadioButton.Group>
             )}
-            <ErrorText style={styles.errorText}>{error}</ErrorText>
+            <ErrorText style={styles.errorText}>
+              {validationError ||
+                (move.isError ? messageFor(move.error) : '') ||
+                (stationQuery.isError ? messageFor(stationQuery.error) : '')}
+            </ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleMove} loading={saving} disabled={saving || !targetId}>
+          <Button
+            onPress={handleMove}
+            loading={move.isPending}
+            disabled={move.isPending || !targetId}
+          >
             Move
           </Button>
         </Dialog.Actions>

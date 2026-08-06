@@ -3,6 +3,8 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, IconButton, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
 import { setSowingGerminated } from '../../lib/germination';
+import { messageFor } from '../../lib/errors';
+import { useDataMutation } from '../../hooks/useDataMutation';
 import ErrorText from '../../components/ErrorText';
 
 /**
@@ -11,8 +13,16 @@ import ErrorText from '../../components/ErrorText';
  */
 export default function BatchGerminationDialog({ visible, sowing, onDismiss, onSaved }) {
   const [germinated, setGerminated] = useState('1');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this dialog checks itself; the server's objections arrive on
+  // the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
+
+  const save = useDataMutation({
+    mutationFn: ({ cells: rows, count, sowing: parent }) =>
+      setSowingGerminated(rows, count, parent),
+    affects: 'sowingChanged',
+    onSuccess: onSaved,
+  });
 
   const cells = (sowing?.grid ?? []).flat().filter((cell) => cell && cell.seeds_planted > 0);
   const maxPerCell = cells.reduce((most, cell) => Math.max(most, cell.seeds_planted), 0);
@@ -20,7 +30,7 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
   useEffect(() => {
     if (!visible) return;
     setGerminated('1');
-    setError('');
+    setValidationError('');
   }, [visible]);
 
   if (!sowing) return null;
@@ -34,20 +44,13 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
   };
 
   const apply = async (count) => {
-    setSaving(true);
-    setError('');
-    try {
-      await setSowingGerminated(cells, count, sowing);
-      onSaved();
-    } catch (saveError) {
-      setError(saveError.message);
-    }
-    setSaving(false);
+    setValidationError('');
+    save.mutate({ cells, count, sowing });
   };
 
   const handleSave = () => {
     if (!valid) {
-      setError(`Enter a number between 0 and ${maxPerCell}`);
+      setValidationError(`Enter a number between 0 and ${maxPerCell}`);
       return;
     }
     apply(value);
@@ -77,20 +80,26 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
                 {`Applied to all ${cells.length} cell${cells.length === 1 ? '' : 's'}. A cell holding fewer seeds than this is filled, not overfilled.`}
               </HelperText>
               <View style={styles.shortcuts}>
-                <Button onPress={() => apply(maxPerCell)} disabled={saving}>
+                <Button onPress={() => apply(maxPerCell)} disabled={save.isPending}>
                   All germinated
                 </Button>
-                <Button onPress={() => apply(0)} disabled={saving}>
+                <Button onPress={() => apply(0)} disabled={save.isPending}>
                   Reset to none
                 </Button>
               </View>
-              <ErrorText>{error}</ErrorText>
+              <ErrorText>
+                {validationError || (save.isError ? messageFor(save.error) : '')}
+              </ErrorText>
             </>
           )}
         </Dialog.Content>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving || cells.length === 0}>
+          <Button
+            onPress={handleSave}
+            loading={save.isPending}
+            disabled={save.isPending || cells.length === 0}
+          >
             Apply
           </Button>
         </Dialog.Actions>
