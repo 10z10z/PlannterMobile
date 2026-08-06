@@ -1,0 +1,12 @@
+# The working tree stays LF on every platform.
+#
+# Without this, Git's autocrlf hands Windows a CRLF checkout while Prettier is
+# configured to write LF, so `npm run format:check` fails on a clean clone here
+# and passes in CI — the worst kind of disagreement to debug.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ttf binary
+*.jks binary
+*.hbc binary

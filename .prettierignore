@@ -1,0 +1,11 @@
+node_modules/
+android/
+ios/
+.expo/
+dist/
+web-build/
+coverage/
+package-lock.json
+
+# Generated Material 3 palette data — regenerate it, don't reformat it.
+lib/themes.js
