@@ -6,19 +6,27 @@ what makes it feel finished, tier 4 is what ships and presents it.
 
 Done items have been removed. What's below is open.
 
-**Where it stands (updated 2026-08-06, after phase 1):** 397 tests across 17
+**Where it stands (updated 2026-08-07, after phase 2):** 527 tests across 21
 suites, all passing, all covering `lib/` pure logic — the coverage floor CI
-enforces is 55% of `lib/`. ESLint, Prettier, `tsc --noEmit` over JSDoc and a
-GitHub Actions run of all four are in place and green. Still no component tests.
+enforces is now 57% of `lib/` (65% of its functions). ESLint, Prettier,
+`tsc --noEmit` over JSDoc and a GitHub Actions run of all four are in place and
+green. Still no component tests.
 
 The data layer is done: no screen imports `supabase`, no screen refetches on
 focus. Reads go through `hooks/`, writes through mutations that invalidate by
 naming what they did. RLS policies and indexes are in place on every table, and
 still untested.
 
-**Phase order:** 0 guardrails (done) → 1 data layer → 2 validation → 3 test
-depth → 4 polish. **Tier 4 is deliberately parked** until the feature set
-settles: more features are coming, and screenshots, store copy and an
+Validation is done too. Every form in the app — all sixteen dialogs, the two
+plant forms, login and signup — runs on a schema in `lib/schemas.js` through
+`hooks/useForm.js`, and reports per field rather than one line at a time into
+the foot of a scrolling dialog. Migration `0013_value_limits.sql` puts the same
+limits in Postgres, so they hold for anything that writes without going through
+the app.
+
+**Phase order:** 0 guardrails (done) → 1 data layer (done) → 2 validation (done)
+→ 3 test depth → 4 polish. **Tier 4 is deliberately parked** until the feature
+set settles: more features are coming, and screenshots, store copy and an
 architecture doc written now would only be rewritten. The point of phases 1–4 is
 that whatever gets built next lands on a foundation that already handles its
 errors, validates its inputs and is testable.
@@ -34,7 +42,7 @@ errors, validates its inputs and is testable.
       action or FAB.
 - [ ] **Free-text note on the dashboard.** Just jot something down — "the
       chillies look leggy" — dated, editable, deletable. Needs a `notes` table + migration, a card on the dashboard, and a spot in the calendar day view.
-- [ ] **Input safety** — see _Validation & input safety_ below, expanded.
+- [x] **Input safety** — done; see _Validation & input safety_ below.
 - [ ] **Colour scheme improvements: login and signup screens.** Splash is done.
       Login is still a bare centred column with a 🌱 emoji as the logo
       (`screens/auth/LoginScreen.js:24`) while the app ships a real mark at
@@ -110,28 +118,57 @@ The gaps here are the ones that produce a bad demo on a flaky train wifi.
 
 ### Validation & input safety
 
-- [ ] **Centralise validation.** It's currently ad-hoc and per-dialog — humidity
-      is range-checked in `GrowspaceFormDialog` but not everywhere it's entered,
-      and numeric fields elsewhere accept anything `Number()` tolerates. Build
-      `lib/validation.js` (or adopt Zod) with one schema per entity, used by
-      every form, fully unit-tested.
-- [ ] **Errors belong on the field, not at the bottom of the dialog.** Right now
-      one `ErrorText` at the end of a scrolling form reports whichever rule
-      failed first — off-screen, and one at a time. Per-field `HelperText`,
-      validate on blur, show everything that's wrong at once.
-- [ ] **Range and sanity limits everywhere numbers are entered:** grid rows and
-      columns (a 999×999 grid renders ~1M cells and locks the app), seed counts
-      vs. pack quantity, wattage, PPFD, dose sliders, watering interval,
-      quantities, temperature, humidity, sun hours.
-- [ ] **Length caps and trimming on every text field** — names, descriptions,
-      notes. Enforce in the DB too (`check (length(name) <= 80)`), not just in
-      the UI.
-- [ ] **Locale-safe number parsing.** `Number(x.replace(',', '.'))` is repeated
-      inline in several dialogs; one helper, tested against `1,5` / `1.5` /
-      `1 234` / `''` / `abc` / `-0`.
-- [ ] **Disable submit while invalid** instead of validating only on press.
-- [ ] **Guard against double submission** — the save buttons disable on
-      `saving`, but confirm every dialog does, including the destructive ones.
+- [x] **Centralised validation.** `lib/validation.js` holds the rules
+      (`text`, `decimal`, `whole`, `choice`, `list`, `email`, `secret`,
+      `passthrough`) and a `validate` that reports every bad field at once;
+      `lib/schemas.js` holds one schema per entity and the cross-field checks a
+      single field can't make — a germination window that runs backwards, a dose
+      range printed low-to-high, more containers than seedlings to put in them.
+      Hand-rolled rather than Zod: the string→`number|null` conversion with
+      comma handling and unit conversion is custom either way, and this keeps
+      the runtime dependency count where it was. 101 tests across the two.
+- [x] **Errors belong on the field.** `components/FormField.js` pairs an input
+      with its own message and outlines it in the error colour. A field is
+      checked when it's left; pressing save checks everything and shows all of
+      it; a field already showing an error re-checks as it's typed into, so the
+      button comes back the moment the last one is fixed.
+- [x] **Range and sanity limits everywhere numbers are entered.** Grid sides cap
+      at 50 and area at 500 cells — the 999×999 that locked the app is refused
+      by both the field and a check on the product. Seed counts are held against
+      the pack they come out of, and the rest (wattage, PPFD, efficacy, colour
+      temperature, beam angle, doses, watering interval, quantities,
+      temperature, humidity, sun hours) carry ranges in `RANGES`, each with a
+      note on why it sits where it does. Ranges are expressed in the unit the
+      field is labelled with, so an imperial user is told -4 to 140°F rather
+      than -20 to 60.
+- [x] **Length caps and trimming on every text field**, and enforced in the DB
+      by `0013_value_limits.sql` — 61 constraints over 17 tables, the same
+      numbers as the app.
+- [x] **Locale-safe number parsing.** `lib/numbers.js` — `parseDecimal` and
+      `parseWhole`, which keep blank (`null`) and unparseable (`NaN`) apart
+      rather than collapsing both to nothing, take either decimal separator, and
+      refuse what `Number()` quietly accepts (`0x10`, `1e3`, `Infinity`). Every
+      inline `Number(x.replace(',', '.'))` in the app now goes through it.
+- [x] **Submit gating.** The button stays live until save is first pressed —
+      a dead button on an untouched form explains nothing — and from then on
+      disables while anything is still wrong, by which point every reason is on
+      screen.
+- [x] **Double submission guarded** on every dialog, including the destructive
+      ones. `ThinDialog` and `MoveSowingDialog` turned out to hold validation
+      state that could never be reached; both were already gated on `isPending`
+      and the dead state is gone.
+
+Left open from this phase:
+
+- [ ] **`0013_value_limits.sql` has not been run.** It is checked for balanced
+      syntax and duplicate constraint names, not executed — there's no local
+      Postgres here. It runs as one transaction, so a row that falls outside a
+      limit rolls the whole thing back and names the constraint.
+- [ ] **The NPK calculator's own fields are still unvalidated.** It recomputes on
+      every keystroke and has to have an answer for a half-typed field, so it
+      reads through `parseDecimal` and treats rubbish as zero rather than
+      refusing. Fine for the working figures; the point to check is the mix it
+      hands to `FeedingDialog`, which does validate.
 
 ---
 
@@ -151,8 +188,9 @@ and green; the rest of the tier is still open.
       file.
 - [x] **CI on GitHub Actions** — lint, format check, typecheck and test on every
       push and PR, with a badge in the README.
-- [x] **Coverage floor** at the current 55% of `lib/`, enforced by
-      `coverageThreshold`, to be ratcheted as tests land.
+- [x] **Coverage floor**, enforced by `coverageThreshold` and ratcheted as tests
+      land. Now 57% of `lib/` statements and lines, 60% of branches, 65% of
+      functions.
 - [ ] **Coverage badge.** Needs a Codecov or Coveralls upload step; the run
       already produces `lcov`.
 - [ ] **Component and integration tests.** All 368 tests are pure functions;
@@ -163,10 +201,12 @@ and green; the rest of the tier is still open.
 - [ ] **A pre-commit hook** (husky + lint-staged) so the above can't rot.
 - [ ] **Dependabot or Renovate** — a config file is five lines and shows you
       think about supply chain.
-- [ ] **A data layer boundary.** 23 screens import `supabase` and build queries
-      inline. Move every query behind `lib/` repository functions so screens
-      never touch the client — which is also what makes them testable and what
-      makes swapping in a query cache a small diff.
+- [x] **A data layer boundary**, done in phase 1: no screen imports `supabase`.
+      Phase 2 added `lib/enums.js` underneath it, because the fixed lists of
+      values lived beside the queries for the tables they describe — so a module
+      of pure validation data couldn't read what a valid light type was without
+      loading the client, expo-device and the notification scheduler behind it.
+      The lists moved; their old homes re-export them, so nothing else changed.
 - [ ] **Split the big screens.** `NpkCalculatorScreen.js` is 760 lines,
       `PlantGrid.js` 492, `CalendarScreen.js` 438. Extract hooks
       (`useNpkMix`, `usePlantDrag`) and subcomponents.
