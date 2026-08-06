@@ -61,18 +61,21 @@ The gaps here are the ones that produce a bad demo on a flaky train wifi.
       connection from a constraint that will fail identically forever. Writes
       are never retried — none of them are idempotent, and a lost response
       would sow a tray twice.
-- [ ] **Apply the triad to every screen.** `components/QueryBoundary.js` gives
-      loading / error + retry / empty in one place, and fertilizers is converted
-      as the reference. The other 21 screens still swallow their failures.
+- [x] **The triad on every screen.** `components/QueryBoundary.js` gives
+      loading / error + retry / empty in one place. No screen imports `supabase`
+      any more, and no screen uses `useFocusEffect` to refetch — every read goes
+      through a hook, every write through a mutation that invalidates what it
+      touched.
 - [ ] **Offline banner.** NetInfo is installed and queries already pause when
       the connection goes, but nothing tells the user that is why.
 - [ ] **Session expiry is unhandled.** If the refresh token dies the next query
       just fails. `isAuthExpired` recognises it; nothing acts on it yet. Listen
       for `onAuthStateChange` → `SIGNED_OUT` and route back to login with an
       explanation.
-- [ ] **Optimistic updates for the cheap actions** — ticking a job off the
-      dashboard, watering a plant, marking a cell germinated. They currently
-      round-trip before the UI moves.
+- [ ] **Optimistic updates for the remaining cheap actions** — ticking a job off
+      the dashboard, watering a plant, marking a cell germinated. Dragging a
+      plant on the grid is already optimistic, since it had to be; the rest
+      still round-trip before the UI moves.
 
 ### Data integrity
 
