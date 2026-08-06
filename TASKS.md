@@ -6,12 +6,15 @@ what makes it feel finished, tier 4 is what ships and presents it.
 
 Done items have been removed. What's below is open.
 
-**Where it stands (updated 2026-08-06, after phase 0):** 111 JS files, ~17.9k
-lines. 368 unit tests across 16 suites, all passing, all covering `lib/` pure
-logic — 55% statement coverage of `lib/`, which is the floor CI now enforces.
-ESLint, Prettier, `tsc --noEmit` over JSDoc and a GitHub Actions run of all four
-are in place and green. Still no component tests. RLS policies and indexes are
-in place on every table.
+**Where it stands (updated 2026-08-06, after phase 1):** 397 tests across 17
+suites, all passing, all covering `lib/` pure logic — the coverage floor CI
+enforces is 55% of `lib/`. ESLint, Prettier, `tsc --noEmit` over JSDoc and a
+GitHub Actions run of all four are in place and green. Still no component tests.
+
+The data layer is done: no screen imports `supabase`, no screen refetches on
+focus. Reads go through `hooks/`, writes through mutations that invalidate by
+naming what they did. RLS policies and indexes are in place on every table, and
+still untested.
 
 **Phase order:** 0 guardrails (done) → 1 data layer → 2 validation → 3 test
 depth → 4 polish. **Tier 4 is deliberately parked** until the feature set
@@ -79,11 +82,17 @@ The gaps here are the ones that produce a bad demo on a flaky train wifi.
 
 ### Data integrity
 
-- [ ] **`createSowing()` isn't atomic** and neither are the multi-step saves in
-      `GrowspaceFormDialog` (growspace → grids → lights). PostgREST has no
-      transactions, so these hand-roll rollbacks and the seed-count subtraction
-      isn't rolled back at all. Move each multi-write operation into a Postgres
-      RPC function so the database does the transaction.
+- [ ] **The multi-table writes still aren't atomic.** `createSowing` (sowing →
+      cells → seed count), `saveGrowspace` (growspace → grids → lights) and
+      `saveStation` (station → lights). PostgREST has no transactions, so each
+      hand-rolls the failure path, and `createSowing`'s seed-count subtraction
+      is still not rolled back at all. Phase 1 made the partial outcome
+      survivable rather than correct: the two form saves fail to the harmless
+      half and carry the created row back on the error, so pressing save again
+      finishes the job instead of creating a second growspace or station under
+      the same name. That is a substitute for a transaction and it is not one.
+      Move each into a Postgres RPC function and let the database do it.
+      **Wants xhigh.**
 - [ ] **Orphaned images.** `lib/storage.js` uploads but nothing ever deletes —
       removing a plant or seed pack leaves its photo in the bucket forever.
       Delete on entity removal, and add a reconciliation the account-deletion
