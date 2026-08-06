@@ -1,123 +1,23 @@
-import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Dialog, FAB, Portal, Text } from 'react-native-paper';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '../../lib/supabase';
-import { fetchTraysWithUsage } from '../../lib/trays';
+import InventoryTabScreen from '../../components/InventoryTabScreen';
 import TrayCard from '../../components/TrayCard';
 import TrayFormDialog from './TrayFormDialog';
 
 export default function TraysTab() {
-  const [trays, setTrays] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [formVisible, setFormVisible] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [pendingDelete, setPendingDelete] = useState(null);
-
-  const fetchTrays = useCallback(async () => {
-    setLoading(true);
-    try {
-      setTrays(await fetchTraysWithUsage());
-    } catch {
-      // Leave the previous list in place; pull-to-refresh retries.
-    }
-    setLoading(false);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchTrays();
-    }, [fetchTrays])
-  );
-
-  const openCreate = () => {
-    setEditing(null);
-    setFormVisible(true);
-  };
-
-  const openEdit = (tray) => {
-    setEditing(tray);
-    setFormVisible(true);
-  };
-
-  const handleSaved = () => {
-    setFormVisible(false);
-    fetchTrays();
-  };
-
-  const handleDelete = async () => {
-    const id = pendingDelete.id;
-    setPendingDelete(null);
-    await supabase.from('trays').delete().eq('id', id);
-    fetchTrays();
-  };
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={trays}
-        keyExtractor={(item) => item.id}
-        refreshing={loading}
-        onRefresh={fetchTrays}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          !loading && <Text style={styles.emptyText}>No trays yet. Tap + to add some.</Text>
-        }
-        renderItem={({ item }) => (
-          <TrayCard
-            tray={item}
-            inUse={item.inUse}
-            onPress={() => openEdit(item)}
-            onDelete={() => setPendingDelete(item)}
-          />
-        )}
-      />
-
-      <FAB icon="plus" style={styles.fab} onPress={openCreate} />
-
-      <TrayFormDialog
-        visible={formVisible}
-        onDismiss={() => setFormVisible(false)}
-        onSaved={handleSaved}
-        tray={editing}
-      />
-
-      <Portal>
-        <Dialog visible={!!pendingDelete} onDismiss={() => setPendingDelete(null)}>
-          <Dialog.Title>Delete trays</Dialog.Title>
-          <Dialog.Content>
-            <Text>
-              Remove this set of trays? Sowings made in them keep their grids and stay in the
-              germination station.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setPendingDelete(null)}>Cancel</Button>
-            <Button onPress={handleDelete}>Delete</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
-    </View>
+    <InventoryTabScreen
+      name="trays"
+      emptyIcon="grid"
+      emptyText="No trays yet. Tap + to add some."
+      errorText="Couldn’t load your trays."
+      addLabel="Add trays"
+      deleteTitle="Delete trays"
+      deleteBody={(item) => `Remove “${item.name}” from your inventory?`}
+      renderCard={({ item, onPress, onDelete }) => (
+        <TrayCard tray={item} inUse={item.inUse} onPress={onPress} onDelete={onDelete} />
+      )}
+      renderForm={({ visible, editing, onDismiss, onSaved }) => (
+        <TrayFormDialog visible={visible} tray={editing} onDismiss={onDismiss} onSaved={onSaved} />
+      )}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  listContent: {
-    paddingTop: 16,
-    paddingBottom: 96,
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 48,
-    marginHorizontal: 24,
-    opacity: 0.6,
-  },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-  },
-});

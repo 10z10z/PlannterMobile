@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useUnits } from '../../contexts/UnitsContext';
+import { messageFor } from '../../lib/errors';
+import { useSaveInventoryItem } from '../../hooks/useInventory';
 import { formatVolume, parseVolume, volumeUnit } from '../../lib/units';
 import { CONTAINER_MATERIALS } from '../../lib/containers';
 import ImagePickerField from '../../components/ImagePickerField';
@@ -15,20 +15,23 @@ import ErrorText from '../../components/ErrorText';
  * pots doesn't have to be entered one by one.
  */
 export default function ContainerFormDialog({ visible, onDismiss, onSaved, container }) {
-  const { session } = useAuth();
   const { system } = useUnits();
   const isEditing = !!container;
+  const save = useSaveInventoryItem('containers', { onSuccess: onSaved });
+  const resetSave = save.reset;
 
   const [material, setMaterial] = useState('plastic');
   const [imageUrl, setImageUrl] = useState(null);
   const [volume, setVolume] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     if (!visible) return;
-    setError('');
+    setValidationError('');
+    resetSave();
     if (container) {
       setMaterial(container.material);
       setImageUrl(container.image_url);
@@ -40,39 +43,30 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
       setVolume('');
       setQuantity('1');
     }
-  }, [visible, container, system]);
+  }, [visible, container, system, resetSave]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const liters = parseVolume(volume, system);
     const count = parseInt(quantity, 10);
     if (!liters || liters <= 0) {
-      setError('Volume is required');
+      setValidationError('Volume is required');
       return;
     }
     if (!count || count < 1) {
-      setError('Quantity must be at least 1');
+      setValidationError('Quantity must be at least 1');
       return;
     }
-    setSaving(true);
-    setError('');
+    setValidationError('');
 
-    const payload = {
-      material,
-      image_url: imageUrl,
-      volume_liters: liters,
-      quantity: count,
-    };
-
-    const { error: saveError } = isEditing
-      ? await supabase.from('containers').update(payload).eq('id', container.id)
-      : await supabase.from('containers').insert({ ...payload, user_id: session.user.id });
-
-    setSaving(false);
-    if (saveError) {
-      setError(saveError.message);
-      return;
-    }
-    onSaved();
+    save.mutate({
+      id: container?.id,
+      values: {
+        material,
+        image_url: imageUrl,
+        volume_liters: liters,
+        quantity: count,
+      },
+    });
   };
 
   return (
@@ -111,12 +105,14 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
               One entry covers a whole set of identical containers.
             </HelperText>
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={onDismiss} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             Save
           </Button>
         </Dialog.Actions>

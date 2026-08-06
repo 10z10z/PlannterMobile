@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Checkbox, Chip, Dialog, HelperText, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { messageFor } from '../../lib/errors';
+import { useSaveInventoryItem } from '../../hooks/useInventory';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatLength, lengthUnit, parseLength } from '../../lib/units';
 import { hasColorTemp, LIGHT_TYPES, SPECTRUMS } from '../../lib/growLights';
@@ -24,9 +24,10 @@ function toNumberOrNull(text) {
  * screen would be asking most users to skip most of the form.
  */
 export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light }) {
-  const { session } = useAuth();
   const { system } = useUnits();
   const isEditing = !!light;
+  const save = useSaveInventoryItem('growLights', { onSuccess: onSaved });
+  const resetSave = save.reset;
 
   const [name, setName] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
@@ -46,12 +47,14 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
   const [ipRating, setIpRating] = useState('');
 
   const [showSpecs, setShowSpecs] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     if (!visible) return;
-    setError('');
+    setValidationError('');
+    resetSave();
     setShowSpecs(false);
     if (light) {
       setName(light.name);
@@ -88,22 +91,21 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
       setBeamAngle('');
       setIpRating('');
     }
-  }, [visible, light, system]);
+  }, [visible, light, system, resetSave]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const count = parseInt(quantity, 10);
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
     if (!count || count < 1) {
-      setError('Quantity must be at least 1');
+      setValidationError('Quantity must be at least 1');
       return;
     }
-    setSaving(true);
-    setError('');
+    setValidationError('');
 
-    const payload = {
+    const values = {
       name: name.trim(),
       image_url: imageUrl,
       type,
@@ -124,16 +126,7 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
       ip_rating: ipRating.trim() || null,
     };
 
-    const { error: saveError } = isEditing
-      ? await supabase.from('grow_lights').update(payload).eq('id', light.id)
-      : await supabase.from('grow_lights').insert({ ...payload, user_id: session.user.id });
-
-    setSaving(false);
-    if (saveError) {
-      setError(saveError.message);
-      return;
-    }
-    onSaved();
+    save.mutate({ id: light?.id, values });
   };
 
   return (
@@ -301,12 +294,14 @@ export default function GrowLightFormDialog({ visible, onDismiss, onSaved, light
 
             <HelperText type="info">One entry covers a whole set of identical fixtures.</HelperText>
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={onDismiss} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             Save
           </Button>
         </Dialog.Actions>

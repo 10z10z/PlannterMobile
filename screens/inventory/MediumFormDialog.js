@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, Portal, Switch, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { messageFor } from '../../lib/errors';
+import { useSaveInventoryItem } from '../../hooks/useInventory';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume, parseVolume, volumeUnit } from '../../lib/units';
 import ImagePickerField from '../../components/ImagePickerField';
@@ -41,9 +41,10 @@ function toNumberOrNull(text) {
 }
 
 export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }) {
-  const { session } = useAuth();
   const { system } = useUnits();
   const isEditing = !!medium;
+  const save = useSaveInventoryItem('mediums', { onSuccess: onSaved });
+  const resetSave = save.reset;
 
   const [name, setName] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
@@ -51,12 +52,14 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
   const [volume, setVolume] = useState('');
   const [lowStock, setLowStock] = useState(false);
   const [specs, setSpecs] = useState(emptySpecs);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     if (!visible) return;
-    setError('');
+    setValidationError('');
+    resetSave();
     if (medium) {
       setName(medium.name);
       setImageUrl(medium.image_url);
@@ -72,40 +75,31 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
       setLowStock(false);
       setSpecs(emptySpecs());
     }
-  }, [visible, medium, system]);
+  }, [visible, medium, system, resetSave]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const count = parseInt(quantity, 10);
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
     if (!count || count < 1) {
-      setError('Quantity must be at least 1');
+      setValidationError('Quantity must be at least 1');
       return;
     }
-    setSaving(true);
-    setError('');
+    setValidationError('');
 
-    const payload = {
-      name: name.trim(),
-      image_url: imageUrl,
-      quantity: count,
-      volume_liters: parseVolume(volume, system),
-      low_stock: lowStock,
-      ...Object.fromEntries(ALL_KEYS.map((key) => [key, toNumberOrNull(specs[key])])),
-    };
-
-    const { error: saveError } = isEditing
-      ? await supabase.from('growing_mediums').update(payload).eq('id', medium.id)
-      : await supabase.from('growing_mediums').insert({ ...payload, user_id: session.user.id });
-
-    setSaving(false);
-    if (saveError) {
-      setError(saveError.message);
-      return;
-    }
-    onSaved();
+    save.mutate({
+      id: medium?.id,
+      values: {
+        name: name.trim(),
+        image_url: imageUrl,
+        quantity: count,
+        volume_liters: parseVolume(volume, system),
+        low_stock: lowStock,
+        ...Object.fromEntries(ALL_KEYS.map((key) => [key, toNumberOrNull(specs[key])])),
+      },
+    });
   };
 
   return (
@@ -154,12 +148,14 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
             </Text>
             <NutrientInputs value={specs} onChange={setSpecs} showPh showEc />
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={onDismiss} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             Save
           </Button>
         </Dialog.Actions>

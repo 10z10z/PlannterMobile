@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal, Text } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { messageFor } from '../../lib/errors';
+import { useSaveInventoryItem } from '../../hooks/useInventory';
 import ImagePickerField from '../../components/ImagePickerField';
 import DateField from '../../components/DateField';
 import ErrorText from '../../components/ErrorText';
@@ -15,8 +15,9 @@ function toIntOrNull(text) {
 }
 
 export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPack }) {
-  const { session } = useAuth();
   const isEditing = !!seedPack;
+  const save = useSaveInventoryItem('seedPacks', { onSuccess: onSaved });
+  const resetSave = save.reset;
 
   const [name, setName] = useState('');
   const [imageUrl, setImageUrl] = useState(null);
@@ -25,12 +26,14 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
   const [germMax, setGermMax] = useState('');
   const [packagedOn, setPackagedOn] = useState(null);
   const [seedCount, setSeedCount] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  // Only what this form checks itself; anything the server objects to arrives
+  // on the mutation, and both are shown in the same place.
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     if (!visible) return;
-    setError('');
+    setValidationError('');
+    resetSave();
     if (seedPack) {
       setName(seedPack.name);
       setImageUrl(seedPack.image_url);
@@ -48,36 +51,27 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
       setPackagedOn(null);
       setSeedCount('');
     }
-  }, [visible, seedPack]);
+  }, [visible, seedPack, resetSave]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!name.trim()) {
-      setError('Name is required');
+      setValidationError('Name is required');
       return;
     }
-    setSaving(true);
-    setError('');
+    setValidationError('');
 
-    const payload = {
-      name: name.trim(),
-      image_url: imageUrl,
-      plant_type: plantType.trim() || null,
-      germination_days_min: toIntOrNull(germMin),
-      germination_days_max: toIntOrNull(germMax),
-      packaged_on: packagedOn,
-      seed_count: toIntOrNull(seedCount),
-    };
-
-    const { error: saveError } = isEditing
-      ? await supabase.from('seed_packs').update(payload).eq('id', seedPack.id)
-      : await supabase.from('seed_packs').insert({ ...payload, user_id: session.user.id });
-
-    setSaving(false);
-    if (saveError) {
-      setError(saveError.message);
-      return;
-    }
-    onSaved();
+    save.mutate({
+      id: seedPack?.id,
+      values: {
+        name: name.trim(),
+        image_url: imageUrl,
+        plant_type: plantType.trim() || null,
+        germination_days_min: toIntOrNull(germMin),
+        germination_days_max: toIntOrNull(germMax),
+        packaged_on: packagedOn,
+        seed_count: toIntOrNull(seedCount),
+      },
+    });
   };
 
   return (
@@ -135,12 +129,14 @@ export default function SeedPackFormDialog({ visible, onDismiss, onSaved, seedPa
               Worth filling in for rare varieties that are counted by the seed.
             </HelperText>
 
-            <ErrorText>{error}</ErrorText>
+            <ErrorText>{validationError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Cancel</Button>
-          <Button onPress={handleSave} loading={saving} disabled={saving}>
+          <Button onPress={onDismiss} disabled={save.isPending}>
+            Cancel
+          </Button>
+          <Button onPress={handleSave} loading={save.isPending} disabled={save.isPending}>
             Save
           </Button>
         </Dialog.Actions>

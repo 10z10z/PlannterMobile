@@ -4,7 +4,7 @@ import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-pap
 import TextField from '../../components/TextField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { messageFor } from '../../lib/errors';
-import { useSaveFertilizer } from '../../hooks/useFertilizers';
+import { useSaveInventoryItem } from '../../hooks/useInventory';
 import { doseUnit, formatDose, parseDose } from '../../lib/units';
 import ImagePickerField from '../../components/ImagePickerField';
 import NutrientInputs, { NUTRIENT_KEYS } from '../../components/NutrientInputs';
@@ -33,7 +33,7 @@ function toNumberOrNull(text) {
 export default function FertilizerFormDialog({ visible, onDismiss, onSaved, fertilizer }) {
   const { system } = useUnits();
   const isEditing = !!fertilizer;
-  const save = useSaveFertilizer({ onSuccess: onSaved });
+  const save = useSaveInventoryItem('fertilizers', { onSuccess: onSaved });
   // Stable across renders, unlike the mutation object around it, so the reset
   // below can be a dependency without re-running the form's setup every render.
   const resetSave = save.reset;
