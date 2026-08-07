@@ -76,18 +76,18 @@ module.exports = {
      * Still the thinnest tier, and honestly so: much of what is counted here is
      * reached on the way through a dialog rather than driven directly.
      *
-     * The gestures are the stubborn part. `PlantGrid`'s drag isn't reached and
-     * neither is `DoseSlider`, because a `PanResponder` reading finger
-     * coordinates against a measured layout has neither in a test renderer. The
-     * grid is covered through the button path added alongside it, which reaches
-     * the same handlers — and that the untestable half is exactly the half
+     * What is *not* counted, in either `PlantGrid` or `DoseSlider`, is the
+     * gesture — a `PanResponder` reading finger coordinates against a measured
+     * layout, which the test renderer doesn't provide. Both are covered through
+     * the keyboard-and-screen-reader path added alongside, which reaches the
+     * same handlers the drag does. That the untestable half is exactly the half
      * TalkBack couldn't reach either is not a coincidence.
      */
     './components/': {
-      statements: 36,
-      branches: 28,
-      functions: 24,
-      lines: 37,
+      statements: 38,
+      branches: 30,
+      functions: 25,
+      lines: 38,
     },
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a

@@ -9,6 +9,16 @@ import { useTheme } from 'react-native-paper';
  * A press jumps the thumb to where it landed and drags on from there, which is
  * the behaviour a tap-then-nudge dose adjustment wants.
  *
+ * A drag is not the only way to set it. The track carries the `adjustable`
+ * role, so TalkBack announces the figure and moves it with a swipe, and a
+ * switch or a keyboard can reach it too — without which the one control on the
+ * calculator that actually sets a dose would be operable by finger alone.
+ *
+ * The accessible nudge is deliberately coarser than the drag's step. A tenth of
+ * a millilitre is the right precision for a finger already near the answer and
+ * the wrong one for someone crossing the whole range a swipe at a time: fifty
+ * swipes to go from nothing to full is a control nobody would use twice.
+ *
  * @param {object} props
  * @param {number} props.value
  * @param {(value: number) => void} props.onChange
@@ -17,6 +27,8 @@ import { useTheme } from 'react-native-paper';
  * @param {number} [props.step]
  * @param {boolean} [props.disabled]
  * @param {string} [props.color] Defaults to the theme's primary.
+ * @param {string} [props.label] What this dose is for, as TalkBack reads it.
+ * @param {string} [props.unit] Spoken after the figure, so it isn't a bare number.
  */
 export default function DoseSlider({
   value,
@@ -26,9 +38,21 @@ export default function DoseSlider({
   step = 0.1,
   disabled,
   color,
+  label = 'Dose',
+  unit = '',
 }) {
   const theme = useTheme();
   const accent = color ?? theme.colors.primary;
+
+  // A twentieth of the track, rounded to a step the slider can actually land
+  // on, and never smaller than one step.
+  const nudge = Math.max(step, snap({ min, max, step }, min + (max - min) / 20) - min);
+
+  const adjust = (direction) => {
+    if (disabled) return;
+    const next = snap({ min, max, step }, value + direction * nudge);
+    if (next !== value) onChange(next);
+  };
 
   /**
    * The PanResponder is built once and never rebuilt. Each instance keeps its
@@ -79,6 +103,26 @@ export default function DoseSlider({
       style={styles.container}
       onLayout={(event) => {
         width.current = event.nativeEvent.layout.width;
+      }}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      // `text` as well as `now`, so it is read as "2.5 ml per litre" rather
+      // than as a bare number with no idea what it measures.
+      accessibilityValue={{
+        min,
+        max,
+        now: value,
+        text: unit ? `${value} ${unit}` : String(value),
+      }}
+      accessibilityActions={[
+        { name: 'increment', label: 'Increase' },
+        { name: 'decrement', label: 'Decrease' },
+      ]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'increment') adjust(1);
+        if (event.nativeEvent.actionName === 'decrement') adjust(-1);
       }}
       {...panResponder.panHandlers}
     >

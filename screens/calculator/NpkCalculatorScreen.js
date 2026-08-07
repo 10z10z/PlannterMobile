@@ -394,6 +394,8 @@ export default function NpkCalculatorScreen() {
                         onChange={(value) => mix.setDose(f.id, value)}
                         max={sliderMax(f, system)}
                         color={color}
+                        label={`${f.name} dose`}
+                        unit={unit}
                       />
                     }
                     action={
