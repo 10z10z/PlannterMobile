@@ -1,7 +1,7 @@
 jest.mock('../../../lib/supabase');
 
 import { fake } from '../../../test/fakeSupabase';
-import { fireEvent, renderWithProviders, screen } from '../../../test/render';
+import { act, fireEvent, renderWithProviders, screen } from '../../../test/render';
 import LoginScreen from '../LoginScreen';
 
 const navigation = { navigate: jest.fn() };
@@ -78,6 +78,43 @@ describe('LoginScreen', () => {
     expect(
       await screen.findByText('No connection. Check your network and try again.')
     ).toBeOnTheScreen();
+  });
+
+  it('says why you are back here, when you didn’t ask to be', async () => {
+    await renderWithProviders(<LoginScreen navigation={navigation} />);
+
+    // The session ending under the app: `AuthProvider` recognises a SIGNED_OUT
+    // nobody asked for, and this screen is where that gets explained. Without
+    // it the grower is dropped at a login form that looks like they were never
+    // signed in — which reads as the app having lost their work.
+    await act(async () => {
+      fake.setSession(null);
+    });
+
+    expect(
+      screen.getByText('You were signed out because your session expired. Sign in to carry on.')
+    ).toBeOnTheScreen();
+  });
+
+  it('drops the expiry notice once there is a real reason the attempt failed', async () => {
+    fake.client.auth.signInWithPassword.mockResolvedValueOnce({
+      data: { session: null, user: null },
+      error: { code: 'invalid_credentials', message: 'Invalid login credentials' },
+    });
+    await renderWithProviders(<LoginScreen navigation={navigation} />);
+
+    await act(async () => {
+      fake.setSession(null);
+    });
+
+    await type('Email', 'grower@example.com');
+    await type('Password', 'wrong');
+    await press('Log in');
+
+    // By now "your session expired" is old news, and why this try didn't work
+    // is the more useful of the two.
+    expect(await screen.findByText('That email and password don’t match.')).toBeOnTheScreen();
+    expect(screen.queryByText(/your session expired/)).not.toBeOnTheScreen();
   });
 
   it('offers the way to signing up', async () => {

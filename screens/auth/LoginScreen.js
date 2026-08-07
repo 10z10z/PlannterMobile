@@ -7,8 +7,18 @@ import { loginSchema } from '../../lib/schemas';
 import { messageFor } from '../../lib/errors';
 import { useAuth } from '../../contexts/AuthContext';
 
+/**
+ * Why you are looking at this screen, when you didn't ask to be.
+ *
+ * A session that ends on its own drops the grower back here with the app's own
+ * words for it, rather than at a login form that looks like they were never
+ * signed in. It stays until they try, at which point whatever went wrong with
+ * that attempt is the more useful thing to say.
+ */
+const EXPIRED = 'You were signed out because your session expired. Sign in to carry on.';
+
 export default function LoginScreen({ navigation }) {
-  const { signIn } = useAuth();
+  const { signIn, sessionExpired } = useAuth();
   const form = useForm(loginSchema);
   const resetForm = form.reset;
 
@@ -32,6 +42,10 @@ export default function LoginScreen({ navigation }) {
     });
   };
 
+  // The failed attempt wins once there has been one: by then "your session
+  // expired" is old news and the reason this try didn't work is what's wanted.
+  const notice = error || (sessionExpired ? EXPIRED : '');
+
   return (
     <View style={styles.container}>
       <Text variant="displaySmall" style={styles.logo}>
@@ -54,8 +68,8 @@ export default function LoginScreen({ navigation }) {
         autoComplete="current-password"
         {...form.field('password')}
       />
-      <HelperText type="error" visible={!!error}>
-        {error}
+      <HelperText type="error" visible={!!notice}>
+        {notice}
       </HelperText>
 
       <Button

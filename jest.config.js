@@ -57,6 +57,13 @@ module.exports = {
     '!components/__tests__/**',
     'hooks/**/*.js',
     '!hooks/__tests__/**',
+    // Added once `AuthContext` grew a decision worth testing — telling a
+    // sign-out the grower asked for apart from one that happened to them. The
+    // other three contexts are counted with it, and are mostly uncovered; the
+    // floor below says so rather than the directory being left out to keep the
+    // other numbers looking tidy.
+    'contexts/**/*.js',
+    '!contexts/__tests__/**',
   ],
   coverageReporters: ['text-summary', 'lcov'],
   /**
@@ -67,7 +74,7 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 77,
+      statements: 78,
       branches: 73,
       functions: 81,
       lines: 80,
@@ -110,6 +117,20 @@ module.exports = {
       branches: 67,
       functions: 72,
       lines: 84,
+    },
+    /**
+     * Higher than expected for a directory only one test opens directly, and
+     * that is the shape of a context: almost all of it is reached on the way
+     * through the screens that read it, so `AuthProvider`, `UnitsProvider` and
+     * `ThemeProvider` are exercised by every rendered test in the suite. The
+     * branches are where the gap is — the paths taken when a stored preference
+     * is missing or a weather fetch fails, which nothing has arranged for yet.
+     */
+    './contexts/': {
+      statements: 73,
+      branches: 52,
+      functions: 80,
+      lines: 75,
     },
   },
 };
