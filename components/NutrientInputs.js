@@ -7,10 +7,16 @@ export const MACRO_KEYS = ['n', 'p', 'k'];
 export const MICRO_KEYS = ['ca', 'mg', 's', 'fe', 'mn', 'zn', 'b', 'cu', 'mo'];
 export const NUTRIENT_KEYS = [...MACRO_KEYS, ...MICRO_KEYS];
 
+/**
+ * P and K name the oxide, because that is what the bag says and what the reader
+ * is copying from. Labelling them plain "P" and "K" invited someone with an
+ * elemental analysis to type that instead, and the two differ by more than
+ * double on phosphorus.
+ */
 const LABELS = {
   n: 'N',
-  p: 'P',
-  k: 'K',
+  p: 'P₂O₅',
+  k: 'K₂O',
   ca: 'Ca',
   mg: 'Mg',
   s: 'S',
