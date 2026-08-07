@@ -4,6 +4,7 @@ import { MD3LightTheme, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
 import { UnitsProvider } from '../contexts/UnitsContext';
+import { WeatherProvider } from '../contexts/WeatherContext';
 
 /**
  * The providers a screen needs, in the order `App.js` puts them.
@@ -71,7 +72,12 @@ export async function renderWithProviders(
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <UnitsProvider>
-              <PaperProvider theme={TEST_THEME}>{children}</PaperProvider>
+              {/* Reads nothing and fetches nothing until a place is set in
+                  settings, so in a test it is an empty reading — which is what
+                  a growspace card without weather is meant to render from. */}
+              <WeatherProvider>
+                <PaperProvider theme={TEST_THEME}>{children}</PaperProvider>
+              </WeatherProvider>
             </UnitsProvider>
           </AuthProvider>
         </QueryClientProvider>

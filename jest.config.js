@@ -67,33 +67,34 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 57,
-      branches: 60,
-      functions: 65,
-      lines: 57,
+      statements: 73,
+      branches: 70,
+      functions: 78,
+      lines: 76,
     },
     /**
-     * Low, and honestly so: eight components of thirty have a test. The floor is
-     * here to stop the number sliding while the rest are written, not to claim
-     * the tier is covered.
+     * Low, and honestly so: eleven components of thirty are reached by a test,
+     * and most of those are reached on the way through a dialog rather than
+     * driven directly. The floor is here to stop the number sliding while the
+     * rest are written, not to claim the tier is covered.
      */
     './components/': {
-      statements: 12,
-      branches: 9,
-      functions: 8,
-      lines: 12,
+      statements: 18,
+      branches: 14,
+      functions: 12,
+      lines: 18,
     },
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a
      * query key and a function to call, and the tests that drive the dialogs go
      * through them on the way. The gap is in the ones no test has opened a
-     * screen for yet — germination stations, the dashboard.
+     * screen for yet — germination stations, the plant detail screen.
      */
     './hooks/': {
-      statements: 58,
-      branches: 50,
-      functions: 34,
-      lines: 57,
+      statements: 67,
+      branches: 55,
+      functions: 49,
+      lines: 66,
     },
   },
 };

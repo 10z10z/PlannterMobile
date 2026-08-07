@@ -39,6 +39,14 @@ import ErrorText from '../../components/ErrorText';
  * always fed as a whole: what is growing in it are cells of a tray rather than
  * plants that could be picked out. Both are on the one list of places, so which
  * of the two questions gets asked follows the place that was picked.
+ *
+ * @param {object} props
+ * @param {boolean} props.visible
+ * @param {() => void} props.onDismiss
+ * @param {() => void} props.onDone
+ * @param {object} [props.preset] A mix worked out elsewhere — the NPK
+ *   calculator hands one over — read once when the dialog opens. Absent when a
+ *   feed is being written down from scratch, which is every other caller.
  */
 export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
   const { system } = useUnits();
