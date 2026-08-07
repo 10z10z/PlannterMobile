@@ -21,10 +21,17 @@ import { useInventory } from '../../hooks/useInventory';
 import { doseUnit, formatDose, parseDose, parseVolume, volumeUnit } from '../../lib/units';
 import { parseDecimal } from '../../lib/numbers';
 import {
+  DEFAULT_EC_SCALE,
+  DEFAULT_NUTRIENT_PPM_PER_EC,
+  EC_SCALES,
   MACRO_KEYS,
   STAGE_KEYS,
   STAGE_LABELS,
+  calibrationFactor,
+  ecFromMeterPpm,
+  estimateEc,
   macroBars,
+  meterPpmFor,
   microBars,
   mixParts,
   perLiterDose,
@@ -46,6 +53,18 @@ const WATER_KEYS = {
   ca: 'waterCaPpm',
   mg: 'waterMgPpm',
 };
+
+/**
+ * The meter, which belongs to the grower rather than to any one mix — so like
+ * the tap, it is stored rather than asked for again each time.
+ */
+const METER_KEYS = {
+  scale: 'meterScale',
+  perEc: 'nutrientPpmPerEc',
+};
+
+/** The scale values that get their own button; anything else is typed in. */
+const PRESET_SCALES = EC_SCALES.map((scale) => scale.value);
 
 /**
  * A typed figure as a number, treating both blank and rubbish as zero.
@@ -150,16 +169,38 @@ export default function NpkCalculatorScreen() {
   const [caText, setCaText] = useState('');
   const [mgText, setMgText] = useState('');
 
+  // What the grower's meter is, and what it has taught the calculator so far.
+  const [scaleText, setScaleText] = useState(String(DEFAULT_EC_SCALE));
+  // Whether the scale is being typed rather than picked. Held rather than
+  // derived from the value: a custom field cleared back to empty falls through
+  // to the default, which is itself a preset, and the field would close under
+  // the fingers of the person emptying it.
+  const [customScale, setCustomScale] = useState(false);
+  const [perEcText, setPerEcText] = useState(String(DEFAULT_NUTRIENT_PPM_PER_EC));
+  // The reading being calibrated from, which is not stored: it belongs to the
+  // batch on screen, not to the meter.
+  const [readingText, setReadingText] = useState('');
+  const [readingUnit, setReadingUnit] = useState('ppm'); // 'ppm' | 'ec'
+
   // The tap is a property of where the grower lives, not of any one mix, so all
   // of this outlives the screen.
   useEffect(() => {
-    AsyncStorage.multiGet(Object.values(WATER_KEYS)).then((pairs) => {
-      const stored = Object.fromEntries(pairs);
-      if (stored[WATER_KEYS.source] === 'report') setWaterSource('report');
-      if (stored[WATER_KEYS.hardness]) setHardnessText(stored[WATER_KEYS.hardness]);
-      if (stored[WATER_KEYS.ca]) setCaText(stored[WATER_KEYS.ca]);
-      if (stored[WATER_KEYS.mg]) setMgText(stored[WATER_KEYS.mg]);
-    });
+    AsyncStorage.multiGet([...Object.values(WATER_KEYS), ...Object.values(METER_KEYS)]).then(
+      (pairs) => {
+        const stored = Object.fromEntries(pairs);
+        if (stored[WATER_KEYS.source] === 'report') setWaterSource('report');
+        if (stored[WATER_KEYS.hardness]) setHardnessText(stored[WATER_KEYS.hardness]);
+        if (stored[WATER_KEYS.ca]) setCaText(stored[WATER_KEYS.ca]);
+        if (stored[WATER_KEYS.mg]) setMgText(stored[WATER_KEYS.mg]);
+        if (stored[METER_KEYS.scale]) {
+          setScaleText(stored[METER_KEYS.scale]);
+          // A stored scale that isn't one of the buttons was typed in, so the
+          // sheet reopens on the field it was typed into.
+          setCustomScale(!PRESET_SCALES.includes(Number(stored[METER_KEYS.scale])));
+        }
+        if (stored[METER_KEYS.perEc]) setPerEcText(stored[METER_KEYS.perEc]);
+      }
+    );
   }, []);
 
   const closeSettings = () => {
@@ -169,6 +210,8 @@ export default function NpkCalculatorScreen() {
       [WATER_KEYS.hardness, hardnessText],
       [WATER_KEYS.ca, caText],
       [WATER_KEYS.mg, mgText],
+      [METER_KEYS.scale, scaleText],
+      [METER_KEYS.perEc, perEcText],
     ]);
   };
 
@@ -252,6 +295,39 @@ export default function NpkCalculatorScreen() {
   );
 
   const result = useMemo(() => ppmFromMix(mixEntries, water), [mixEntries, water]);
+
+  // A blank or half-typed field falls back to the defaults rather than to zero,
+  // so the readout keeps working while the settings sheet is being filled in.
+  const meterScale = toNumber(scaleText) || DEFAULT_EC_SCALE;
+  const nutrientPerEc = toNumber(perEcText) || DEFAULT_NUTRIENT_PPM_PER_EC;
+  const isCalibrated = nutrientPerEc !== DEFAULT_NUTRIENT_PPM_PER_EC;
+
+  const estimatedEc = estimateEc(result.total, nutrientPerEc);
+  const expectedReading = meterPpmFor(estimatedEc, meterScale);
+
+  /** The conductivity behind whatever was typed into the calibration field. */
+  const measuredEc =
+    readingUnit === 'ec'
+      ? toNumber(readingText)
+      : ecFromMeterPpm(toNumber(readingText), meterScale);
+  const pendingFactor = calibrationFactor(result.total, measuredEc);
+
+  /**
+   * Take the reading as the truth and work backwards to what this grower's
+   * bottles and meter actually do — which is the only figure here that isn't
+   * an assumption about somebody else's fertilizer.
+   */
+  const applyCalibration = () => {
+    if (pendingFactor === null) return;
+    setPerEcText(String(pendingFactor));
+    setReadingText('');
+  };
+
+  const resetCalibration = () => {
+    setPerEcText(String(DEFAULT_NUTRIENT_PPM_PER_EC));
+    setReadingText('');
+  };
+
   const parts = useMemo(() => mixParts(mixEntries, water), [mixEntries, water]);
   const bars = useMemo(() => macroBars(result, stage, parts), [result, stage, parts]);
   const micros = useMemo(() => microBars(result, parts), [result, parts]);
@@ -385,11 +461,29 @@ export default function NpkCalculatorScreen() {
           ))}
           <Divider style={styles.divider} />
           <View style={styles.totalRow}>
-            <Text variant="bodyMedium">Total dissolved</Text>
-            <Text variant="bodyMedium">
-              {result.total} ppm · EC {result.ec} mS/cm
-            </Text>
+            <Text variant="bodyMedium">Nutrients delivered</Text>
+            <Text variant="bodyMedium">{result.total} ppm</Text>
           </View>
+          {/* The figure above counts nutrients; a meter weighs every ion in the
+              tank and will read higher. This line is the one to hold a meter
+              against, which is why it says which meter it means. */}
+          {result.total > 0 && (
+            <View style={[styles.totalRow, styles.waterRow]}>
+              <Text variant="bodySmall" style={styles.range}>
+                Meter should read ≈{' '}
+                {expectedReading === null ? '—' : `${expectedReading} ppm on the ${meterScale}`}
+              </Text>
+              <Text variant="bodySmall" style={styles.range}>
+                EC ≈ {estimatedEc} mS/cm
+              </Text>
+            </View>
+          )}
+          {result.total > 0 && !isCalibrated && (
+            <Text variant="bodySmall" style={styles.note}>
+              Uncalibrated, so that reading is a rough guess. Measure one batch and enter it under
+              settings to make it yours.
+            </Text>
+          )}
           {water && (
             <View style={[styles.totalRow, styles.waterRow]}>
               <View style={styles.nameRow}>
@@ -656,6 +750,79 @@ export default function NpkCalculatorScreen() {
               Leave the fields empty for rainwater or RO. Both sets of numbers are kept, so
               switching between the two doesn’t lose either.
             </Text>
+
+            <Divider style={styles.divider} />
+
+            <Text variant="labelLarge" style={styles.sectionLabelText}>
+              Your meter
+            </Text>
+            <SegmentedButtons
+              value={customScale ? 'custom' : String(meterScale)}
+              onValueChange={(value) => {
+                setCustomScale(value === 'custom');
+                // Switching to Other keeps the figure that was showing, so it
+                // is something to edit rather than an empty box.
+                if (value !== 'custom') setScaleText(value);
+              }}
+              style={styles.waterSwitch}
+              buttons={[
+                ...EC_SCALES.map((scale) => ({
+                  value: String(scale.value),
+                  label: scale.label,
+                })),
+                { value: 'custom', label: 'Other' },
+              ]}
+            />
+            {customScale && (
+              <TextField
+                label="Conversion factor (ppm per mS/cm)"
+                value={scaleText}
+                onChangeText={setScaleText}
+                keyboardType="decimal-pad"
+                dense
+              />
+            )}
+            <Text variant="bodySmall" style={styles.note}>
+              A meter measures conductivity and multiplies it by this to get the ppm it shows, so
+              two meters in the same jug can disagree by 40%. It is on the box, in the manual, or
+              switchable on the meter itself.
+            </Text>
+
+            <Text variant="labelLarge" style={styles.sectionLabelText}>
+              Calibration
+            </Text>
+            <Text variant="bodySmall" style={styles.note}>
+              This mix works out at {result.total} ppm of nutrient. Mix it for real, measure it, and
+              enter what the meter said — everything the label can’t tell us goes into one number.
+            </Text>
+            <SegmentedButtons
+              value={readingUnit}
+              onValueChange={setReadingUnit}
+              style={styles.waterSwitch}
+              buttons={[
+                { value: 'ppm', label: 'ppm' },
+                { value: 'ec', label: 'EC' },
+              ]}
+            />
+            <TextField
+              label={readingUnit === 'ec' ? 'Measured EC (mS/cm)' : 'Measured reading (ppm)'}
+              value={readingText}
+              onChangeText={setReadingText}
+              keyboardType="decimal-pad"
+              dense
+            />
+            <View style={styles.calibrateRow}>
+              <Button mode="contained-tonal" onPress={applyCalibration} disabled={!pendingFactor}>
+                Use this reading
+              </Button>
+              {isCalibrated && <Button onPress={resetCalibration}>Reset</Button>}
+            </View>
+            <Text variant="bodySmall" style={styles.note}>
+              {isCalibrated
+                ? `Calibrated: ${nutrientPerEc} ppm of nutrient per mS/cm.`
+                : `Not calibrated — using ${DEFAULT_NUTRIENT_PPM_PER_EC} ppm per mS/cm, which is a
+                   typical figure rather than yours.`}
+            </Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={closeSettings}>Done</Button>
@@ -771,5 +938,11 @@ const styles = StyleSheet.create({
   note: {
     marginTop: 8,
     opacity: 0.6,
+  },
+  calibrateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
   },
 });

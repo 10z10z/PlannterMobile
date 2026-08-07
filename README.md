@@ -97,6 +97,13 @@ notifications for watering reminders. Backed by Supabase (Postgres + Auth).
 - Per-fertilizer contribution shown as colour-coded segments in every bar
 - Reverse calculation — what a tank that has already been poured delivered
 - Source water accounted for, from a hardness reading or a water report's Ca/Mg
+- Label figures read as labels: the P₂O₅ and K₂O printed on a bag are converted
+  to elemental P and K before anything is worked out from them
+- TDS meter support — pick the 500, 640 or 700 scale or type your meter's own
+  conversion factor, and the mix says what that meter should read for it
+- Calibration from one measured batch: enter what the meter actually said and
+  every later estimate is built on your bottles and your meter rather than on a
+  typical figure
 - Live outdoor conditions from Open-Meteo, which draws on the national weather
   services: pick a place in settings and every outdoor growspace and station
   shows the temperature and humidity there, with the figures recorded by hand
