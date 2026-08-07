@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { Avatar, Card, IconButton, Text } from 'react-native-paper';
-import { formatDateString } from './DateField';
+import { formatDateString } from '../lib/dates';
 
 function germinationLabel({ germination_days_min: min, germination_days_max: max }) {
   if (min && max) return min === max ? `Germinates in ${min}d` : `Germinates in ${min}-${max}d`;

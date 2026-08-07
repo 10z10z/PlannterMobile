@@ -2,7 +2,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Appbar, Button, Divider, IconButton, List, Text, useTheme } from 'react-native-paper';
 import ScreenTitle from '../../components/ScreenTitle';
 import GrowspaceSummaryCard from '../../components/GrowspaceSummaryCard';
-import { formatDateString, toDateString } from '../../components/DateField';
+import { formatDateString, toDateString } from '../../lib/dates';
 import { kindIcon, kindLabel } from '../../lib/activity';
 import { daysSince } from '../../lib/dates';
 import { RECENT_DAYS, SOON_DAYS } from '../../lib/dashboard';

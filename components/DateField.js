@@ -2,30 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button, IconButton, Text } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-/**
- * Dates are held as "YYYY-MM-DD" strings — Postgres `date` columns are calendar
- * dates with no timezone, so they're built from local parts rather than via
- * toISOString(), which would shift the day for anyone behind UTC.
- */
-export function toDateString(date) {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
-function fromDateString(value) {
-  if (!value) return null;
-  const [year, month, day] = value.split('-').map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-}
-
-export function formatDateString(value) {
-  const date = fromDateString(value);
-  if (!date) return null;
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
+import { formatDateString, fromDateString, toDateString } from '../lib/dates';
 
 /**
  * @param {object} props

@@ -12,7 +12,7 @@ import {
 } from '../../hooks/useDashboard';
 import { useDataMutation } from '../../hooks/useDataMutation';
 import ScreenTitle from '../../components/ScreenTitle';
-import { formatDateString, toDateString } from '../../components/DateField';
+import { formatDateString, toDateString } from '../../lib/dates';
 import {
   fromDateString,
   groupByDay,

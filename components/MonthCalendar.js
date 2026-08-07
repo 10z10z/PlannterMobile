@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { IconButton, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { WEEKDAYS, monthLabel, monthWeeks, shiftMonth } from '../lib/activity';
-import { toDateString } from './DateField';
+import { toDateString } from '../lib/dates';
 
 /**
  * A month at a glance: which days something was done on, and which have

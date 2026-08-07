@@ -12,7 +12,8 @@ import {
   Text,
 } from 'react-native-paper';
 import FormField from '../../components/FormField';
-import DateField, { toDateString } from '../../components/DateField';
+import DateField from '../../components/DateField';
+import { toDateString } from '../../lib/dates';
 import { useUnits } from '../../contexts/UnitsContext';
 import { messageFor } from '../../lib/errors';
 import { useInventory } from '../../hooks/useInventory';

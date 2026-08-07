@@ -21,7 +21,8 @@ import useForm from '../../hooks/useForm';
 import { seedsAvailableCheck, sowingSchema, sowingTargetCheck } from '../../lib/schemas';
 import { SOW_TARGETS } from '../../lib/enums';
 import { createSowing, originalSeedsPerCell } from '../../lib/germination';
-import DateField, { toDateString } from '../../components/DateField';
+import DateField from '../../components/DateField';
+import { toDateString } from '../../lib/dates';
 import ErrorText from '../../components/ErrorText';
 
 /**

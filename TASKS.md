@@ -381,6 +381,12 @@ Three defects, all found by the first tests that rendered anything:
   separate animated `Text` rather than naming the input, so TalkBack announced an
   unnamed text field and whatever was typed in it. `TextField` now passes the
   label through as `accessibilityLabel`, which is also how the tests find fields.
+- **Half of `lib/` imported a date helper from a component.** `toDateString` and
+  `formatDateString` lived on `components/DateField`, so six pure data modules
+  reached a text field, Paper and Android's own calendar to format a date — and
+  a test of any of them had to mock a native picker to get off the ground. They
+  live in `lib/dates.js` now, and `DateField` reads them from there like
+  everything else. Exactly the split `lib/enums.js` already made once.
 - **Two components declared required props they treat as optional** — `tray` on
   `TrayFormDialog` and `onChangeText` on `TextField`. Caught by `tsc` once a test
   rendered them the way the app does.
