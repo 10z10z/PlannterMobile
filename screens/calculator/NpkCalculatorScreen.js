@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   Appbar,
@@ -14,31 +14,21 @@ import {
   useTheme,
 } from 'react-native-paper';
 import TextField from '../../components/TextField';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUnits } from '../../contexts/UnitsContext';
 import QueryBoundary from '../../components/QueryBoundary';
-import { useInventory } from '../../hooks/useInventory';
-import { doseUnit, formatDose, parseDose, parseVolume, volumeUnit } from '../../lib/units';
-import { parseDecimal } from '../../lib/numbers';
+import useNpkMix from '../../hooks/useNpkMix';
+import useWaterProfile from '../../hooks/useWaterProfile';
+import useMeterCalibration from '../../hooks/useMeterCalibration';
+import { doseUnit, formatDose, volumeUnit } from '../../lib/units';
+import { parseDecimalOrZero } from '../../lib/numbers';
 import {
-  DEFAULT_EC_SCALE,
   DEFAULT_NUTRIENT_PPM_PER_EC,
   EC_SCALES,
-  MACRO_KEYS,
   STAGE_KEYS,
   STAGE_LABELS,
-  calibrationFactor,
-  ecFromMeterPpm,
-  estimateEc,
-  macroBars,
-  meterPpmFor,
-  microBars,
-  mixParts,
   perLiterDose,
-  ppmFromMix,
   suggestedDose,
   waterContribution,
-  waterFromReport,
   WATER_PART_ID,
 } from '../../lib/nutrients';
 import { mixColor } from '../../lib/mixColors';
@@ -46,37 +36,6 @@ import NutrientTargetBar from '../../components/NutrientTargetBar';
 import DoseSlider from '../../components/DoseSlider';
 import ScreenTitle from '../../components/ScreenTitle';
 import FeedingDialog from '../calendar/FeedingDialog';
-
-const WATER_KEYS = {
-  source: 'waterSource',
-  hardness: 'waterHardnessPpm',
-  ca: 'waterCaPpm',
-  mg: 'waterMgPpm',
-};
-
-/**
- * The meter, which belongs to the grower rather than to any one mix — so like
- * the tap, it is stored rather than asked for again each time.
- */
-const METER_KEYS = {
-  scale: 'meterScale',
-  perEc: 'nutrientPpmPerEc',
-};
-
-/** The scale values that get their own button; anything else is typed in. */
-const PRESET_SCALES = EC_SCALES.map((scale) => scale.value);
-
-/**
- * A typed figure as a number, treating both blank and rubbish as zero.
- *
- * The calculator recomputes on every keystroke, so it has to have an answer for
- * a half-typed field rather than an error — a mix showing nothing while "1." is
- * being typed would flicker on every entry.
- */
-function toNumber(text) {
-  const value = parseDecimal(text);
-  return value === null || Number.isNaN(value) ? 0 : value;
-}
 
 /**
  * How far a product's dose slider can be pushed, in the user's own units.
@@ -90,7 +49,7 @@ function sliderMax(fertilizer, system) {
   const labelMax =
     Number(fertilizer?.fertigation_dose_max) || Number(fertilizer?.foliar_dose_max) || 0;
   const perLiter = labelMax > 0 ? labelMax * 2 : 5;
-  return Math.max(1, Math.ceil(toNumber(formatDose(perLiter, system))));
+  return Math.max(1, Math.ceil(parseDecimalOrZero(formatDose(perLiter, system))));
 }
 
 /**
@@ -151,186 +110,30 @@ export default function NpkCalculatorScreen() {
   const { system } = useUnits();
   const theme = useTheme();
 
-  const shelf = useInventory('fertilizers');
-  const fertilizers = useMemo(() => shelf.data ?? [], [shelf.data]);
-  const [selectedIds, setSelectedIds] = useState([]);
-  // Doses are held in the unit the user reads; the maths converts to per litre.
-  const [doses, setDoses] = useState({});
-  const [amounts, setAmounts] = useState({});
-
-  const [mode, setMode] = useState('target');
-  const [stage, setStage] = useState('vegetative');
-  const [volumeText, setVolumeText] = useState('4');
   const [showMicros, setShowMicros] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [feedOpen, setFeedOpen] = useState(false);
-  const [waterSource, setWaterSource] = useState('hardness'); // 'hardness' | 'report'
-  const [hardnessText, setHardnessText] = useState('');
-  const [caText, setCaText] = useState('');
-  const [mgText, setMgText] = useState('');
 
-  // What the grower's meter is, and what it has taught the calculator so far.
-  const [scaleText, setScaleText] = useState(String(DEFAULT_EC_SCALE));
-  // Whether the scale is being typed rather than picked. Held rather than
-  // derived from the value: a custom field cleared back to empty falls through
-  // to the default, which is itself a preset, and the field would close under
-  // the fingers of the person emptying it.
-  const [customScale, setCustomScale] = useState(false);
-  const [perEcText, setPerEcText] = useState(String(DEFAULT_NUTRIENT_PPM_PER_EC));
-  // The reading being calibrated from, which is not stored: it belongs to the
-  // batch on screen, not to the meter.
-  const [readingText, setReadingText] = useState('');
-  const [readingUnit, setReadingUnit] = useState('ppm'); // 'ppm' | 'ec'
+  // The tap, the mix, then the meter — in that order, because each is built on
+  // the one before it: what is already in the water feeds the mix, and what the
+  // mix works out at is half of any calibration made from it.
+  const tap = useWaterProfile();
+  const mix = useNpkMix({ system, water: tap.water });
+  const meter = useMeterCalibration({ nutrientPpm: mix.result.total });
 
-  // The tap is a property of where the grower lives, not of any one mix, so all
-  // of this outlives the screen.
-  useEffect(() => {
-    AsyncStorage.multiGet([...Object.values(WATER_KEYS), ...Object.values(METER_KEYS)]).then(
-      (pairs) => {
-        const stored = Object.fromEntries(pairs);
-        if (stored[WATER_KEYS.source] === 'report') setWaterSource('report');
-        if (stored[WATER_KEYS.hardness]) setHardnessText(stored[WATER_KEYS.hardness]);
-        if (stored[WATER_KEYS.ca]) setCaText(stored[WATER_KEYS.ca]);
-        if (stored[WATER_KEYS.mg]) setMgText(stored[WATER_KEYS.mg]);
-        if (stored[METER_KEYS.scale]) {
-          setScaleText(stored[METER_KEYS.scale]);
-          // A stored scale that isn't one of the buttons was typed in, so the
-          // sheet reopens on the field it was typed into.
-          setCustomScale(!PRESET_SCALES.includes(Number(stored[METER_KEYS.scale])));
-        }
-        if (stored[METER_KEYS.perEc]) setPerEcText(stored[METER_KEYS.perEc]);
-      }
-    );
-  }, []);
+  const { fertilizers, selected, result, bars, micros, contribution, hasMacros } = mix;
+  const { mode, stage, doses, amounts, volumeText, batchVolumeLiters } = mix;
 
   const closeSettings = () => {
     setSettingsOpen(false);
-    AsyncStorage.multiSet([
-      [WATER_KEYS.source, waterSource],
-      [WATER_KEYS.hardness, hardnessText],
-      [WATER_KEYS.ca, caText],
-      [WATER_KEYS.mg, mgText],
-      [METER_KEYS.scale, scaleText],
-      [METER_KEYS.perEc, perEcText],
-    ]);
+    tap.save();
+    meter.save();
   };
-
-  const hardness = toNumber(hardnessText);
-  // Both sets of figures are kept, so switching back and forth doesn't lose
-  // whichever one isn't in play.
-  // Memoised because it is an object: rebuilding it every render would make the
-  // mix results downstream recompute every render too.
-  const water = useMemo(
-    () =>
-      waterSource === 'report'
-        ? waterFromReport(toNumber(caText), toNumber(mgText))
-        : waterContribution(hardness),
-    [waterSource, caText, mgText, hardness]
-  );
 
   // The hardness explainer needs something to illustrate the split with, so an
   // unset field falls back to a middling reading rather than showing zeroes.
-  const example = hardness > 0 ? hardness : 150;
+  const example = tap.hardness > 0 ? tap.hardness : 150;
   const exampleWater = waterContribution(example);
-
-  /**
-   * Keeps the selection valid across edits and deletions made in Inventory.
-   *
-   * The shelf is now shared cache rather than this screen's own fetch, so a
-   * product deleted from the inventory tab lands here without the calculator
-   * asking — which is the point, but it does mean a mix can be left pointing at
-   * a bottle that no longer exists.
-   */
-  useEffect(() => {
-    if (!shelf.data) return;
-    const ids = new Set(shelf.data.map((fertilizer) => fertilizer.id));
-    setSelectedIds((current) => {
-      const kept = current.filter((id) => ids.has(id));
-      if (kept.length) return kept;
-      return shelf.data[0] ? [shelf.data[0].id] : [];
-    });
-  }, [shelf.data]);
-
-  const selected = useMemo(
-    () => selectedIds.map((id) => fertilizers.find((f) => f.id === id)).filter(Boolean),
-    [selectedIds, fertilizers]
-  );
-
-  /** The stage's suggested dose, in display units, for a newly added product. */
-  const defaultDose = useCallback(
-    (fertilizer) => {
-      const perLiter = suggestedDose(fertilizer, stage);
-      if (perLiter === null) return 1;
-      return toNumber(formatDose(perLiter, system));
-    },
-    [stage, system]
-  );
-
-  const toggleFertilizer = (fertilizer) => {
-    const isSelected = selectedIds.includes(fertilizer.id);
-    setSelectedIds(
-      isSelected
-        ? selectedIds.filter((id) => id !== fertilizer.id)
-        : [...selectedIds, fertilizer.id]
-    );
-    if (!isSelected && doses[fertilizer.id] === undefined) {
-      setDoses({ ...doses, [fertilizer.id]: defaultDose(fertilizer) });
-    }
-  };
-
-  const setDose = (id, value) => setDoses((current) => ({ ...current, [id]: value }));
-
-  const batchVolumeLiters = parseVolume(volumeText, system) ?? 0;
-
-  const mixEntries = useMemo(
-    () =>
-      selected.map((fertilizer) => ({
-        fertilizer,
-        dosePerLiter:
-          mode === 'target'
-            ? (parseDose(String(doses[fertilizer.id] ?? 0), system) ?? 0)
-            : perLiterDose(toNumber(amounts[fertilizer.id]), batchVolumeLiters),
-      })),
-    [selected, doses, amounts, mode, system, batchVolumeLiters]
-  );
-
-  const result = useMemo(() => ppmFromMix(mixEntries, water), [mixEntries, water]);
-
-  // A blank or half-typed field falls back to the defaults rather than to zero,
-  // so the readout keeps working while the settings sheet is being filled in.
-  const meterScale = toNumber(scaleText) || DEFAULT_EC_SCALE;
-  const nutrientPerEc = toNumber(perEcText) || DEFAULT_NUTRIENT_PPM_PER_EC;
-  const isCalibrated = nutrientPerEc !== DEFAULT_NUTRIENT_PPM_PER_EC;
-
-  const estimatedEc = estimateEc(result.total, nutrientPerEc);
-  const expectedReading = meterPpmFor(estimatedEc, meterScale);
-
-  /** The conductivity behind whatever was typed into the calibration field. */
-  const measuredEc =
-    readingUnit === 'ec'
-      ? toNumber(readingText)
-      : ecFromMeterPpm(toNumber(readingText), meterScale);
-  const pendingFactor = calibrationFactor(result.total, measuredEc);
-
-  /**
-   * Take the reading as the truth and work backwards to what this grower's
-   * bottles and meter actually do — which is the only figure here that isn't
-   * an assumption about somebody else's fertilizer.
-   */
-  const applyCalibration = () => {
-    if (pendingFactor === null) return;
-    setPerEcText(String(pendingFactor));
-    setReadingText('');
-  };
-
-  const resetCalibration = () => {
-    setPerEcText(String(DEFAULT_NUTRIENT_PPM_PER_EC));
-    setReadingText('');
-  };
-
-  const parts = useMemo(() => mixParts(mixEntries, water), [mixEntries, water]);
-  const bars = useMemo(() => macroBars(result, stage, parts), [result, stage, parts]);
-  const micros = useMemo(() => microBars(result, parts), [result, parts]);
 
   // Colour by position in the mix, so a product keeps its colour across the
   // sliders, the stacked bars and the contribution list.
@@ -343,12 +146,6 @@ export default function NpkCalculatorScreen() {
     }),
     [selected, theme.colors.outline]
   );
-  const contribution = useMemo(
-    () => Object.fromEntries(parts.map((part) => [part.id, part.result])),
-    [parts]
-  );
-
-  const hasMacros = selected.some((f) => MACRO_KEYS.some((key) => Number(f?.[key]) > 0));
 
   // Reverse mode wants the bands as much as target mode does: "here is what I
   // poured" only means something next to what the stage was asking for.
@@ -374,7 +171,7 @@ export default function NpkCalculatorScreen() {
               selected={isOn}
               showSelectedCheck={false}
               selectedColor={theme.colors.onPrimary}
-              onPress={() => setStage(key)}
+              onPress={() => mix.setStage(key)}
               style={isOn ? { backgroundColor: theme.colors.primary } : styles.chipOff}
               textStyle={
                 isOn ? [styles.chipTextOn, { color: theme.colors.onPrimary }] : styles.chipTextOff
@@ -402,7 +199,7 @@ export default function NpkCalculatorScreen() {
       </View>
       <View style={styles.chips}>
         {fertilizers.map((f) => {
-          const isOn = selectedIds.includes(f.id);
+          const isOn = mix.selectedIds.includes(f.id);
           return (
             <Chip
               key={f.id}
@@ -412,7 +209,7 @@ export default function NpkCalculatorScreen() {
               showSelectedCheck={false}
               icon={isOn ? 'check' : undefined}
               selectedColor={theme.colors.onPrimaryContainer}
-              onPress={() => toggleFertilizer(f)}
+              onPress={() => mix.toggleFertilizer(f)}
               // A softer fill than the stage row, so the loudest thing on screen
               // stays the one stage the whole calculation is judged against.
               style={isOn ? { backgroundColor: theme.colors.primaryContainer } : styles.chipOff}
@@ -441,7 +238,7 @@ export default function NpkCalculatorScreen() {
    * its volume along too, since that one really was poured.
    */
   const feedPreset = {
-    products: mixEntries
+    products: mix.entries
       .filter((entry) => entry.dosePerLiter > 0)
       .map((entry) => ({
         fertilizer_id: entry.fertilizer.id,
@@ -471,30 +268,32 @@ export default function NpkCalculatorScreen() {
             <View style={[styles.totalRow, styles.waterRow]}>
               <Text variant="bodySmall" style={styles.range}>
                 Meter should read ≈{' '}
-                {expectedReading === null ? '—' : `${expectedReading} ppm on the ${meterScale}`}
+                {meter.expectedReading === null
+                  ? '—'
+                  : `${meter.expectedReading} ppm on the ${meter.scale}`}
               </Text>
               <Text variant="bodySmall" style={styles.range}>
-                EC ≈ {estimatedEc} mS/cm
+                EC ≈ {meter.estimatedEc} mS/cm
               </Text>
             </View>
           )}
-          {result.total > 0 && !isCalibrated && (
+          {result.total > 0 && !meter.isCalibrated && (
             <Text variant="bodySmall" style={styles.note}>
               Uncalibrated, so that reading is a rough guess. Measure one batch and enter it under
               settings to make it yours.
             </Text>
           )}
-          {water && (
+          {tap.water && (
             <View style={[styles.totalRow, styles.waterRow]}>
               <View style={styles.nameRow}>
                 <View style={[styles.swatch, { backgroundColor: theme.colors.outline }]} />
                 <Text variant="bodySmall" style={styles.range}>
                   Source water ·{' '}
-                  {waterSource === 'report' ? 'from report' : `${hardness} ppm hardness`}
+                  {tap.source === 'report' ? 'from report' : `${tap.hardness} ppm hardness`}
                 </Text>
               </View>
               <Text variant="bodySmall" style={styles.range}>
-                Ca {Math.round(water.ca)} · Mg {Math.round(water.mg)} ppm
+                Ca {Math.round(tap.water.ca)} · Mg {Math.round(tap.water.mg)} ppm
               </Text>
             </View>
           )}
@@ -549,7 +348,7 @@ export default function NpkCalculatorScreen() {
       </Appbar.Header>
 
       <QueryBoundary
-        query={shelf}
+        query={mix.shelf}
         isEmpty={fertilizers.length === 0}
         emptyIcon="bottle-tonic-outline"
         emptyText="Add a fertilizer under Inventory first — the calculator works off your own nutrient panels."
@@ -558,7 +357,7 @@ export default function NpkCalculatorScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <SegmentedButtons
             value={mode}
-            onValueChange={setMode}
+            onValueChange={mix.setMode}
             buttons={[
               { value: 'target', label: 'Target ppm' },
               { value: 'reverse', label: 'Reverse calc' },
@@ -592,7 +391,7 @@ export default function NpkCalculatorScreen() {
                     control={
                       <DoseSlider
                         value={dose}
-                        onChange={(value) => setDose(f.id, value)}
+                        onChange={(value) => mix.setDose(f.id, value)}
                         max={sliderMax(f, system)}
                         color={color}
                       />
@@ -602,7 +401,9 @@ export default function NpkCalculatorScreen() {
                         compact
                         mode="text"
                         disabled={suggested === null}
-                        onPress={() => setDose(f.id, toNumber(formatDose(suggested, system)))}
+                        onPress={() =>
+                          mix.setDose(f.id, parseDecimalOrZero(formatDose(suggested, system)))
+                        }
                       >
                         Suggest for stage
                       </Button>
@@ -618,7 +419,7 @@ export default function NpkCalculatorScreen() {
               <TextField
                 label={`Water in the tank (${volumeUnit(system)})`}
                 value={volumeText}
-                onChangeText={setVolumeText}
+                onChangeText={mix.setVolumeText}
                 keyboardType="decimal-pad"
                 dense
                 style={styles.volumeField}
@@ -627,7 +428,7 @@ export default function NpkCalculatorScreen() {
               {selected.map((f) => {
                 const unit = doseUnit(f.form, system);
                 const massUnit = f.form === 'solid' ? 'g' : 'ml';
-                const perLiter = perLiterDose(toNumber(amounts[f.id]), batchVolumeLiters);
+                const perLiter = perLiterDose(parseDecimalOrZero(amounts[f.id]), batchVolumeLiters);
                 return (
                   <ProductCard
                     key={f.id}
@@ -644,7 +445,7 @@ export default function NpkCalculatorScreen() {
                       <TextField
                         label={`Amount poured (${massUnit})`}
                         value={amounts[f.id] ?? ''}
-                        onChangeText={(text) => setAmounts({ ...amounts, [f.id]: text })}
+                        onChangeText={(text) => mix.setAmount(f.id, text)}
                         keyboardType="decimal-pad"
                         dense
                         style={styles.amountField}
@@ -697,8 +498,8 @@ export default function NpkCalculatorScreen() {
               Source water
             </Text>
             <SegmentedButtons
-              value={waterSource}
-              onValueChange={setWaterSource}
+              value={tap.source}
+              onValueChange={tap.setSource}
               style={styles.waterSwitch}
               buttons={[
                 { value: 'hardness', label: 'Hardness' },
@@ -706,12 +507,12 @@ export default function NpkCalculatorScreen() {
               ]}
             />
 
-            {waterSource === 'hardness' ? (
+            {tap.source === 'hardness' ? (
               <>
                 <TextField
                   label="Water hardness (ppm as CaCO₃)"
-                  value={hardnessText}
-                  onChangeText={setHardnessText}
+                  value={tap.hardnessText}
+                  onChangeText={tap.setHardnessText}
                   keyboardType="decimal-pad"
                   dense
                 />
@@ -727,16 +528,16 @@ export default function NpkCalculatorScreen() {
                 <View style={styles.reportRow}>
                   <TextField
                     label="Calcium (ppm)"
-                    value={caText}
-                    onChangeText={setCaText}
+                    value={tap.caText}
+                    onChangeText={tap.setCaText}
                     keyboardType="decimal-pad"
                     dense
                     style={styles.reportField}
                   />
                   <TextField
                     label="Magnesium (ppm)"
-                    value={mgText}
-                    onChangeText={setMgText}
+                    value={tap.mgText}
+                    onChangeText={tap.setMgText}
                     keyboardType="decimal-pad"
                     dense
                     style={styles.reportField}
@@ -761,13 +562,8 @@ export default function NpkCalculatorScreen() {
               Your meter
             </Text>
             <SegmentedButtons
-              value={customScale ? 'custom' : String(meterScale)}
-              onValueChange={(value) => {
-                setCustomScale(value === 'custom');
-                // Switching to Other keeps the figure that was showing, so it
-                // is something to edit rather than an empty box.
-                if (value !== 'custom') setScaleText(value);
-              }}
+              value={meter.custom ? 'custom' : String(meter.scale)}
+              onValueChange={meter.chooseScale}
               style={styles.waterSwitch}
               buttons={[
                 ...EC_SCALES.map((scale) => ({
@@ -777,11 +573,11 @@ export default function NpkCalculatorScreen() {
                 { value: 'custom', label: 'Other' },
               ]}
             />
-            {customScale && (
+            {meter.custom && (
               <TextField
                 label="Conversion factor (ppm per mS/cm)"
-                value={scaleText}
-                onChangeText={setScaleText}
+                value={meter.scaleText}
+                onChangeText={meter.setScaleText}
                 keyboardType="decimal-pad"
                 dense
               />
@@ -800,8 +596,8 @@ export default function NpkCalculatorScreen() {
               enter what the meter said — everything the label can’t tell us goes into one number.
             </Text>
             <SegmentedButtons
-              value={readingUnit}
-              onValueChange={setReadingUnit}
+              value={meter.readingUnit}
+              onValueChange={meter.setReadingUnit}
               style={styles.waterSwitch}
               buttons={[
                 { value: 'ppm', label: 'ppm' },
@@ -809,21 +605,25 @@ export default function NpkCalculatorScreen() {
               ]}
             />
             <TextField
-              label={readingUnit === 'ec' ? 'Measured EC (mS/cm)' : 'Measured reading (ppm)'}
-              value={readingText}
-              onChangeText={setReadingText}
+              label={meter.readingUnit === 'ec' ? 'Measured EC (mS/cm)' : 'Measured reading (ppm)'}
+              value={meter.readingText}
+              onChangeText={meter.setReadingText}
               keyboardType="decimal-pad"
               dense
             />
             <View style={styles.calibrateRow}>
-              <Button mode="contained-tonal" onPress={applyCalibration} disabled={!pendingFactor}>
+              <Button
+                mode="contained-tonal"
+                onPress={meter.calibrate}
+                disabled={!meter.pendingFactor}
+              >
                 Use this reading
               </Button>
-              {isCalibrated && <Button onPress={resetCalibration}>Reset</Button>}
+              {meter.isCalibrated && <Button onPress={meter.reset}>Reset</Button>}
             </View>
             <Text variant="bodySmall" style={styles.note}>
-              {isCalibrated
-                ? `Calibrated: ${nutrientPerEc} ppm of nutrient per mS/cm.`
+              {meter.isCalibrated
+                ? `Calibrated: ${meter.perEc} ppm of nutrient per mS/cm.`
                 : `Not calibrated — using ${DEFAULT_NUTRIENT_PPM_PER_EC} ppm per mS/cm, which is a
                    typical figure rather than yours.`}
             </Text>
