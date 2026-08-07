@@ -9,9 +9,10 @@ Done items have been removed. What's below is open.
 **Where it stands (updated 2026-08-07, phase 3 under way):** 575 tests across 30
 suites, all passing. `jest` now runs two projects: `lib` (node preset, the 527
 pure-logic tests) and `app` (jest-expo/android), which renders. The coverage
-floor CI enforces is 57% of `lib/` (65% of its functions); `components/` and
-`hooks/` are collected but have no floor yet. ESLint, Prettier, `tsc --noEmit`
-over JSDoc and a GitHub Actions run of all four are in place and green.
+floors CI enforces are per directory now — 57% of `lib/`, 55% of `hooks/` and an
+honest 12% of `components/`, where eight files of thirty have a test. ESLint,
+Prettier, `tsc --noEmit` over JSDoc and a GitHub Actions run of all four are in
+place and green.
 
 The data layer is done: no screen imports `supabase`, no screen refetches on
 focus. Reads go through `hooks/`, writes through mutations that invalidate by
@@ -34,8 +35,9 @@ errors, validates its inputs and is testable.
 
 ### Pick up here
 
-Phase 3 is half done and **uncommitted** — the working tree holds the whole test
-harness plus 48 new tests. `npm run verify` is green.
+Phase 3 is half done and committed on `master` (`33be0f5` … `eaaf79b`, six
+commits): the harness, 48 tests, the three defects they found, and the coverage
+floors. Nothing pushed. `npm run verify` is green.
 
 The next three flows are the ones _Component and integration tests_ names and
 this session ran out before reaching: **logging a feeding**
@@ -44,8 +46,8 @@ this session ran out before reaching: **logging a feeding**
 the dashboard**. All three are the same shape as
 `screens/germination/__tests__/SowingFormDialog.test.js`, which is the one to
 copy: seed the fake, drive the dialog, assert on the rows that ended up in the
-tables. After those, set coverage floors for `components/` and `hooks/` —
-they're collected in `jest.config.js` but only `./lib/` has a threshold.
+tables. Each one lands, the floor for `components/` in `jest.config.js` goes up
+with it.
 
 Still open from phase 2, both written up in _Validation & input safety_ below:
 
@@ -226,7 +228,7 @@ and green; the rest of the tier is still open.
       `useForm`, `QueryBoundary`, `ErrorBoundary`, and end to end —
       `TrayFormDialog`, login, signup and sowing a tray. **Left: log a feeding,
       transplant a cell, tick off a scheduled action, create a growspace.**
-      Then a floor for `components/` and `hooks/`.
+      Floors for both are in place and go up as tests land.
 - [ ] **A pre-commit hook** (husky + lint-staged) so the above can't rot.
 - [ ] **Dependabot or Renovate** — a config file is five lines and shows you
       think about supply chain.
