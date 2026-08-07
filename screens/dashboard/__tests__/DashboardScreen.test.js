@@ -119,6 +119,24 @@ describe('DashboardScreen', () => {
     await settle();
   });
 
+  it('offers to undo the tick, and takes it back', async () => {
+    await openDashboard();
+    await screen.findByText('Water the tomatoes');
+
+    await tickOff('Water the tomatoes');
+
+    // No confirmation before the tick — the row leaves at once and the way back
+    // is offered after, because reopening is a real operation rather than a
+    // special case invented for the snackbar.
+    expect(screen.getByText('Water the tomatoes — done')).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByText('Undo'));
+    await settle();
+
+    await waitFor(() => expect(fake.rows('scheduled_actions')[0].done_on).toBeNull());
+    await waitFor(() => expect(screen.getByText('Water the tomatoes')).toBeOnTheScreen());
+  });
+
   it('puts the job back when the write fails', async () => {
     await openDashboard();
     await screen.findByText('Water the tomatoes');

@@ -5,6 +5,7 @@ import { PaperProvider } from 'react-native-paper';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider, useThemePreference } from './contexts/ThemeContext';
+import { SnackbarProvider } from './contexts/SnackbarContext';
 import { UnitsProvider } from './contexts/UnitsContext';
 import { WeatherProvider } from './contexts/WeatherContext';
 import RootNavigator from './navigation/RootNavigator';
@@ -31,16 +32,19 @@ function ThemedApp() {
             <PaperProvider theme={theme}>
               {/* Inside PaperProvider so the fallback is drawn in the user's own
                   scheme; a crash screen in default Material would look like a
-                  different app's. */}
-              {/* The banner is a sibling of the navigator, not a layer over it,
-                  so being offline shortens the app by a strip rather than
-                  covering whatever sits at the bottom of the screen. */}
-              <View style={styles.root}>
-                <ErrorBoundary>
-                  <RootNavigator />
-                </ErrorBoundary>
-                <OfflineBanner />
-              </View>
+                  different app's. Inside it too because the snackbar needs
+                  Paper's Portal to sit over whatever screen raised it. */}
+              <SnackbarProvider>
+                {/* The banner is a sibling of the navigator, not a layer over
+                    it, so being offline shortens the app by a strip rather than
+                    covering whatever sits at the bottom of the screen. */}
+                <View style={styles.root}>
+                  <ErrorBoundary>
+                    <RootNavigator />
+                  </ErrorBoundary>
+                  <OfflineBanner />
+                </View>
+              </SnackbarProvider>
               <StatusBar style={isDark ? 'light' : 'dark'} />
             </PaperProvider>
           </WeatherProvider>

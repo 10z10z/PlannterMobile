@@ -12,6 +12,7 @@ import {
 } from '../../hooks/useDashboard';
 import { useDataMutation } from '../../hooks/useDataMutation';
 import useRefresh from '../../hooks/useRefresh';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import ScreenTitle from '../../components/ScreenTitle';
 import { formatDateString, toDateString } from '../../lib/dates';
 import {
@@ -136,12 +137,20 @@ export default function CalendarScreen({ navigation, route }) {
 
   const complete = useCompleteAction();
   const reopen = useReopenAction();
+  const { notify } = useSnackbar();
   const removePlan = useDataMutation({
     mutationFn: deleteScheduledAction,
     affects: 'scheduleChanged',
   });
 
-  const handleComplete = (action) => complete.mutate({ actionId: action.id, doneOn: selected });
+  const handleComplete = (action) => {
+    complete.mutate({ actionId: action.id, doneOn: selected });
+    // The same offer the dashboard makes, since it is the same press.
+    notify(`${action.subject} — done`, {
+      label: 'Undo',
+      onPress: () => reopen.mutate(action.id),
+    });
+  };
   const handleReopen = (action) => reopen.mutate(action.id);
   const handleDeletePlan = (action) => removePlan.mutate(action.id);
 

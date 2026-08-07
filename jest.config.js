@@ -74,10 +74,10 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 79,
+      statements: 80,
       branches: 74,
-      functions: 82,
-      lines: 82,
+      functions: 83,
+      lines: 83,
     },
     /**
      * Still the thinnest tier, and honestly so: much of what is counted here is
@@ -113,9 +113,9 @@ module.exports = {
      * detail screen.
      */
     './hooks/': {
-      statements: 85,
-      branches: 67,
-      functions: 76,
+      statements: 86,
+      branches: 68,
+      functions: 77,
       lines: 86,
     },
     /**
@@ -127,10 +127,10 @@ module.exports = {
      * is missing or a weather fetch fails, which nothing has arranged for yet.
      */
     './contexts/': {
-      statements: 73,
-      branches: 52,
-      functions: 80,
-      lines: 75,
+      statements: 75,
+      branches: 57,
+      functions: 84,
+      lines: 77,
     },
   },
 };

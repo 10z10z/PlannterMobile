@@ -5,7 +5,8 @@ import GrowspaceSummaryCard from '../../components/GrowspaceSummaryCard';
 import { daysSince, formatDateString, toDateString } from '../../lib/dates';
 import { kindIcon, kindLabel } from '../../lib/activity';
 import { RECENT_DAYS, SOON_DAYS } from '../../lib/dashboard';
-import { useCompleteAction, useDashboard } from '../../hooks/useDashboard';
+import { useCompleteAction, useDashboard, useReopenAction } from '../../hooks/useDashboard';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import { scheduleKindIcon, scheduleSummary, targetSummary } from '../../lib/scheduling';
 
 /** How much of the log the landing page carries before it becomes the calendar. */
@@ -31,6 +32,8 @@ export default function DashboardScreen({ navigation }) {
   const data = dashboard.data ?? null;
 
   const complete = useCompleteAction();
+  const reopen = useReopenAction();
+  const { notify } = useSnackbar();
 
   const openCalendar = (date) => navigation.navigate('Calendar', { date });
 
@@ -46,9 +49,23 @@ export default function DashboardScreen({ navigation }) {
       params: { screen: growspace.id },
     });
 
-  // Ticking a job off is the only thing this screen does itself; everything
-  // else is a way into the screen that does the work properly.
-  const markDone = (action) => complete.mutate({ actionId: action.id, doneOn: today });
+  /**
+   * Ticking a job off is the only thing this screen does itself; everything
+   * else is a way into the screen that does the work properly.
+   *
+   * No confirmation, and an undo instead. The row leaves the list the moment
+   * it's pressed, so a "mark this done?" dialog would be asking permission for
+   * something that costs one tap to reverse — and this is the action a morning
+   * round is mostly made of. Reopening is a real operation the calendar already
+   * offers, not a special case invented for the snackbar.
+   */
+  const markDone = (action) => {
+    complete.mutate({ actionId: action.id, doneOn: today });
+    notify(`${action.subject} — done`, {
+      label: 'Undo',
+      onPress: () => reopen.mutate(action.id),
+    });
+  };
 
   const schedule = data?.schedule;
   const growspaces = data?.growspaces ?? [];

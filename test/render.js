@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MD3LightTheme, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
+import { SnackbarProvider } from '../contexts/SnackbarContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { UnitsProvider } from '../contexts/UnitsContext';
 import { WeatherProvider } from '../contexts/WeatherContext';
@@ -74,7 +75,10 @@ function Providers({ client, children }) {
                   settings, so in a test it is an empty reading — which is what
                   a growspace card without weather is meant to render from. */}
               <WeatherProvider>
-                <PaperProvider theme={TEST_THEME}>{children}</PaperProvider>
+                <PaperProvider theme={TEST_THEME}>
+                  {/* Inside Paper, as in `App.js` — it needs Paper's Portal. */}
+                  <SnackbarProvider>{children}</SnackbarProvider>
+                </PaperProvider>
               </WeatherProvider>
             </UnitsProvider>
           </AuthProvider>
