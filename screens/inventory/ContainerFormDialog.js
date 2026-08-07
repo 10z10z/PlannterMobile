@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { messageFor } from '../../lib/errors';
@@ -49,7 +50,7 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>{isEditing ? 'Edit Containers' : 'New Containers'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <DialogScroll>
             <ImagePickerField
               value={form.values.image_url}
               onChange={(url) => form.set('image_url', url)}
@@ -79,7 +80,7 @@ export default function ContainerFormDialog({ visible, onDismiss, onSaved, conta
             />
 
             <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
-          </ScrollView>
+          </DialogScroll>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss} disabled={save.isPending}>
@@ -104,10 +105,6 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
   segmented: {
     marginBottom: 8,

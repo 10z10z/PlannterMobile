@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Menu, Portal, Text } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatVolume } from '../../lib/units';
@@ -114,7 +115,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>Transplant</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <DialogScroll>
             <Text variant="bodyMedium">
               {`${available} seedling${available === 1 ? '' : 's'} ready in ${source}.`}
             </Text>
@@ -209,7 +210,7 @@ export default function TransplantDialog({ visible, sowing, cells, onDismiss, on
             />
 
             <ErrorText>{move.isError ? messageFor(move.error) : ''}</ErrorText>
-          </ScrollView>
+          </DialogScroll>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
@@ -232,10 +233,6 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
   label: {
     marginTop: 12,

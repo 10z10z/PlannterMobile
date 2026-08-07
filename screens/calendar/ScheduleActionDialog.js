@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Menu, Portal, Text } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import FormField from '../../components/FormField';
 import DateField from '../../components/DateField';
@@ -174,7 +175,7 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>{action ? 'Edit planned action' : 'Schedule an action'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <DialogScroll>
             <Text variant="labelLarge" style={styles.label}>
               Action
             </Text>
@@ -350,7 +351,7 @@ export default function ScheduleActionDialog({ visible, action, defaultDate, onD
             <FormField label="Note (optional)" {...form.field('note')} />
 
             <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
-          </ScrollView>
+          </DialogScroll>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
@@ -392,10 +393,6 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
   label: {
     marginTop: 12,

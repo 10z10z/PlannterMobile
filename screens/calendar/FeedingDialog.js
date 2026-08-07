@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import {
   Button,
   Checkbox,
@@ -11,6 +11,7 @@ import {
   SegmentedButtons,
   Text,
 } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import FormField from '../../components/FormField';
 import DateField from '../../components/DateField';
 import { toDateString } from '../../lib/dates';
@@ -207,7 +208,7 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>Log a feeding</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <DialogScroll>
             <Text variant="labelLarge" style={styles.label}>
               Fed into
             </Text>
@@ -328,7 +329,7 @@ export default function FeedingDialog({ visible, preset, onDismiss, onDone }) {
             <FormField label="Note (optional)" {...form.field('note')} />
 
             <ErrorText>{record.isError ? messageFor(record.error) : ''}</ErrorText>
-          </ScrollView>
+          </DialogScroll>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
@@ -351,10 +352,6 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
   label: {
     marginTop: 12,

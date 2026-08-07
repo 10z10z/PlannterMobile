@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -10,6 +10,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import FormField from '../../components/FormField';
 import useForm from '../../hooks/useForm';
 import { plantEditSchema } from '../../lib/schemas';
@@ -196,7 +197,7 @@ export default function PlantDetailScreen({ route, navigation }) {
         <Dialog visible={editVisible} onDismiss={() => setEditVisible(false)} style={styles.dialog}>
           <Dialog.Title>Edit Plant</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <DialogScroll>
               <ImagePickerField
                 value={form.values.image_url}
                 onChange={(url) => form.set('image_url', url)}
@@ -254,7 +255,7 @@ export default function PlantDetailScreen({ route, navigation }) {
                 onChange={(id) => form.set('container_id', id)}
               />
               <ErrorText>{update.isError ? messageFor(update.error) : ''}</ErrorText>
-            </ScrollView>
+            </DialogScroll>
           </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setEditVisible(false)}>Cancel</Button>
@@ -329,9 +330,5 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
 });

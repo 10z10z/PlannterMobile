@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Dialog, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
@@ -100,7 +101,7 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>{isEditing ? 'Edit Station' : 'New Station'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <DialogScroll>
             <FormField label="Name" {...form.field('name')} />
 
             <Text variant="labelLarge" style={styles.label}>
@@ -131,7 +132,7 @@ export default function StationFormDialog({ visible, station, onDismiss, onSaved
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
             <ErrorText>{loadError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
-          </ScrollView>
+          </DialogScroll>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
@@ -154,10 +155,6 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
   label: {
     marginTop: 8,

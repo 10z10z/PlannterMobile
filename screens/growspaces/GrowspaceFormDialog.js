@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import FormField from '../../components/FormField';
 import { useUnits } from '../../contexts/UnitsContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
@@ -147,7 +148,7 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>{isEditing ? 'Edit Growspace' : 'New Growspace'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <DialogScroll>
             <FormField label="Name" {...form.field('name')} />
             <FormField label="Description (optional)" {...form.field('description')} />
 
@@ -209,7 +210,7 @@ export default function GrowspaceFormDialog({ visible, growspace, onDismiss, onS
             <LightAssignmentField value={lights} onChange={setLights} baseline={baseline} />
 
             <ErrorText>{loadError || (save.isError ? messageFor(save.error) : '')}</ErrorText>
-          </ScrollView>
+          </DialogScroll>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss}>Cancel</Button>
@@ -232,10 +233,6 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
   label: {
     marginTop: 8,

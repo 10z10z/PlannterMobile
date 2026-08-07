@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, Portal, Switch, Text } from 'react-native-paper';
+import DialogScroll from '../../components/DialogScroll';
 import FormField from '../../components/FormField';
 import { messageFor } from '../../lib/errors';
 import { useSaveInventoryItem } from '../../hooks/useInventory';
@@ -78,7 +79,7 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
       <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
         <Dialog.Title>{isEditing ? 'Edit Medium' : 'New Medium'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <DialogScroll>
             <ImagePickerField
               value={form.values.image_url}
               onChange={(url) => form.set('image_url', url)}
@@ -125,7 +126,7 @@ export default function MediumFormDialog({ visible, onDismiss, onSaved, medium }
             <NutrientInputs field={form.field} values={form.values} showPh showEc />
 
             <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
-          </ScrollView>
+          </DialogScroll>
         </Dialog.ScrollArea>
         <Dialog.Actions>
           <Button onPress={onDismiss} disabled={save.isPending}>
@@ -150,10 +151,6 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
   },
   chips: {
     flexDirection: 'row',
