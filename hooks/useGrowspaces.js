@@ -119,6 +119,28 @@ export function useWaterPlant({ onSuccess } = {}) {
   return useDataMutation({
     mutationFn: waterPlant,
     affects: 'plantWatered',
+    /**
+     * The plant is patched by id across both trees rather than at one known
+     * key, because the caller has only the id: watering is fired from the
+     * plant's own screen and from the grid, and neither knows every list the
+     * plant is currently sitting in.
+     *
+     * `last_watered_at` is the only field that moves, and it is the one the
+     * whole app reads to decide whether a plant is thirsty — so the tile's
+     * colour and the "next due" line both change on the press.
+     */
+    optimistic: (queryClient, plantId) => {
+      const wateredAt = new Date().toISOString();
+      const touch = (plant) =>
+        plant?.id === plantId ? { ...plant, last_watered_at: wateredAt } : plant;
+
+      // A plant's own screen holds one; a growspace holds lists of them, beside
+      // grids and lights that this leaves alone by not matching their ids.
+      queryClient.setQueriesData({ queryKey: keys.plants.all }, (current) => touch(current));
+      queryClient.setQueriesData({ queryKey: keys.growspaces.all }, (current) =>
+        Array.isArray(current) ? current.map(touch) : current
+      );
+    },
     onSuccess,
   });
 }

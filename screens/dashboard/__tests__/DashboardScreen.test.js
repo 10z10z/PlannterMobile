@@ -1,7 +1,7 @@
 jest.mock('../../../lib/supabase');
 
 import { fake } from '../../../test/fakeSupabase';
-import { fireEvent, renderWithProviders, screen, settle, waitFor } from '../../../test/render';
+import { act, fireEvent, renderWithProviders, screen, settle, waitFor } from '../../../test/render';
 import { shiftDate } from '../../../lib/dashboard';
 import { toDateString } from '../../../lib/dates';
 import DashboardScreen from '../DashboardScreen';
@@ -95,6 +95,42 @@ describe('DashboardScreen', () => {
     await waitFor(() => expect(screen.queryByText('Water the tomatoes')).toBeNull());
     // And the rest of the round is untouched.
     expect(screen.getByText('Feed the basil')).toBeOnTheScreen();
+  });
+
+  it('takes the job off the list before the write has landed', async () => {
+    await openDashboard();
+    await screen.findByText('Water the tomatoes');
+
+    // Held open only now, so the read that filled the screen went through.
+    const release = fake.holdNext('scheduled_actions');
+    await tickOff('Water the tomatoes');
+
+    // The write is genuinely still out — `release` has not been called, and the
+    // row it would change is untouched. What moved is the screen.
+    expect(fake.rows('scheduled_actions')[0].done_on).toBeNull();
+    expect(screen.queryByText('Water the tomatoes')).toBeNull();
+    // And only that one. An optimistic edit that took the group with it would
+    // be a worse bug than the wait it replaces.
+    expect(screen.getByText('Feed the basil')).toBeOnTheScreen();
+
+    await act(async () => {
+      release();
+    });
+    await settle();
+  });
+
+  it('puts the job back when the write fails', async () => {
+    await openDashboard();
+    await screen.findByText('Water the tomatoes');
+
+    fake.failNext('scheduled_actions');
+    await tickOff('Water the tomatoes');
+
+    // Having hidden it on the strength of a guess, the app owes the grower the
+    // correction — a job that silently stops being listed is one that doesn't
+    // get done.
+    await waitFor(() => expect(screen.getByText('Water the tomatoes')).toBeOnTheScreen());
+    expect(fake.rows('scheduled_actions')[0].done_on).toBeNull();
   });
 
   it('keeps what already slipped apart from what is due now', async () => {

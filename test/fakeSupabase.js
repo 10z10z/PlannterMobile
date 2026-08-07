@@ -62,7 +62,8 @@ class FakeQuery {
   /**
    * @param {Map<string, any[]>} tables
    * @param {string} table
-   * @param {{ nextId: () => string, failures: Map<string, any[]> }} store
+   * @param {{ nextId: () => string, failures: Map<string, any[]>,
+   *   holds: Map<string, Promise<void>[]> }} store
    */
   constructor(tables, table, store) {
     this.tables = tables;
@@ -263,7 +264,12 @@ class FakeQuery {
 
   /** Awaiting the builder is what runs it — the client works the same way. */
   then(resolve, reject) {
-    return Promise.resolve()
+    // A query the test is deliberately holding open. Consumed one per query, so
+    // holding the write doesn't also hold the refetch that follows it.
+    const held = this.store.holds.get(this.table);
+    const gate = held?.length ? held.shift() : null;
+
+    return Promise.resolve(gate)
       .then(() => this.run())
       .then(resolve, reject);
   }
@@ -277,10 +283,12 @@ class FakeQuery {
 export function createFakeSupabase({ session = defaultSession() } = {}) {
   const tables = new Map();
   const failures = new Map();
+  const holds = new Map();
   let counter = 0;
 
   const store = {
     failures,
+    holds,
     nextId: () => `00000000-0000-4000-8000-${String(++counter).padStart(12, '0')}`,
   };
 
@@ -364,6 +372,28 @@ export function createFakeSupabase({ session = defaultSession() } = {}) {
       return this;
     },
 
+    /**
+     * Hold the next query against a table open, and hand back the release.
+     *
+     * The only way to see the window an optimistic update lives in. Everything
+     * else here answers within a microtask, so "the row left the list before the
+     * write landed" and "the row left the list after the write landed" are the
+     * same instant and no assertion can tell them apart. With the write held,
+     * the screen can be looked at while it is genuinely still out.
+     *
+     * @param {string} table
+     * @returns {() => void} Call it to let the query through.
+     */
+    holdNext(table) {
+      let release = () => {};
+      const gate = new Promise((resolve) => {
+        release = () => resolve(undefined);
+      });
+      if (!holds.has(table)) holds.set(table, []);
+      holds.get(table).push(gate);
+      return release;
+    },
+
     setSession(next) {
       currentSession = next;
       listeners.forEach((listener) => listener(next ? 'SIGNED_IN' : 'SIGNED_OUT', next));
@@ -372,6 +402,7 @@ export function createFakeSupabase({ session = defaultSession() } = {}) {
     reset() {
       tables.clear();
       failures.clear();
+      holds.clear();
       counter = 0;
       currentSession = session;
       listeners.clear();

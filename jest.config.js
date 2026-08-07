@@ -76,8 +76,8 @@ module.exports = {
     './lib/': {
       statements: 78,
       branches: 73,
-      functions: 81,
-      lines: 80,
+      functions: 82,
+      lines: 81,
     },
     /**
      * Still the thinnest tier, and honestly so: much of what is counted here is
@@ -113,10 +113,10 @@ module.exports = {
      * detail screen.
      */
     './hooks/': {
-      statements: 83,
+      statements: 84,
       branches: 67,
-      functions: 72,
-      lines: 84,
+      functions: 74,
+      lines: 85,
     },
     /**
      * Higher than expected for a directory only one test opens directly, and
