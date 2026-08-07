@@ -67,21 +67,27 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 76,
-      branches: 72,
-      functions: 80,
-      lines: 79,
+      statements: 77,
+      branches: 73,
+      functions: 81,
+      lines: 80,
     },
     /**
      * Still the thinnest tier, and honestly so: much of what is counted here is
      * reached on the way through a dialog rather than driven directly.
      *
-     * What is *not* counted, in either `PlantGrid` or `DoseSlider`, is the
-     * gesture — a `PanResponder` reading finger coordinates against a measured
-     * layout, which the test renderer doesn't provide. Both are covered through
-     * the keyboard-and-screen-reader path added alongside, which reaches the
-     * same handlers the drag does. That the untestable half is exactly the half
-     * TalkBack couldn't reach either is not a coincidence.
+     * What is *not* counted, in either `components/grid/Draggable` or
+     * `DoseSlider`, is the gesture — a `PanResponder` reading finger
+     * coordinates, which the test renderer doesn't produce. Both are covered
+     * through the keyboard-and-screen-reader path added alongside, which
+     * reaches the same handlers the drag does. That the untestable half is
+     * exactly the half TalkBack couldn't reach either is not a coincidence.
+     *
+     * The floor sits still here rather than rising, and that is the split
+     * working: `PlantGrid` gave its geometry to `lib/` and its drop resolution
+     * to `hooks/`, both of which are now tested, so what is left under
+     * `components/` is a higher proportion of untested view code than before.
+     * The overall figure went up.
      */
     './components/': {
       statements: 38,
@@ -94,15 +100,16 @@ module.exports = {
      * query key and a function to call, and the tests that drive the dialogs go
      * through them on the way. The exceptions carry real logic and are what
      * move this floor — the calculator's three (the mix, the tap and the
-     * meter), and now `usePlantMove`, which is the only one driven directly
-     * rather than through a screen. The gap left is the ones no test has opened
-     * a screen for yet: germination stations, the plant detail screen.
+     * meter), and now the grid's two, `usePlantMove` and `usePlantDrag`, which
+     * are driven directly rather than through a screen. The gap left is the
+     * ones no test has opened a screen for yet: germination stations, the plant
+     * detail screen.
      */
     './hooks/': {
-      statements: 81,
-      branches: 62,
-      functions: 69,
-      lines: 82,
+      statements: 83,
+      branches: 67,
+      functions: 71,
+      lines: 84,
     },
   },
 };
