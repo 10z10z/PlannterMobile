@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { Appbar, Button, Divider, List, Menu, Text } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Appbar, Button, Divider, Menu, Text } from 'react-native-paper';
 import MonthCalendar from '../../components/MonthCalendar';
 import CalendarFilterBar from '../../components/CalendarFilterBar';
 import {
@@ -12,37 +11,18 @@ import {
 } from '../../hooks/useDashboard';
 import { useDataMutation } from '../../hooks/useDataMutation';
 import useRefresh from '../../hooks/useRefresh';
+import useCalendarFilters from '../../hooks/useCalendarFilters';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import ScreenTitle from '../../components/ScreenTitle';
 import { formatDateString, toDateString } from '../../lib/dates';
-import {
-  fromDateString,
-  groupByDay,
-  kindIcon,
-  kindLabel,
-  monthOf,
-  monthRange,
-} from '../../lib/activity';
-import {
-  DEFAULT_FILTERS,
-  filterActions,
-  filterEntries,
-  isFiltered,
-  normalizeFilters,
-  toggleFilter,
-} from '../../lib/calendarFilters';
-import {
-  deleteScheduledAction,
-  scheduleKindIcon,
-  scheduleStatus,
-  scheduleSummary,
-  targetSummary,
-} from '../../lib/scheduling';
+import { fromDateString, groupByDay, monthOf, monthRange } from '../../lib/activity';
+import { filterActions, filterEntries, isFiltered } from '../../lib/calendarFilters';
+import { deleteScheduledAction } from '../../lib/scheduling';
 import SowingFormDialog from '../germination/SowingFormDialog';
 import ScheduleActionDialog from './ScheduleActionDialog';
 import FeedingDialog from './FeedingDialog';
-
-const FILTERS_KEY = 'calendarFilters';
+import DayEntryRow from './DayEntryRow';
+import DayPlanRow from './DayPlanRow';
 
 /**
  * A month of what was done and what is planned, across the whole grow.
@@ -73,13 +53,10 @@ export default function CalendarScreen({ navigation, route }) {
   // Both halves of the month: what was recorded and what is planned.
   const refresh = useRefresh([activityQuery, scheduledQuery]);
 
-  /** The chips off — reachable from the bar itself and from an empty day. */
-  const clearFilters = () => applyFilters(DEFAULT_FILTERS);
-
   const entries = useMemo(() => activityQuery.data ?? [], [activityQuery.data]);
   const scheduled = useMemo(() => scheduledQuery.data ?? [], [scheduledQuery.data]);
   const loading = activityQuery.isPending || scheduledQuery.isPending;
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const { filters, toggle: toggleChip, clear: clearFilters } = useCalendarFilters();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -87,24 +64,6 @@ export default function CalendarScreen({ navigation, route }) {
   const [feedingPreset, setFeedingPreset] = useState(null);
   // The scheduled sowing being carried out, so it can be ticked off on save.
   const [sowingFor, setSowingFor] = useState(null);
-
-  // The chips are how the calendar was left, not how it starts: someone who
-  // only ever wants the growing side shouldn't have to say so every morning.
-  useEffect(() => {
-    AsyncStorage.getItem(FILTERS_KEY).then((stored) => {
-      if (!stored) return;
-      try {
-        setFilters(normalizeFilters(JSON.parse(stored)));
-      } catch {
-        // Unreadable settings are no reason to open on an empty calendar.
-      }
-    });
-  }, []);
-
-  const applyFilters = (next) => {
-    setFilters(next);
-    AsyncStorage.setItem(FILTERS_KEY, JSON.stringify(next));
-  };
 
   const entriesByDay = useMemo(
     () => groupByDay(filterEntries(entries, filters)),
@@ -220,11 +179,7 @@ export default function CalendarScreen({ navigation, route }) {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl {...refresh} />}
       >
-        <CalendarFilterBar
-          filters={filters}
-          onToggle={(dimension, value) => applyFilters(toggleFilter(filters, dimension, value))}
-          onReset={clearFilters}
-        />
+        <CalendarFilterBar filters={filters} onToggle={toggleChip} onReset={clearFilters} />
 
         <MonthCalendar
           month={month}
@@ -246,54 +201,17 @@ export default function CalendarScreen({ navigation, route }) {
             <Text variant="labelLarge" style={styles.sectionLabel}>
               Planned
             </Text>
-            {dayPlans.map((action) => {
-              const status = scheduleStatus(action);
-              return (
-                <View key={action.id}>
-                  <List.Item
-                    title={action.subject}
-                    description={[
-                      scheduleSummary(action),
-                      // What it is aimed at, or the place when it is aimed at
-                      // all of it.
-                      targetSummary(action.targets) ?? action.place,
-                      action.note,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                    titleStyle={status === 'done' ? styles.doneTitle : undefined}
-                    left={(props) => (
-                      <List.Icon
-                        {...props}
-                        icon={
-                          status === 'done' ? 'check-circle-outline' : scheduleKindIcon(action.kind)
-                        }
-                      />
-                    )}
-                    onPress={() => openSchedule(action)}
-                  />
-                  <View style={styles.planActions}>
-                    {status === 'done' ? (
-                      <Button compact mode="text" onPress={() => handleReopen(action)}>
-                        Undo
-                      </Button>
-                    ) : (
-                      <>
-                        <Button compact mode="text" onPress={() => startAction(action)}>
-                          Do it now
-                        </Button>
-                        <Button compact mode="text" onPress={() => handleComplete(action)}>
-                          Mark done
-                        </Button>
-                      </>
-                    )}
-                    <Button compact mode="text" onPress={() => handleDeletePlan(action)}>
-                      Remove
-                    </Button>
-                  </View>
-                </View>
-              );
-            })}
+            {dayPlans.map((action) => (
+              <DayPlanRow
+                key={action.id}
+                action={action}
+                onOpen={openSchedule}
+                onStart={startAction}
+                onComplete={handleComplete}
+                onReopen={handleReopen}
+                onRemove={handleDeletePlan}
+              />
+            ))}
           </>
         )}
 
@@ -303,21 +221,7 @@ export default function CalendarScreen({ navigation, route }) {
               Done
             </Text>
             {dayEntries.map((entry) => (
-              <List.Item
-                key={entry.id}
-                title={`${kindLabel(entry.kind)} · ${entry.subject}`}
-                description={[entry.detail, entry.place].filter(Boolean).join(' · ')}
-                left={(props) => <List.Icon {...props} icon={kindIcon(entry.kind)} />}
-                right={
-                  entry.derived
-                    ? (props) => (
-                        <Text {...props} variant="labelSmall" style={styles.derivedTag}>
-                          from records
-                        </Text>
-                      )
-                    : undefined
-                }
-              />
+              <DayEntryRow key={entry.id} entry={entry} />
             ))}
           </>
         )}
@@ -402,20 +306,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginHorizontal: 16,
     opacity: 0.7,
-  },
-  planActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingRight: 8,
-    marginTop: -8,
-  },
-  doneTitle: {
-    textDecorationLine: 'line-through',
-    opacity: 0.6,
-  },
-  derivedTag: {
-    alignSelf: 'center',
-    opacity: 0.5,
   },
   emptyBlock: {
     alignItems: 'center',

@@ -74,10 +74,10 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 80,
-      branches: 74,
-      functions: 83,
-      lines: 83,
+      statements: 81,
+      branches: 75,
+      functions: 85,
+      lines: 84,
     },
     /**
      * Still the thinnest tier, and honestly so: much of what is counted here is
@@ -97,10 +97,10 @@ module.exports = {
      * The overall figure went up.
      */
     './components/': {
-      statements: 43,
-      branches: 34,
-      functions: 31,
-      lines: 44,
+      statements: 47,
+      branches: 37,
+      functions: 37,
+      lines: 48,
     },
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a
@@ -113,10 +113,10 @@ module.exports = {
      * detail screen.
      */
     './hooks/': {
-      statements: 86,
-      branches: 68,
-      functions: 77,
-      lines: 86,
+      statements: 88,
+      branches: 73,
+      functions: 83,
+      lines: 89,
     },
     /**
      * Higher than expected for a directory only one test opens directly, and
