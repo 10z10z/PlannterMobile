@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Text } from 'react-native-paper';
+import { StyleSheet } from 'react-native';
+import { Button, HelperText } from 'react-native-paper';
+import AuthLayout from './AuthLayout';
 import FormField from '../../components/FormField';
 import useForm from '../../hooks/useForm';
 import { signupSchema } from '../../lib/schemas';
@@ -40,14 +41,7 @@ export default function SignupScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text variant="displaySmall" style={styles.logo}>
-        🌱 Plannter
-      </Text>
-      <Text variant="titleMedium" style={styles.title}>
-        Create account
-      </Text>
-
+    <AuthLayout title="Create an account">
       <FormField
         label="Email"
         autoCapitalize="none"
@@ -80,25 +74,11 @@ export default function SignupScreen({ navigation }) {
       <Button onPress={() => navigation.navigate('Login')} style={styles.linkButton}>
         Already have an account? Log in
       </Button>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  logo: {
-    textAlign: 'center',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  title: {
-    marginBottom: 24,
-    textAlign: 'center',
-  },
   linkButton: {
     marginTop: 8,
   },

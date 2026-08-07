@@ -15,6 +15,13 @@ describe('SignupScreen', () => {
     navigation.navigate.mockClear();
   });
 
+  it('carries the same mark as the login screen', async () => {
+    await renderWithProviders(<SignupScreen navigation={navigation} />);
+
+    expect(screen.getByText('plannter')).toBeOnTheScreen();
+    expect(screen.getByText('Create an account')).toBeOnTheScreen();
+  });
+
   it('refuses a short password before the server has to', async () => {
     await renderWithProviders(<SignupScreen navigation={navigation} />);
 

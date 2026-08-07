@@ -15,6 +15,16 @@ describe('LoginScreen', () => {
     navigation.navigate.mockClear();
   });
 
+  it('leads with the app’s own mark rather than a stand-in', async () => {
+    await renderWithProviders(<LoginScreen navigation={navigation} />);
+
+    // This was a 🌱 emoji and the word "Plannter" until the app's actual logo
+    // was put on it — on the one screen every reviewer and every new grower
+    // sees before anything else.
+    expect(screen.getByText('plannter')).toBeOnTheScreen();
+    expect(screen.getByText('Welcome back')).toBeOnTheScreen();
+  });
+
   it('signs in with what was typed', async () => {
     await renderWithProviders(<LoginScreen navigation={navigation} />);
 

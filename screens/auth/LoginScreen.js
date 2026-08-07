@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Text } from 'react-native-paper';
+import { StyleSheet } from 'react-native';
+import { Button, HelperText } from 'react-native-paper';
+import AuthLayout from './AuthLayout';
 import FormField from '../../components/FormField';
 import useForm from '../../hooks/useForm';
 import { loginSchema } from '../../lib/schemas';
@@ -47,14 +48,7 @@ export default function LoginScreen({ navigation }) {
   const notice = error || (sessionExpired ? EXPIRED : '');
 
   return (
-    <View style={styles.container}>
-      <Text variant="displaySmall" style={styles.logo}>
-        🌱 Plannter
-      </Text>
-      <Text variant="titleMedium" style={styles.title}>
-        Welcome back
-      </Text>
-
+    <AuthLayout title="Welcome back">
       <FormField
         label="Email"
         autoCapitalize="none"
@@ -83,26 +77,11 @@ export default function LoginScreen({ navigation }) {
       <Button onPress={() => navigation.navigate('Signup')} style={styles.linkButton}>
         Don’t have an account? Sign up
       </Button>
-    </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  logo: {
-    textAlign: 'center',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  title: {
-    marginBottom: 24,
-    textAlign: 'center',
-    opacity: 0.7,
-  },
   linkButton: {
     marginTop: 8,
   },
