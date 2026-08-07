@@ -23,6 +23,18 @@ import { TextInput } from 'react-native-paper';
  *
  * Paper's `TextInput.Affix` and `TextInput.Icon` are re-exported, so a file that
  * swaps its import doesn't have to keep the old one around for those.
+ *
+ * The label is also given to the field as its accessibility label, which Paper
+ * does not do: it draws the label as a separate animated `Text`, so a screen
+ * reader landing on the input announces an unnamed text field and whatever
+ * happens to be typed in it. Passing `accessibilityLabel` explicitly still wins,
+ * for the fields whose visible label is shorter than what should be read out.
+ */
+/**
+ * @param {Omit<import('react-native-paper').TextInputProps, 'value' | 'onChangeText'> & {
+ *   value?: string | null,
+ *   onChangeText?: (value: string) => void,
+ * }} props
  */
 export default function TextField({ value, onChangeText, ...rest }) {
   const [text, setText] = useState(value ?? '');
@@ -44,7 +56,17 @@ export default function TextField({ value, onChangeText, ...rest }) {
     onChangeText?.(next);
   };
 
-  return <TextInput {...rest} value={text} onChangeText={handleChange} />;
+  const accessibilityLabel =
+    rest.accessibilityLabel ?? (typeof rest.label === 'string' ? rest.label : undefined);
+
+  return (
+    <TextInput
+      {...rest}
+      accessibilityLabel={accessibilityLabel}
+      value={text}
+      onChangeText={handleChange}
+    />
+  );
 }
 
 TextField.Affix = TextInput.Affix;

@@ -4,6 +4,7 @@ import { Button, HelperText, Text } from 'react-native-paper';
 import FormField from '../../components/FormField';
 import useForm from '../../hooks/useForm';
 import { loginSchema } from '../../lib/schemas';
+import { messageFor } from '../../lib/errors';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginScreen({ navigation }) {
@@ -24,7 +25,10 @@ export default function LoginScreen({ navigation }) {
       setLoading(true);
       const { error: failure } = await signIn(values.email, values.password);
       setLoading(false);
-      if (failure) setError(failure.message);
+      // Through `messageFor` like everything else: GoTrue's own wording is
+      // sometimes fine and sometimes "AuthApiError: Invalid login credentials",
+      // and this is the screen where a bad message costs the most.
+      if (failure) setError(messageFor(failure));
     });
   };
 

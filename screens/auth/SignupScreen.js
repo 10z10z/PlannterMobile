@@ -4,6 +4,7 @@ import { Button, HelperText, Text } from 'react-native-paper';
 import FormField from '../../components/FormField';
 import useForm from '../../hooks/useForm';
 import { signupSchema } from '../../lib/schemas';
+import { messageFor } from '../../lib/errors';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function SignupScreen({ navigation }) {
@@ -27,7 +28,9 @@ export default function SignupScreen({ navigation }) {
       const { data, error: failure } = await signUp(values.email, values.password);
       setLoading(false);
       if (failure) {
-        setError(failure.message);
+        // As on login: an address already registered and a password the server
+        // thinks is weak both arrive here, and both deserve a sentence.
+        setError(messageFor(failure));
         return;
       }
       if (!data?.session) {

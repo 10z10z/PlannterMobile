@@ -14,6 +14,12 @@ import ErrorText from '../../components/ErrorText';
  * One record is a group of identical trays, as with containers. The grid is what
  * gives a tray its capacity, so rows and columns are the only figures required
  * besides the name.
+ *
+ * @param {object} props
+ * @param {boolean} props.visible
+ * @param {() => void} props.onDismiss
+ * @param {() => void} props.onSaved
+ * @param {object} [props.tray] The group being edited; absent when adding one.
  */
 export default function TrayFormDialog({ visible, onDismiss, onSaved, tray }) {
   const isEditing = !!tray;
