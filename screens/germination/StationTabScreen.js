@@ -59,6 +59,12 @@ export default function StationTabScreen({ route }) {
   /** Pulling down refreshes all three, since they are one screen. */
   const refresh = useRefresh([stationQuery, sowingQuery, lightQuery]);
 
+  /** What the FAB does, and what the empty state offers instead of naming it. */
+  const sowNew = () => {
+    setTemplate(null);
+    setFormVisible(true);
+  };
+
   // The card hands over the cells it means: everything ready by default, or just
   // the ones picked in selection mode.
   const transplantCells = (sowing, cells) => {
@@ -128,13 +134,23 @@ export default function StationTabScreen({ route }) {
           </View>
         }
         ListEmptyComponent={
-          !sowingQuery.isPending && (
+          !sowingQuery.isPending &&
+          // No button on a failed read: the station may well be full, and
+          // offering to sow into it is answering a question nobody asked.
+          (sowingQuery.isError ? (
             <Text style={styles.emptyText}>
-              {sowingQuery.isError
-                ? messageFor(sowingQuery.error, 'Couldn’t load what is sown here.')
-                : 'Nothing sown here yet. Tap + to plant a seed pack into a tray or a container.'}
+              {messageFor(sowingQuery.error, 'Couldn’t load what is sown here.')}
             </Text>
-          )
+          ) : (
+            <View style={styles.emptyBlock}>
+              <Text style={styles.emptyText}>
+                Nothing sown here yet. A sowing is a seed pack planted into a tray or a container.
+              </Text>
+              <Button mode="contained-tonal" icon="plus" onPress={sowNew}>
+                Sow something here
+              </Button>
+            </View>
+          ))
         }
         renderItem={({ item }) => (
           <SowingCard
@@ -157,10 +173,7 @@ export default function StationTabScreen({ route }) {
         icon="plus"
         accessibilityLabel="Sow something here"
         style={styles.fab}
-        onPress={() => {
-          setTemplate(null);
-          setFormVisible(true);
-        }}
+        onPress={sowNew}
       />
 
       <SowingFormDialog
@@ -286,6 +299,11 @@ const styles = StyleSheet.create({
   },
   mutedTitle: {
     opacity: 0.6,
+  },
+  emptyBlock: {
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
   },
   emptyText: {
     textAlign: 'center',

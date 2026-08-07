@@ -7,7 +7,7 @@ export default function ContainersTab() {
     <InventoryTabScreen
       name="containers"
       emptyIcon="cup-outline"
-      emptyText="No containers yet. Tap + to add some."
+      emptyText="No containers yet."
       errorText="Couldn’t load your containers."
       addLabel="Add containers"
       deleteTitle="Delete containers"

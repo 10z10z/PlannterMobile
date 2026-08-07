@@ -57,6 +57,12 @@ export default function InventoryTabScreen({
 
   const rows = items.data ?? [];
 
+  /** What the FAB does, and what the empty state offers instead of pointing at it. */
+  const openNew = () => {
+    setEditing(null);
+    setFormVisible(true);
+  };
+
   return (
     <View style={styles.container}>
       <QueryBoundary
@@ -65,6 +71,13 @@ export default function InventoryTabScreen({
         emptyIcon={emptyIcon}
         emptyText={emptyText}
         errorText={errorText}
+        // An empty shelf used to say "Tap + to add one", which is a screen
+        // describing its own furniture. The button is the way out.
+        emptyAction={
+          <Button mode="contained" icon="plus" onPress={openNew}>
+            {addLabel}
+          </Button>
+        }
       >
         <FlatList
           data={rows}
@@ -87,15 +100,7 @@ export default function InventoryTabScreen({
         />
       </QueryBoundary>
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        accessibilityLabel={addLabel}
-        onPress={() => {
-          setEditing(null);
-          setFormVisible(true);
-        }}
-      />
+      <FAB icon="plus" style={styles.fab} accessibilityLabel={addLabel} onPress={openNew} />
 
       {renderForm({
         visible: formVisible,

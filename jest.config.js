@@ -97,10 +97,10 @@ module.exports = {
      * The overall figure went up.
      */
     './components/': {
-      statements: 38,
-      branches: 31,
-      functions: 26,
-      lines: 39,
+      statements: 43,
+      branches: 34,
+      functions: 31,
+      lines: 44,
     },
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a
@@ -115,8 +115,8 @@ module.exports = {
     './hooks/': {
       statements: 85,
       branches: 67,
-      functions: 75,
-      lines: 85,
+      functions: 76,
+      lines: 86,
     },
     /**
      * Higher than expected for a directory only one test opens directly, and

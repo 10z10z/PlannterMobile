@@ -7,7 +7,7 @@ export default function MediumsTab() {
     <InventoryTabScreen
       name="mediums"
       emptyIcon="shovel"
-      emptyText="No growing mediums yet. Tap + to add one."
+      emptyText="No growing mediums yet."
       errorText="Couldn’t load your growing mediums."
       addLabel="Add growing medium"
       deleteTitle="Delete medium"

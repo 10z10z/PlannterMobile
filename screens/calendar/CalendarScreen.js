@@ -72,6 +72,9 @@ export default function CalendarScreen({ navigation, route }) {
   // Both halves of the month: what was recorded and what is planned.
   const refresh = useRefresh([activityQuery, scheduledQuery]);
 
+  /** The chips off — reachable from the bar itself and from an empty day. */
+  const clearFilters = () => applyFilters(DEFAULT_FILTERS);
+
   const entries = useMemo(() => activityQuery.data ?? [], [activityQuery.data]);
   const scheduled = useMemo(() => scheduledQuery.data ?? [], [scheduledQuery.data]);
   const loading = activityQuery.isPending || scheduledQuery.isPending;
@@ -211,7 +214,7 @@ export default function CalendarScreen({ navigation, route }) {
         <CalendarFilterBar
           filters={filters}
           onToggle={(dimension, value) => applyFilters(toggleFilter(filters, dimension, value))}
-          onReset={() => applyFilters(DEFAULT_FILTERS)}
+          onReset={clearFilters}
         />
 
         <MonthCalendar
@@ -310,13 +313,28 @@ export default function CalendarScreen({ navigation, route }) {
           </>
         )}
 
-        {!loading && dayEntries.length === 0 && dayPlans.length === 0 && (
-          <Text style={styles.emptyText}>
-            {dayHasHidden && isFiltered(filters)
-              ? 'Nothing on this day matches the chips above.'
-              : 'Nothing recorded on this day. Tap + to plan something or log a feeding.'}
-          </Text>
-        )}
+        {!loading &&
+          dayEntries.length === 0 &&
+          dayPlans.length === 0 &&
+          // Two different empty days needing two different ways out: one where
+          // the day really is bare, and one where the chips are hiding it. The
+          // second used to say so and leave the grower to work out that the fix
+          // was above them rather than behind the + button.
+          (dayHasHidden && isFiltered(filters) ? (
+            <View style={styles.emptyBlock}>
+              <Text style={styles.emptyText}>Nothing on this day matches the chips above.</Text>
+              <Button mode="contained-tonal" icon="filter-remove-outline" onPress={clearFilters}>
+                Show everything
+              </Button>
+            </View>
+          ) : (
+            <View style={styles.emptyBlock}>
+              <Text style={styles.emptyText}>Nothing recorded on this day.</Text>
+              <Button mode="contained-tonal" icon="calendar-plus" onPress={() => openSchedule()}>
+                Plan something
+              </Button>
+            </View>
+          ))}
       </ScrollView>
 
       <ScheduleActionDialog
@@ -389,6 +407,10 @@ const styles = StyleSheet.create({
   derivedTag: {
     alignSelf: 'center',
     opacity: 0.5,
+  },
+  emptyBlock: {
+    alignItems: 'center',
+    gap: 16,
   },
   emptyText: {
     textAlign: 'center',

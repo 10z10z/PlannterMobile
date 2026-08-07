@@ -7,7 +7,7 @@ export default function FertilizersTab() {
     <InventoryTabScreen
       name="fertilizers"
       emptyIcon="bottle-tonic-outline"
-      emptyText="No fertilizers yet. Tap + to add the first one."
+      emptyText="No fertilizers yet."
       errorText="Couldn’t load your fertilizers."
       addLabel="Add fertilizer"
       deleteTitle="Delete fertilizer"

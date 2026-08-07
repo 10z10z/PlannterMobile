@@ -163,11 +163,16 @@ describe('DashboardScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith('Calendar', { date: shiftDate(today, -2) });
   });
 
-  it('says the round is clear when nothing is open', async () => {
+  it('says the round is clear, and offers the way to filling it', async () => {
     fake.reset();
     await openDashboard();
 
-    expect(await screen.findByText('Nothing due. Plan something from the calendar.'));
+    expect(await screen.findByText('Nothing due.')).toBeOnTheScreen();
+
+    // It used to say "plan something from the calendar", which is a screen
+    // describing where its own buttons are rather than offering one.
+    await fireEvent.press(screen.getByText('Plan something'));
+    expect(navigation.navigate).toHaveBeenCalledWith('Calendar', { date: today });
   });
 
   it('still shows the rest of the page when the schedule cannot be read', async () => {

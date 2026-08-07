@@ -34,6 +34,10 @@ export default function DashboardScreen({ navigation }) {
 
   const openCalendar = (date) => navigation.navigate('Calendar', { date });
 
+  /** The Growspaces tab with no particular space asked for, which is where a
+   *  grower with none at all needs to end up. */
+  const openGrowspaces = () => navigation.navigate('Growspaces', { screen: 'GrowspacesOverview' });
+
   // The growspace tabs are named by growspace id, so the card opens the one it
   // is showing rather than whichever tab happened to be left open.
   const openGrowspace = (growspace) =>
@@ -159,8 +163,11 @@ export default function DashboardScreen({ navigation }) {
         {nothingDue && (
           <View style={styles.clear}>
             <Text variant="bodyMedium" style={styles.clearText}>
-              Nothing due. Plan something from the calendar.
+              Nothing due.
             </Text>
+            <Button mode="contained-tonal" icon="calendar-plus" onPress={() => openCalendar(today)}>
+              Plan something
+            </Button>
           </View>
         )}
 
@@ -204,9 +211,15 @@ export default function DashboardScreen({ navigation }) {
         )}
 
         {!dashboard.isPending && !growspaces.length && !recent.length && (
-          <Text style={styles.emptyText}>
-            Nothing here yet. Add a growspace or sow something, and this page fills in.
-          </Text>
+          <View style={styles.emptyBlock}>
+            <Text style={styles.emptyText}>
+              Nothing here yet. This page fills in from everywhere else, so the first thing to do is
+              make somewhere to grow.
+            </Text>
+            <Button mode="contained-tonal" icon="flower-outline" onPress={openGrowspaces}>
+              Create a growspace
+            </Button>
+          </View>
         )}
 
         {!dashboard.isPending && recent.length === 0 && growspaces.length > 0 && (
@@ -250,6 +263,10 @@ const styles = StyleSheet.create({
   clearText: {
     textAlign: 'center',
     opacity: 0.6,
+  },
+  emptyBlock: {
+    alignItems: 'center',
+    gap: 16,
   },
   emptyText: {
     textAlign: 'center',

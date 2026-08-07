@@ -195,13 +195,22 @@ export default function GrowspaceTabScreen({ route }) {
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={header}
           ListEmptyComponent={
-            !plantQuery.isPending && (
+            !plantQuery.isPending &&
+            // A failed read gets words and no button: offering to add a plant
+            // to a space whose contents couldn't be read is offering the wrong
+            // thing, since there may well be plants in it already.
+            (plantQuery.isError ? (
               <Text style={styles.emptyText}>
-                {plantQuery.isError
-                  ? messageFor(plantQuery.error, 'Couldn’t load the plants in here.')
-                  : 'No plants here yet. Tap + to add one.'}
+                {messageFor(plantQuery.error, 'Couldn’t load the plants in here.')}
               </Text>
-            )
+            ) : (
+              <View style={styles.emptyBlock}>
+                <Text style={styles.emptyText}>No plants here yet.</Text>
+                <Button mode="contained-tonal" icon="plus" onPress={openDialog}>
+                  Add a plant
+                </Button>
+              </View>
+            ))
           }
           renderItem={({ item }) => (
             <PlantCard plant={item} onPress={() => openPlantDetail(item)} />
@@ -292,6 +301,11 @@ const styles = StyleSheet.create({
     marginTop: 48,
     marginHorizontal: 24,
     opacity: 0.6,
+  },
+  emptyBlock: {
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
   },
   fab: {
     position: 'absolute',

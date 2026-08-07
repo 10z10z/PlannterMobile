@@ -7,7 +7,7 @@ export default function GrowLightsTab() {
     <InventoryTabScreen
       name="growLights"
       emptyIcon="lightbulb-outline"
-      emptyText="No grow lights yet. Tap + to add some."
+      emptyText="No grow lights yet."
       errorText="Couldn’t load your grow lights."
       addLabel="Add grow lights"
       deleteTitle="Delete grow lights"

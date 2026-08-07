@@ -7,7 +7,7 @@ export default function TraysTab() {
     <InventoryTabScreen
       name="trays"
       emptyIcon="grid"
-      emptyText="No trays yet. Tap + to add some."
+      emptyText="No trays yet."
       errorText="Couldn’t load your trays."
       addLabel="Add trays"
       deleteTitle="Delete trays"

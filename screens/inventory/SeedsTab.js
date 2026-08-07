@@ -7,7 +7,7 @@ export default function SeedsTab() {
     <InventoryTabScreen
       name="seedPacks"
       emptyIcon="seed-outline"
-      emptyText="No seed packs yet. Tap + to add one."
+      emptyText="No seed packs yet."
       errorText="Couldn’t load your seed packs."
       addLabel="Add seed pack"
       deleteTitle="Delete seed pack"
