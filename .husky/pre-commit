@@ -1,0 +1,7 @@
+# Lint and format what's being committed, so the guardrails can't rot between
+# CI runs. Only staged files, so the hook stays fast enough not to be skipped.
+#
+# Typecheck and tests are deliberately not here: both read the whole project and
+# take long enough that people start reaching for --no-verify, which costs more
+# than it saves. CI runs all four on every push and PR.
+npx lint-staged
