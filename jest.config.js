@@ -74,10 +74,10 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 78,
-      branches: 73,
+      statements: 79,
+      branches: 74,
       functions: 82,
-      lines: 81,
+      lines: 82,
     },
     /**
      * Still the thinnest tier, and honestly so: much of what is counted here is

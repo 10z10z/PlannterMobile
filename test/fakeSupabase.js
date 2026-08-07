@@ -331,9 +331,61 @@ export function createFakeSupabase({ session = defaultSession() } = {}) {
     Object.entries(authDefaults).map(([name, impl]) => [name, jest.fn(/** @type {any} */ (impl))])
   );
 
+  /**
+   * The bucket, as a flat map of `bucket/path` to whatever was uploaded.
+   *
+   * Enough to answer the only questions the app asks of storage: what is the
+   * public URL of a thing I uploaded, and is a thing still there. The URL shape
+   * matters and is reproduced exactly — `lib/storage.js` has to read a path back
+   * out of one to know what to delete, and a fake that invented its own URL
+   * format would let a broken parser pass.
+   */
+  const files = new Map();
+  const ORIGIN = 'https://project.supabase.co';
+
+  /**
+   * One object per bucket, kept rather than built on each `from()`.
+   *
+   * The real client hands back a fresh handle every time and nothing depends on
+   * the identity — but a test that wants to make `remove` fail has to reach the
+   * same jest.fn the code under test will call. With a new mock per call,
+   * `fake.client.storage.from('uploads').remove.mockRejectedValueOnce(...)`
+   * queues a rejection on an object nothing else will ever see, and the test
+   * passes without the failure it is named after ever happening.
+   */
+  const buckets = new Map();
+
+  const makeBucket = (bucket) => ({
+    upload: jest.fn(async (path, body, options = {}) => {
+      const key = `${bucket}/${path}`;
+      if (files.has(key) && !options.upsert) {
+        return { data: null, error: { message: 'The resource already exists' } };
+      }
+      files.set(key, body);
+      return { data: { path }, error: null };
+    }),
+
+    remove: jest.fn(async (paths) => {
+      const removed = paths.filter((path) => files.delete(`${bucket}/${path}`));
+      return { data: removed.map((name) => ({ name })), error: null };
+    }),
+
+    getPublicUrl: (path) => ({
+      data: { publicUrl: `${ORIGIN}/storage/v1/object/public/${bucket}/${path}` },
+    }),
+  });
+
+  const storage = {
+    from: (bucket) => {
+      if (!buckets.has(bucket)) buckets.set(bucket, makeBucket(bucket));
+      return buckets.get(bucket);
+    },
+  };
+
   const client = {
     from: (table) => new FakeQuery(tables, table, store),
     rpc: jest.fn(async () => ({ data: null, error: null })),
+    storage,
     auth,
   };
 
@@ -350,6 +402,25 @@ export function createFakeSupabase({ session = defaultSession() } = {}) {
     /** What a table holds now — for asserting on what a save actually wrote. */
     rows(table) {
       return clone(tables.get(table) ?? []);
+    },
+
+    /**
+     * Put a file in the bucket and hand back the public URL a row would hold.
+     * Saves a test having to know the URL format, which is `lib/storage.js`'s
+     * business rather than the test's.
+     *
+     * @param {string} path e.g. `user-1/plants/1234.jpg`
+     */
+    seedFile(path, bucket = 'uploads') {
+      files.set(`${bucket}/${path}`, 'image bytes');
+      return `${ORIGIN}/storage/v1/object/public/${bucket}/${path}`;
+    },
+
+    /** Every path still in the bucket, for asserting on what was cleaned up. */
+    storedFiles(bucket = 'uploads') {
+      return [...files.keys()]
+        .filter((key) => key.startsWith(`${bucket}/`))
+        .map((key) => key.slice(bucket.length + 1));
     },
 
     /**
@@ -403,6 +474,7 @@ export function createFakeSupabase({ session = defaultSession() } = {}) {
       tables.clear();
       failures.clear();
       holds.clear();
+      files.clear();
       counter = 0;
       currentSession = session;
       listeners.clear();
