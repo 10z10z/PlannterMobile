@@ -8,18 +8,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useUnits } from '../../contexts/UnitsContext';
 import { useWeather } from '../../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
-import { recordMove } from '../../lib/activity';
 import { assignmentSummary, assignmentTitle } from '../../lib/growLights';
 import { conditionsFor, placeLabel, readingAgeLabel } from '../../lib/weather';
-import {
-  environmentLabel,
-  sunHoursLabel,
-  placePlant,
-  positionOf,
-  resolveDrop,
-  swapPlants,
-  totalSpots,
-} from '../../lib/growspaces';
+import { environmentLabel, sunHoursLabel, totalSpots } from '../../lib/growspaces';
 import PlantCard from '../../components/PlantCard';
 import PlantGrid from '../../components/PlantGrid';
 import ImagePickerField from '../../components/ImagePickerField';
@@ -27,8 +18,6 @@ import ContainerPicker from '../../components/ContainerPicker';
 import GrowspaceFormDialog from './GrowspaceFormDialog';
 import ErrorText from '../../components/ErrorText';
 import { messageFor } from '../../lib/errors';
-import { invalidateFor, keys } from '../../lib/queryKeys';
-import { useQueryClient } from '@tanstack/react-query';
 import {
   useCreatePlant,
   useGrowspace,
@@ -36,6 +25,7 @@ import {
   useGrowspaceLights,
   useGrowspacePlants,
 } from '../../hooks/useGrowspaces';
+import usePlantMove from '../../hooks/usePlantMove';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
@@ -48,7 +38,6 @@ export default function GrowspaceTabScreen({ route }) {
   const { system } = useUnits();
   const { place, reading } = useWeather();
 
-  const queryClient = useQueryClient();
   const growspaceQuery = useGrowspace(growspaceId);
   const gridQuery = useGrowspaceGrids(growspaceId);
   const plantQuery = useGrowspacePlants(growspaceId);
@@ -66,18 +55,10 @@ export default function GrowspaceTabScreen({ route }) {
 
   const createPlant = useCreatePlant({ onSuccess: () => setDialogVisible(false) });
 
-  /**
-   * Moves a plant on screen before the write lands.
-   *
-   * Dragging has to feel immediate — waiting a round trip to see the pot land
-   * would make the grid feel broken — so the cached list is edited directly and
-   * the invalidation that follows the write confirms or corrects it.
-   */
-  const placeOptimistically = (update) =>
-    queryClient.setQueryData(
-      keys.growspaces.plants(growspaceId),
-      (/** @type {any[] | undefined} */ current) => (current ?? []).map(update)
-    );
+  // What a drop means, what it writes and what it says in the calendar — all of
+  // it out in a hook, so the part with three failure paths isn't only reachable
+  // through a finger on a PanResponder.
+  const { move, unplace } = usePlantMove({ growspaceId, grids, plants });
 
   /** Pulling down refreshes all four, since they are one screen. */
   const refreshAll = () => {
@@ -89,72 +70,6 @@ export default function GrowspaceTabScreen({ route }) {
 
   const openPlantDetail = (plant) =>
     navigation.navigate('PlantDetail', { plantId: plant.id, plantName: plant.name });
-
-  /** "Shelf, spot 2,3" — where a plant ended up, for the calendar entry. */
-  const spotLabel = (cell) => {
-    if (!cell) return 'Back in the holding tray';
-    const grid = grids.find((entry) => entry.id === cell.gridId);
-    return `${grid?.name ?? 'Grid'}, spot ${cell.row + 1},${cell.col + 1}`;
-  };
-
-  /**
-   * Applies a drop. The plants are updated in place before the reload so the
-   * tile doesn't flick back to where it came from while the write is in flight.
-   */
-  const handleMove = async (plant, cell) => {
-    const drop = resolveDrop(plants, plant, cell);
-    if (drop.type === 'none') return;
-
-    const at = (target) => ({
-      grid_id: target?.gridId ?? null,
-      grid_row: target?.row ?? null,
-      grid_col: target?.col ?? null,
-    });
-
-    if (drop.type === 'move') {
-      placeOptimistically((entry) => (entry.id === plant.id ? { ...entry, ...at(cell) } : entry));
-      try {
-        await placePlant(plant.id, cell);
-        await recordMove({ plant, detail: spotLabel(cell), growspaceId });
-      } catch {
-        // The invalidation below puts the optimistic move back.
-      }
-      invalidateFor(queryClient, 'plantMoved');
-    } else {
-      const from = positionOf(plant);
-      placeOptimistically((entry) => {
-        if (entry.id === plant.id) return { ...entry, ...at(cell) };
-        if (entry.id === drop.occupant.id) return { ...entry, ...at(from) };
-        return entry;
-      });
-      try {
-        await swapPlants(plant, drop.occupant);
-        // A swap moves two plants, and both have a day of their own to record.
-        await recordMove({ plant, detail: spotLabel(cell), growspaceId });
-        await recordMove({
-          plant: drop.occupant,
-          detail: `${spotLabel(from)} · swapped with ${plant.name}`,
-          growspaceId,
-        });
-      } catch {
-        // Same — the invalidation below is the source of truth.
-      }
-      invalidateFor(queryClient, 'plantMoved');
-    }
-  };
-
-  const handleUnplace = async (plant) => {
-    placeOptimistically((entry) =>
-      entry.id === plant.id ? { ...entry, grid_id: null, grid_row: null, grid_col: null } : entry
-    );
-    try {
-      await placePlant(plant.id, null);
-      await recordMove({ plant, detail: spotLabel(null), growspaceId });
-    } catch {
-      // The invalidation below puts it back if the write failed.
-    }
-    invalidateFor(queryClient, 'plantMoved');
-  };
 
   const openDialog = () => {
     form.reset({
@@ -264,8 +179,8 @@ export default function GrowspaceTabScreen({ route }) {
               grids={grids}
               plants={plants}
               onPress={openPlantDetail}
-              onMove={handleMove}
-              onUnplace={handleUnplace}
+              onMove={move}
+              onUnplace={unplace}
             />
           )}
         </ScrollView>

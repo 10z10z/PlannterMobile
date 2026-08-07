@@ -188,7 +188,12 @@ class FakeQuery {
   run() {
     const queued = this.store.failures.get(this.table);
     if (queued?.length) {
-      return { data: null, error: queued.shift() };
+      // `skip` lets a failure be aimed at the second or third query against a
+      // table rather than the next one, which is what the hand-rolled
+      // multi-write paths need: a swap is three writes and the interesting
+      // failure is the middle one.
+      if (queued[0].skip > 0) queued[0].skip -= 1;
+      else return { data: null, error: queued.shift().error };
     }
 
     let result;
@@ -342,10 +347,20 @@ export function createFakeSupabase({ session = defaultSession() } = {}) {
     /**
      * Make the next query against a table fail. Queued, so a test can fail the
      * first attempt and let the retry through.
+     *
+     * `after` lets a later query be the one that fails — `{ after: 1 }` waves
+     * the next one through and fails the one behind it. That is how the
+     * multi-write paths are tested: `swapPlants` is three writes with no
+     * transaction under them, and what it leaves behind depends entirely on
+     * which of the three didn't land.
+     *
+     * @param {string} table
+     * @param {any} [error]
+     * @param {{ after?: number }} [options]
      */
-    failNext(table, error = { code: '08006', message: 'connection failure' }) {
+    failNext(table, error = { code: '08006', message: 'connection failure' }, { after = 0 } = {}) {
       if (!failures.has(table)) failures.set(table, []);
-      failures.get(table).push(error);
+      failures.get(table).push({ error, skip: after });
       return this;
     },
 

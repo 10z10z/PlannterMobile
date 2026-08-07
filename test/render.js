@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MD3LightTheme, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -52,6 +52,45 @@ const INSETS = {
 const TEST_THEME = { ...MD3LightTheme, animation: { ...MD3LightTheme.animation, scale: 0 } };
 
 /**
+ * The provider tree itself, so that rendering a component and rendering a hook
+ * are wrapped in exactly the same thing. Keeping one copy is the point: the two
+ * gaps this harness has had — a missing `WeatherProvider`, then a missing
+ * `ThemeProvider` — were both a tree that had drifted from `App.js`, and a
+ * second copy is a second chance to drift.
+ *
+ * @param {{ client: QueryClient, children: import('react').ReactNode }} props
+ */
+function Providers({ client, children }) {
+  return (
+    // Outermost, as in `App.js`. It answers `isDark`, which the tiles on the
+    // plant grid read to pick their watering colours — without it they get
+    // null from the context and throw before anything renders.
+    <ThemeProvider>
+      <SafeAreaProvider initialMetrics={INSETS}>
+        <QueryClientProvider client={client}>
+          <AuthProvider>
+            <UnitsProvider>
+              {/* Reads nothing and fetches nothing until a place is set in
+                  settings, so in a test it is an empty reading — which is what
+                  a growspace card without weather is meant to render from. */}
+              <WeatherProvider>
+                <PaperProvider theme={TEST_THEME}>{children}</PaperProvider>
+              </WeatherProvider>
+            </UnitsProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </ThemeProvider>
+  );
+}
+
+/** @param {QueryClient} client */
+const wrapperFor = (client) =>
+  function Wrapper({ children }) {
+    return <Providers client={client}>{children}</Providers>;
+  };
+
+/**
  * Awaited, like everything else here. React 19 made `act` asynchronous, so
  * Testing Library's `render`, `fireEvent` and `userEvent` all return promises —
  * a test that forgets an `await` gets an empty screen rather than a warning.
@@ -67,31 +106,31 @@ export async function renderWithProviders(
   ui,
   { queryClient = createTestQueryClient(), ...rest } = {}
 ) {
-  function Providers({ children }) {
-    return (
-      // Outermost, as in `App.js`. It answers `isDark`, which the tiles on the
-      // plant grid read to pick their watering colours — without it they get
-      // null from the context and throw before anything renders.
-      <ThemeProvider>
-        <SafeAreaProvider initialMetrics={INSETS}>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <UnitsProvider>
-                {/* Reads nothing and fetches nothing until a place is set in
-                    settings, so in a test it is an empty reading — which is what
-                    a growspace card without weather is meant to render from. */}
-                <WeatherProvider>
-                  <PaperProvider theme={TEST_THEME}>{children}</PaperProvider>
-                </WeatherProvider>
-              </UnitsProvider>
-            </AuthProvider>
-          </QueryClientProvider>
-        </SafeAreaProvider>
-      </ThemeProvider>
-    );
-  }
+  const view = await render(ui, { wrapper: wrapperFor(queryClient), ...rest });
+  await settle();
+  return { queryClient, ...view };
+}
 
-  const view = await render(ui, { wrapper: Providers, ...rest });
+/**
+ * The same tree, for a hook with nothing to look at.
+ *
+ * Most of this app's hooks are only worth testing through a screen — when a
+ * form shows an error is a question about what is on screen, not about what the
+ * hook returns. This is for the ones where the opposite is true: a hook whose
+ * whole output is writes and cache edits has nothing rendered to assert on, and
+ * a component built to display it would be a fixture nobody ships.
+ *
+ * @param {(props?: any) => any} hook
+ * @param {{ queryClient?: QueryClient } & Parameters<typeof renderHook>[1]} [options]
+ */
+export async function renderHookWithProviders(
+  hook,
+  { queryClient = createTestQueryClient(), ...rest } = {}
+) {
+  // Awaited for the same reason `render` is, and it bites harder here: an
+  // un-awaited `renderHook` hands back a promise, so spreading it gives an
+  // object with no `result` on it and every test fails on `result.current`.
+  const view = await renderHook(hook, { wrapper: wrapperFor(queryClient), ...rest });
   await settle();
   return { queryClient, ...view };
 }

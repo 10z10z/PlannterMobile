@@ -92,17 +92,17 @@ module.exports = {
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a
      * query key and a function to call, and the tests that drive the dialogs go
-     * through them on the way. The calculator's three — the mix, the tap and
-     * the meter — are the exception and carry real logic, which is why pulling
-     * them out of the screen moved this floor as far as it did. The gap left is
-     * the ones no test has opened a screen for yet: germination stations, the
-     * plant detail screen.
+     * through them on the way. The exceptions carry real logic and are what
+     * move this floor — the calculator's three (the mix, the tap and the
+     * meter), and now `usePlantMove`, which is the only one driven directly
+     * rather than through a screen. The gap left is the ones no test has opened
+     * a screen for yet: germination stations, the plant detail screen.
      */
     './hooks/': {
-      statements: 77,
-      branches: 55,
-      functions: 65,
-      lines: 79,
+      statements: 81,
+      branches: 62,
+      functions: 69,
+      lines: 82,
     },
   },
 };
