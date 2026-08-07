@@ -1,5 +1,5 @@
 import { Text } from 'react-native-paper';
-import { useQuery } from '@tanstack/react-query';
+import { onlineManager, useQuery } from '@tanstack/react-query';
 import { fireEvent, renderWithProviders, screen, waitFor } from '../../test/render';
 import QueryBoundary from '../QueryBoundary';
 
@@ -74,6 +74,28 @@ describe('QueryBoundary', () => {
     expect(await screen.findByText('No trays yet.')).toBeOnTheScreen();
     expect(screen.getByText('Add one')).toBeOnTheScreen();
     expect(screen.queryByText('Four trays')).not.toBeOnTheScreen();
+  });
+
+  it('says why nothing is loading when there is no connection', async () => {
+    onlineManager.setOnline(false);
+    const queryFn = jest.fn();
+
+    try {
+      await renderWithProviders(<Subject queryFn={queryFn} />);
+
+      // The defect this replaces: `onlineManager` holds the query rather than
+      // failing it, which leaves it pending — so the screen showed the same
+      // spinner a slow reply shows, for ever, with no way to tell them apart.
+      expect(screen.getByText(/No connection/)).toBeOnTheScreen();
+      expect(screen.queryByLabelText('Loading')).not.toBeOnTheScreen();
+      expect(queryFn).not.toHaveBeenCalled();
+
+      // And no button, because pressing it would pause identically. The query
+      // resumes on its own when the connection returns.
+      expect(screen.queryByText('Try again')).not.toBeOnTheScreen();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it('does not call an empty list a failure', async () => {

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { LogBox } from 'react-native';
+import { LogBox, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { UnitsProvider } from './contexts/UnitsContext';
 import { WeatherProvider } from './contexts/WeatherContext';
 import RootNavigator from './navigation/RootNavigator';
 import ErrorBoundary from './components/ErrorBoundary';
+import OfflineBanner from './components/OfflineBanner';
 import { requestNotificationPermissions } from './lib/notifications';
 import { queryClient } from './lib/queryClient';
 
@@ -31,9 +32,15 @@ function ThemedApp() {
               {/* Inside PaperProvider so the fallback is drawn in the user's own
                   scheme; a crash screen in default Material would look like a
                   different app's. */}
-              <ErrorBoundary>
-                <RootNavigator />
-              </ErrorBoundary>
+              {/* The banner is a sibling of the navigator, not a layer over it,
+                  so being offline shortens the app by a strip rather than
+                  covering whatever sits at the bottom of the screen. */}
+              <View style={styles.root}>
+                <ErrorBoundary>
+                  <RootNavigator />
+                </ErrorBoundary>
+                <OfflineBanner />
+              </View>
               <StatusBar style={isDark ? 'light' : 'dark'} />
             </PaperProvider>
           </WeatherProvider>
@@ -54,3 +61,9 @@ export default function App() {
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

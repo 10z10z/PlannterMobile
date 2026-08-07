@@ -91,9 +91,9 @@ module.exports = {
      */
     './components/': {
       statements: 38,
-      branches: 30,
-      functions: 25,
-      lines: 38,
+      branches: 31,
+      functions: 26,
+      lines: 39,
     },
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a
@@ -108,7 +108,7 @@ module.exports = {
     './hooks/': {
       statements: 83,
       branches: 67,
-      functions: 71,
+      functions: 72,
       lines: 84,
     },
   },

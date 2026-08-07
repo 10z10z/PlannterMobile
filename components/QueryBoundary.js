@@ -39,6 +39,34 @@ export default function QueryBoundary({
 }) {
   const theme = useTheme();
 
+  /**
+   * A first load with no connection under it, which would otherwise spin for
+   * ever.
+   *
+   * `onlineManager` holds a query rather than letting it fail against a network
+   * that isn't there, which is the right behaviour and completely invisible: the
+   * query stays `pending`, so the screen shows the same spinner it would show
+   * for a slow reply and never stops. `fetchStatus` is what tells the two apart.
+   *
+   * No retry button. Pressing it would pause exactly the same way, and the query
+   * resumes on its own the moment the connection returns — offering a button
+   * that does nothing is worse than saying plainly that there is nothing to do.
+   */
+  if (query.isPending && query.fetchStatus === 'paused') {
+    return (
+      <View style={styles.centre}>
+        <MaterialCommunityIcons
+          name="cloud-off-outline"
+          size={40}
+          color={theme.colors.onSurfaceVariant}
+        />
+        <Text variant="bodyLarge" style={styles.message}>
+          No connection. This will load as soon as you’re back online.
+        </Text>
+      </View>
+    );
+  }
+
   // The first load is the only one worth a spinner. A refetch behind data that
   // is already on screen stays invisible — replacing a list with a spinner to
   // tell someone it is being confirmed is a downgrade.
