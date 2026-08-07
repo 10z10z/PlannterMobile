@@ -73,18 +73,21 @@ module.exports = {
       lines: 79,
     },
     /**
-     * Low, and honestly so: most of what is counted here is reached on the way
-     * through a dialog rather than driven directly, and `DoseSlider` isn't
-     * reached at all — a `PanResponder` with no accessibility role can't be
-     * operated by a test any more than by TalkBack. The floor is here to stop
-     * the number sliding while the rest are written, not to claim the tier is
-     * covered.
+     * Still the thinnest tier, and honestly so: much of what is counted here is
+     * reached on the way through a dialog rather than driven directly.
+     *
+     * The gestures are the stubborn part. `PlantGrid`'s drag isn't reached and
+     * neither is `DoseSlider`, because a `PanResponder` reading finger
+     * coordinates against a measured layout has neither in a test renderer. The
+     * grid is covered through the button path added alongside it, which reaches
+     * the same handlers — and that the untestable half is exactly the half
+     * TalkBack couldn't reach either is not a coincidence.
      */
     './components/': {
-      statements: 21,
-      branches: 17,
-      functions: 14,
-      lines: 22,
+      statements: 36,
+      branches: 28,
+      functions: 24,
+      lines: 37,
     },
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a

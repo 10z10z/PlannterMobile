@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Animated, Image, PanResponder, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Icon, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { Button, Icon, Text, TouchableRipple, useTheme } from 'react-native-paper';
 import { useThemePreference } from '../contexts/ThemeContext';
 import { useUnits } from '../contexts/UnitsContext';
 import { containerSize } from '../lib/containers';
@@ -103,6 +103,48 @@ function Draggable({ plant, size, left, top, onPress, onPickUp, onDrop, children
   );
 }
 
+/** Where a plant is standing, counted from one the way a person would say it. */
+function spotName(row, col) {
+  return `row ${row + 1}, spot ${col + 1}`;
+}
+
+/** The same for a plant, including the ones still waiting in the tray. */
+function plantWhere(plant) {
+  return isPlaced(plant) ? spotName(plant.grid_row, plant.grid_col) : 'not placed';
+}
+
+/**
+ * A plant as a button, for rearranging without a drag.
+ *
+ * The drag is a `PanResponder` reading finger coordinates, which is no use to
+ * anyone running TalkBack or a switch — the grid's whole point, moving things
+ * about, was reachable only by people who could press and drag accurately. So
+ * rearranging has a second path: pick a plant, then pick where it goes, both as
+ * ordinary buttons that announce themselves.
+ *
+ * The drag stays exactly as it was. This is an alternative, not a replacement:
+ * dragging is quicker for anyone who can do it.
+ */
+function PlantButton({ size, left, top, label, hint, onPress, selected, children }) {
+  const theme = useTheme();
+
+  return (
+    <TouchableRipple
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
+      style={[
+        styles.tile,
+        { width: size, height: size, left, top },
+        selected && [styles.picked, { borderColor: theme.colors.primary }],
+      ]}
+    >
+      {children}
+    </TouchableRipple>
+  );
+}
+
 /**
  * The face of a plant on the grid: its photo where it has one, its name, the
  * phase it's in, and a dot when it wants watering.
@@ -171,6 +213,30 @@ export default function PlantGrid({ grids, plants, onPress, onMove, onUnplace })
   // a time. A view preference rather than saved state — it starts open again on
   // the next visit.
   const [collapsed, setCollapsed] = useState({});
+
+  // The drag-free way round the grid. `rearranging` swaps every tile from a
+  // draggable into a button; `picked` is the plant waiting to be told where to
+  // go. Both are off by default, so nothing changes for anyone dragging.
+  const [rearranging, setRearranging] = useState(false);
+  const [picked, setPicked] = useState(null);
+
+  const stopRearranging = () => {
+    setRearranging(false);
+    setPicked(null);
+  };
+
+  /** Send the picked plant somewhere, and go back to waiting for the next one. */
+  const placePicked = (cell) => {
+    if (!picked) return;
+    onMove(picked, cell);
+    setPicked(null);
+  };
+
+  const unplacePicked = () => {
+    if (!picked || !isPlaced(picked)) return;
+    onUnplace(picked);
+    setPicked(null);
+  };
 
   // Page coordinates of every drop target, measured on layout — the drag reports
   // where the finger is on the screen, not where it is in a view. Grids are
@@ -275,10 +341,32 @@ export default function PlantGrid({ grids, plants, onPress, onMove, onUnplace })
 
   return (
     <View style={styles.container}>
+      {/* The way round the grid that doesn't need a drag. Visible to everyone
+          rather than hidden behind an accessibility action, because a mode that
+          only a screen reader can find is one nobody maintains. */}
+      <View style={styles.rearrangeBar}>
+        <Text variant="bodySmall" style={styles.rearrangeHint}>
+          {rearranging
+            ? picked
+              ? `${picked.name} picked up — choose where it goes`
+              : 'Choose a plant to move'
+            : ''}
+        </Text>
+        <Button
+          compact
+          mode={rearranging ? 'contained-tonal' : 'text'}
+          icon={rearranging ? 'check' : 'cursor-move'}
+          onPress={() => (rearranging ? stopRearranging() : setRearranging(true))}
+        >
+          {rearranging ? 'Done' : 'Rearrange'}
+        </Button>
+      </View>
+
       {(grids ?? []).map((grid) => {
         const { cellSize, stride } = layout(grid);
         const standing = plantsInGrid(plants, grid.id);
         const isCollapsed = !!collapsed[grid.id];
+        const occupied = new Set(standing.map((p) => `${p.grid_row}:${p.grid_col}`));
 
         return (
           <View key={grid.id} style={styles.gridBlock}>
@@ -320,37 +408,84 @@ export default function PlantGrid({ grids, plants, onPress, onMove, onUnplace })
                 }}
               >
                 {Array.from({ length: grid.grid_rows }).map((_, row) =>
-                  Array.from({ length: grid.grid_cols }).map((__, col) => (
-                    <View
-                      key={`${row}:${col}`}
-                      style={[
-                        styles.slot,
-                        {
-                          width: cellSize,
-                          height: cellSize,
-                          left: col * stride,
-                          top: row * stride,
-                          borderColor: theme.colors.outlineVariant,
-                        },
-                      ]}
-                    />
-                  ))
+                  Array.from({ length: grid.grid_cols }).map((__, col) => {
+                    const slotStyle = [
+                      styles.slot,
+                      {
+                        width: cellSize,
+                        height: cellSize,
+                        left: col * stride,
+                        top: row * stride,
+                        borderColor: theme.colors.outlineVariant,
+                      },
+                    ];
+
+                    // An empty square only becomes a button once a plant is
+                    // waiting to go somewhere — otherwise the grid would
+                    // announce a screenful of spots with nothing to do.
+                    const free = !occupied.has(`${row}:${col}`);
+                    if (!picked || !free) return <View key={`${row}:${col}`} style={slotStyle} />;
+
+                    return (
+                      <TouchableRipple
+                        key={`${row}:${col}`}
+                        onPress={() => placePicked({ gridId: grid.id, row, col })}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Move ${picked.name} to ${spotName(row, col)} of ${grid.name}`}
+                        style={slotStyle}
+                      >
+                        <View />
+                      </TouchableRipple>
+                    );
+                  })
                 )}
 
-                {standing.map((plant) => (
-                  <Draggable
-                    key={plant.id}
-                    plant={plant}
-                    size={cellSize}
-                    left={plant.grid_col * stride}
-                    top={plant.grid_row * stride}
-                    onPress={onPress}
-                    onPickUp={handlePickUp}
-                    onDrop={handleDrop}
-                  >
-                    <PlantFace plant={plant} size={cellSize} />
-                  </Draggable>
-                ))}
+                {standing.map((plant) => {
+                  if (!rearranging) {
+                    return (
+                      <Draggable
+                        key={plant.id}
+                        plant={plant}
+                        size={cellSize}
+                        left={plant.grid_col * stride}
+                        top={plant.grid_row * stride}
+                        onPress={onPress}
+                        onPickUp={handlePickUp}
+                        onDrop={handleDrop}
+                      >
+                        <PlantFace plant={plant} size={cellSize} />
+                      </Draggable>
+                    );
+                  }
+
+                  const isPicked = picked?.id === plant.id;
+                  const cell = { gridId: grid.id, row: plant.grid_row, col: plant.grid_col };
+
+                  return (
+                    <PlantButton
+                      key={plant.id}
+                      size={cellSize}
+                      left={plant.grid_col * stride}
+                      top={plant.grid_row * stride}
+                      selected={isPicked}
+                      label={
+                        isPicked
+                          ? `${plant.name}, picked up`
+                          : picked
+                            ? `Swap ${picked.name} with ${plant.name}`
+                            : `${plant.name}, ${plantWhere(plant)}`
+                      }
+                      hint={picked ? undefined : 'Double tap to pick this plant up'}
+                      onPress={() => {
+                        if (isPicked) setPicked(null);
+                        else if (picked) placePicked(cell);
+                        else setPicked(plant);
+                      }}
+                    >
+                      <PlantFace plant={plant} size={cellSize} />
+                    </PlantButton>
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -363,36 +498,68 @@ export default function PlantGrid({ grids, plants, onPress, onMove, onUnplace })
         </Text>
       )}
 
-      <Text variant="labelLarge" style={styles.trayLabel}>
-        {waiting.length ? `Not placed (${waiting.length})` : 'Not placed'}
-      </Text>
+      <View style={styles.trayHeader}>
+        <Text variant="labelLarge" style={styles.trayLabel}>
+          {waiting.length ? `Not placed (${waiting.length})` : 'Not placed'}
+        </Text>
+        {rearranging && picked && isPlaced(picked) && (
+          <Button compact mode="text" onPress={unplacePicked}>
+            {`Take ${picked.name} off its grid`}
+          </Button>
+        )}
+      </View>
       <View
         ref={trayRef}
         onLayout={measureAll}
         style={[styles.tray, { borderColor: theme.colors.outlineVariant, height: trayHeight }]}
       >
-        {waiting.length === 0 ? (
+        {waiting.length === 0 && (
           <Text variant="bodySmall" style={styles.trayHint}>
             {dragging
               ? 'Drop here to take a plant off its grid'
-              : 'Every plant has a spot. Hold one to move it.'}
+              : 'Every plant has a spot. Hold one to move it, or use Rearrange.'}
           </Text>
-        ) : (
-          waiting.map((plant, index) => (
-            <Draggable
+        )}
+
+        {waiting.map((plant, index) => {
+          const left = (index % trayCols) * trayStride;
+          const top = Math.floor(index / trayCols) * trayStride;
+
+          if (!rearranging) {
+            return (
+              <Draggable
+                key={plant.id}
+                plant={plant}
+                size={trayCell}
+                left={left}
+                top={top}
+                onPress={onPress}
+                onPickUp={handlePickUp}
+                onDrop={handleDrop}
+              >
+                <PlantFace plant={plant} size={trayCell} />
+              </Draggable>
+            );
+          }
+
+          const isPicked = picked?.id === plant.id;
+          return (
+            <PlantButton
               key={plant.id}
-              plant={plant}
               size={trayCell}
-              left={(index % trayCols) * trayStride}
-              top={Math.floor(index / trayCols) * trayStride}
-              onPress={onPress}
-              onPickUp={handlePickUp}
-              onDrop={handleDrop}
+              left={left}
+              top={top}
+              selected={isPicked}
+              label={isPicked ? `${plant.name}, picked up` : `${plant.name}, ${plantWhere(plant)}`}
+              hint={picked ? undefined : 'Double tap to pick this plant up'}
+              // A plant already in the tray has nowhere to be put down here, so
+              // tapping another one just moves the selection to it.
+              onPress={() => setPicked(isPicked ? null : plant)}
             >
               <PlantFace plant={plant} size={trayCell} />
-            </Draggable>
-          ))
-        )}
+            </PlantButton>
+          );
+        })}
       </View>
     </View>
   );
@@ -427,6 +594,29 @@ const styles = StyleSheet.create({
   folded: {
     height: 0,
     overflow: 'hidden',
+  },
+  rearrangeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
+  },
+  rearrangeHint: {
+    flex: 1,
+    opacity: 0.7,
+  },
+  trayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  // The plant waiting to be told where to go, outlined so the choice is visible
+  // rather than only announced.
+  picked: {
+    borderWidth: 2,
+    borderRadius: 10,
   },
   slot: {
     position: 'absolute',

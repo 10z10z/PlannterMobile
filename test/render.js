@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MD3LightTheme, PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../contexts/AuthContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import { UnitsProvider } from '../contexts/UnitsContext';
 import { WeatherProvider } from '../contexts/WeatherContext';
 
@@ -68,20 +69,25 @@ export async function renderWithProviders(
 ) {
   function Providers({ children }) {
     return (
-      <SafeAreaProvider initialMetrics={INSETS}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <UnitsProvider>
-              {/* Reads nothing and fetches nothing until a place is set in
-                  settings, so in a test it is an empty reading — which is what
-                  a growspace card without weather is meant to render from. */}
-              <WeatherProvider>
-                <PaperProvider theme={TEST_THEME}>{children}</PaperProvider>
-              </WeatherProvider>
-            </UnitsProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
+      // Outermost, as in `App.js`. It answers `isDark`, which the tiles on the
+      // plant grid read to pick their watering colours — without it they get
+      // null from the context and throw before anything renders.
+      <ThemeProvider>
+        <SafeAreaProvider initialMetrics={INSETS}>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <UnitsProvider>
+                {/* Reads nothing and fetches nothing until a place is set in
+                    settings, so in a test it is an empty reading — which is what
+                    a growspace card without weather is meant to render from. */}
+                <WeatherProvider>
+                  <PaperProvider theme={TEST_THEME}>{children}</PaperProvider>
+                </WeatherProvider>
+              </UnitsProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     );
   }
 
