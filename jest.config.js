@@ -67,22 +67,24 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 73,
-      branches: 70,
-      functions: 78,
-      lines: 76,
+      statements: 75,
+      branches: 71,
+      functions: 79,
+      lines: 77,
     },
     /**
-     * Low, and honestly so: eleven components of thirty are reached by a test,
-     * and most of those are reached on the way through a dialog rather than
-     * driven directly. The floor is here to stop the number sliding while the
-     * rest are written, not to claim the tier is covered.
+     * Low, and honestly so: most of what is counted here is reached on the way
+     * through a dialog rather than driven directly, and `DoseSlider` isn't
+     * reached at all — a `PanResponder` with no accessibility role can't be
+     * operated by a test any more than by TalkBack. The floor is here to stop
+     * the number sliding while the rest are written, not to claim the tier is
+     * covered.
      */
     './components/': {
-      statements: 18,
-      branches: 14,
-      functions: 12,
-      lines: 18,
+      statements: 21,
+      branches: 17,
+      functions: 14,
+      lines: 22,
     },
     /**
      * Higher than it looks, because the hooks are thin: most of a hook is a

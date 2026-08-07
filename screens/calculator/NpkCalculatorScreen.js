@@ -541,7 +541,11 @@ export default function NpkCalculatorScreen() {
         <Appbar.Content
           title={<ScreenTitle icon="calculator-variant-outline" label="NPK Calculator" />}
         />
-        <Appbar.Action icon="cog-outline" onPress={() => setSettingsOpen(true)} />
+        <Appbar.Action
+          icon="cog-outline"
+          accessibilityLabel="Calculator settings"
+          onPress={() => setSettingsOpen(true)}
+        />
       </Appbar.Header>
 
       <QueryBoundary
