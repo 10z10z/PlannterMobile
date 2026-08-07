@@ -36,7 +36,14 @@ export default function FertilizerCard({ fertilizer, onPress, onDelete }) {
             <Avatar.Icon {...props} icon="bottle-tonic-outline" />
           )
         }
-        right={(props) => <IconButton {...props} icon="delete-outline" onPress={onDelete} />}
+        right={(props) => (
+          <IconButton
+            {...props}
+            icon="delete-outline"
+            accessibilityLabel={`Delete ${fertilizer.name}`}
+            onPress={onDelete}
+          />
+        )}
       />
       <Card.Content>
         <View style={styles.chips}>

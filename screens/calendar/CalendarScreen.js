@@ -171,7 +171,15 @@ export default function CalendarScreen({ navigation, route }) {
         <Menu
           visible={menuOpen}
           onDismiss={() => setMenuOpen(false)}
-          anchor={<Appbar.Action icon="plus" onPress={() => setMenuOpen(true)} />}
+          anchor={
+            // It opens a menu rather than doing one thing, so it says so — "Add"
+            // on its own promises an action that isn't coming.
+            <Appbar.Action
+              icon="plus"
+              accessibilityLabel="Add to the calendar"
+              onPress={() => setMenuOpen(true)}
+            />
+          }
         >
           <Menu.Item
             title="Schedule an action"

@@ -52,7 +52,13 @@ export default function GridListField({ value, onChange, plants = [] }) {
                 style={styles.name}
                 dense
               />
-              <IconButton icon="close" onPress={() => remove(index)} />
+              <IconButton
+                icon="close"
+                // The typed name where there is one, and the position where
+                // there isn't — a row just added is still nameless.
+                accessibilityLabel={`Remove ${grid.name?.trim() || `grid ${index + 1}`}`}
+                onPress={() => remove(index)}
+              />
             </View>
             <View style={styles.row}>
               <TextField

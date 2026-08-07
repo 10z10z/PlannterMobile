@@ -36,7 +36,15 @@ export default function DateField({ label, value, onChange, maximumDate }) {
         >
           {display ?? 'Not set'}
         </Button>
-        {!!value && <IconButton icon="close" onPress={() => onChange(null)} />}
+        {!!value && (
+          // Named after the field it empties: several dates can sit on one
+          // dialog, and three buttons all called "Clear" name nothing.
+          <IconButton
+            icon="close"
+            accessibilityLabel={`Clear ${label}`}
+            onPress={() => onChange(null)}
+          />
+        )}
       </View>
 
       {pickerVisible && (

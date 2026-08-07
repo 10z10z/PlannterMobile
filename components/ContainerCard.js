@@ -26,7 +26,16 @@ export default function ContainerCard({ container, inUse, onPress, onDelete }) {
             <Avatar.Icon {...props} icon="cup-outline" />
           )
         }
-        right={(props) => <IconButton {...props} icon="delete-outline" onPress={onDelete} />}
+        right={(props) => (
+          <IconButton
+            {...props}
+            icon="delete-outline"
+            // Containers have no name of their own, so the label is built from
+            // the same two figures the title is: "Delete 0.5 L plastic".
+            accessibilityLabel={`Delete ${volume} ${materialLabel(container.material)}`}
+            onPress={onDelete}
+          />
+        )}
       />
       <Card.Content>
         <ProgressBar progress={container.quantity ? inUse / container.quantity : 0} />

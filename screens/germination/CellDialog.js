@@ -57,7 +57,12 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
           ) : (
             <>
               <View style={styles.row}>
-                <IconButton icon="minus" mode="outlined" onPress={() => step(-1)} />
+                <IconButton
+                  icon="minus"
+                  mode="outlined"
+                  accessibilityLabel="One fewer germinated"
+                  onPress={() => step(-1)}
+                />
                 <FormField
                   label="Germinated"
                   keyboardType="number-pad"
@@ -67,7 +72,12 @@ export default function CellDialog({ visible, sowing, cell, onDismiss, onSaved, 
                   }`}
                   {...form.field('germinated')}
                 />
-                <IconButton icon="plus" mode="outlined" onPress={() => step(1)} />
+                <IconButton
+                  icon="plus"
+                  mode="outlined"
+                  accessibilityLabel="One more germinated"
+                  onPress={() => step(1)}
+                />
               </View>
               <ErrorText>{save.isError ? messageFor(save.error) : ''}</ErrorText>
             </>

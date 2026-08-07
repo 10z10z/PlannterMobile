@@ -118,6 +118,9 @@ export default function SowingCard({
             <IconButton
               {...props}
               icon={folded ? 'chevron-right' : 'chevron-down'}
+              // Says what pressing it does, and to which sowing — a station
+              // holding six trays shows six of these.
+              accessibilityLabel={`${folded ? 'Show' : 'Hide'} ${sowing.seed_pack_name}`}
               onPress={() => {
                 // Folding a card away while cells are picked would hide a
                 // selection that the actions still act on.
@@ -129,7 +132,12 @@ export default function SowingCard({
               visible={menuVisible}
               onDismiss={() => setMenuVisible(false)}
               anchor={
-                <IconButton {...props} icon="dots-vertical" onPress={() => setMenuVisible(true)} />
+                <IconButton
+                  {...props}
+                  icon="dots-vertical"
+                  accessibilityLabel={`More for ${sowing.seed_pack_name}`}
+                  onPress={() => setMenuVisible(true)}
+                />
               }
             >
               <Menu.Item

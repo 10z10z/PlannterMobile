@@ -24,7 +24,14 @@ export default function SeedPackCard({ seedPack, onPress, onDelete }) {
             <Avatar.Icon {...props} icon="seed-outline" />
           )
         }
-        right={(props) => <IconButton {...props} icon="delete-outline" onPress={onDelete} />}
+        right={(props) => (
+          <IconButton
+            {...props}
+            icon="delete-outline"
+            accessibilityLabel={`Delete ${seedPack.name}`}
+            onPress={onDelete}
+          />
+        )}
       />
       <Card.Content>
         {!!germination && <Text variant="bodySmall">{germination}</Text>}

@@ -37,9 +37,10 @@ export default function GrowspacesOverviewScreen({ navigation, route }) {
         <Appbar.Content title={<ScreenTitle icon="flower-outline" label="My Growspace" />} />
         <Appbar.Action
           icon="calendar-month-outline"
+          accessibilityLabel="Calendar"
           onPress={() => navigation.navigate('Calendar')}
         />
-        <Appbar.Action icon="plus" onPress={openDialog} />
+        <Appbar.Action icon="plus" accessibilityLabel="New growspace" onPress={openDialog} />
       </Appbar.Header>
 
       <QueryBoundary

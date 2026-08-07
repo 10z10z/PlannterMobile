@@ -158,6 +158,7 @@ export default function StationTabScreen({ route }) {
 
       <FAB
         icon="plus"
+        accessibilityLabel="Sow something here"
         style={styles.fab}
         onPress={() => {
           setTemplate(null);

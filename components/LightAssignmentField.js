@@ -82,17 +82,26 @@ export default function LightAssignmentField({ value, onChange, baseline = [] })
                   {light ? [lightTypeLabel(light.type), ...specs, `${free} free`].join(' · ') : ''}
                 </Text>
               </View>
+              {/* All three name the fixture. A space can hang four different
+                  lights, and a row of unnamed plus and minus buttons is the
+                  same announcement four times over. */}
               <IconButton
                 icon="minus"
+                accessibilityLabel={`One fewer ${light?.name ?? 'light'}`}
                 disabled={entry.quantity <= 1}
                 onPress={() => setQuantity(entry.grow_light_id, entry.quantity - 1)}
               />
               <Text variant="titleMedium">{entry.quantity}</Text>
               <IconButton
                 icon="plus"
+                accessibilityLabel={`One more ${light?.name ?? 'light'}`}
                 onPress={() => setQuantity(entry.grow_light_id, entry.quantity + 1)}
               />
-              <IconButton icon="close" onPress={() => remove(entry.grow_light_id)} />
+              <IconButton
+                icon="close"
+                accessibilityLabel={`Remove ${light?.name ?? 'light'}`}
+                onPress={() => remove(entry.grow_light_id)}
+              />
             </View>
             <TextField
               label="Hours on per day"

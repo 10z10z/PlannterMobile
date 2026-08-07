@@ -22,9 +22,14 @@ export default function GerminationStationsScreen({ navigation }) {
         <Appbar.Content title={<ScreenTitle icon="sprout-outline" label="Sowing" />} />
         <Appbar.Action
           icon="calendar-month-outline"
+          accessibilityLabel="Calendar"
           onPress={() => navigation.navigate('Calendar')}
         />
-        <Appbar.Action icon="plus" onPress={() => setDialogVisible(true)} />
+        <Appbar.Action
+          icon="plus"
+          accessibilityLabel="New germination station"
+          onPress={() => setDialogVisible(true)}
+        />
       </Appbar.Header>
 
       <QueryBoundary

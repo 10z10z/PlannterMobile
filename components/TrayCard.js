@@ -21,7 +21,14 @@ export default function TrayCard({ tray, inUse, onPress, onDelete }) {
             <Avatar.Icon {...props} icon="grid" />
           )
         }
-        right={(props) => <IconButton {...props} icon="delete-outline" onPress={onDelete} />}
+        right={(props) => (
+          <IconButton
+            {...props}
+            icon="delete-outline"
+            accessibilityLabel={`Delete ${tray.name}`}
+            onPress={onDelete}
+          />
+        )}
       />
       <Card.Content>
         <ProgressBar progress={tray.quantity ? inUse / tray.quantity : 0} />

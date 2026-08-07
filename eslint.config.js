@@ -30,6 +30,40 @@ module.exports = [
       'no-var': 'error',
       'prefer-const': 'error',
       'object-shorthand': 'error',
+
+      /**
+       * A control drawn as an icon has to say what it is.
+       *
+       * This was a sweep once — 27 of them across the app, every FAB and nearly
+       * every `Appbar.Action`, announced by TalkBack as an unnamed button. A
+       * sweep fixes the ones that exist and does nothing about the next one, and
+       * the next one is written by someone who has no reason to think about it,
+       * so the rule matters more than the sweep did.
+       *
+       * `FAB` is allowed a visible `label` instead: a button with words on it is
+       * already named, and repeating them in `accessibilityLabel` only risks the
+       * two drifting apart.
+       */
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'JSXOpeningElement[name.name="IconButton"]:not(:has(JSXAttribute[name.name="accessibilityLabel"]))',
+          message:
+            'An IconButton needs an accessibilityLabel — it has no text, so nothing else names it.',
+        },
+        {
+          selector:
+            'JSXOpeningElement[name.object.name="Appbar"][name.property.name="Action"]:not(:has(JSXAttribute[name.name="accessibilityLabel"]))',
+          message:
+            'An Appbar.Action needs an accessibilityLabel — it has no text, so nothing else names it.',
+        },
+        {
+          selector:
+            'JSXOpeningElement[name.name="FAB"]:not(:has(JSXAttribute[name.name=/^(accessibilityLabel|label)$/]))',
+          message: 'A FAB needs an accessibilityLabel, or a visible label to be named by.',
+        },
+      ],
     },
   },
   {

@@ -40,9 +40,19 @@ export default function MonthCalendar({
   return (
     <View>
       <View style={styles.header}>
-        <IconButton icon="chevron-left" onPress={() => onChangeMonth(shiftMonth(month, -1))} />
+        {/* Named after the month they land on rather than "previous" and
+            "next", so the announcement says where the press goes. */}
+        <IconButton
+          icon="chevron-left"
+          accessibilityLabel={monthLabel(shiftMonth(month, -1))}
+          onPress={() => onChangeMonth(shiftMonth(month, -1))}
+        />
         <Text variant="titleMedium">{monthLabel(month)}</Text>
-        <IconButton icon="chevron-right" onPress={() => onChangeMonth(shiftMonth(month, 1))} />
+        <IconButton
+          icon="chevron-right"
+          accessibilityLabel={monthLabel(shiftMonth(month, 1))}
+          onPress={() => onChangeMonth(shiftMonth(month, 1))}
+        />
       </View>
 
       <View style={styles.week}>

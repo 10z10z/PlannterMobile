@@ -33,7 +33,14 @@ export default function MediumCard({ medium, onPress, onDelete }) {
             <Avatar.Icon {...props} icon="grain" />
           )
         }
-        right={(props) => <IconButton {...props} icon="delete-outline" onPress={onDelete} />}
+        right={(props) => (
+          <IconButton
+            {...props}
+            icon="delete-outline"
+            accessibilityLabel={`Delete ${medium.name}`}
+            onPress={onDelete}
+          />
+        )}
       />
       <Card.Content>
         {medium.low_stock && (

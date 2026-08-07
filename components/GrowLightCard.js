@@ -56,7 +56,14 @@ export default function GrowLightCard({ light, inUse, onPress, onDelete }) {
             <Avatar.Icon {...props} icon="lightbulb-on-outline" />
           )
         }
-        right={(props) => <IconButton {...props} icon="delete-outline" onPress={onDelete} />}
+        right={(props) => (
+          <IconButton
+            {...props}
+            icon="delete-outline"
+            accessibilityLabel={`Delete ${light.name}`}
+            onPress={onDelete}
+          />
+        )}
       />
       <Card.Content>
         <ProgressBar progress={light.quantity ? inUse / light.quantity : 0} />

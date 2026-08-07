@@ -61,7 +61,12 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
           ) : (
             <>
               <View style={styles.row}>
-                <IconButton icon="minus" mode="outlined" onPress={() => step(-1)} />
+                <IconButton
+                  icon="minus"
+                  mode="outlined"
+                  accessibilityLabel="One fewer germinated per cell"
+                  onPress={() => step(-1)}
+                />
                 <FormField
                   label="Germinated per cell"
                   keyboardType="number-pad"
@@ -71,7 +76,12 @@ export default function BatchGerminationDialog({ visible, sowing, onDismiss, onS
                   }. A cell holding fewer seeds than this is filled, not overfilled.`}
                   {...form.field('germinated')}
                 />
-                <IconButton icon="plus" mode="outlined" onPress={() => step(1)} />
+                <IconButton
+                  icon="plus"
+                  mode="outlined"
+                  accessibilityLabel="One more germinated per cell"
+                  onPress={() => step(1)}
+                />
               </View>
               <View style={styles.shortcuts}>
                 <Button onPress={() => apply(maxPerCell)} disabled={save.isPending}>

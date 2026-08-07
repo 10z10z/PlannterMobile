@@ -207,7 +207,7 @@ export default function GrowspaceTabScreen({ route }) {
         />
       )}
 
-      <FAB icon="plus" style={styles.fab} onPress={openDialog} />
+      <FAB icon="plus" accessibilityLabel="Add a plant" style={styles.fab} onPress={openDialog} />
 
       <GrowspaceFormDialog
         visible={editVisible}
