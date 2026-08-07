@@ -54,7 +54,9 @@ module.exports = {
     // Generated MD3 palette data — 3,000 lines of numbers with nothing to test.
     '!lib/themes.js',
     'components/**/*.js',
+    '!components/__tests__/**',
     'hooks/**/*.js',
+    '!hooks/__tests__/**',
   ],
   coverageReporters: ['text-summary', 'lcov'],
   /**
@@ -69,6 +71,29 @@ module.exports = {
       branches: 60,
       functions: 65,
       lines: 57,
+    },
+    /**
+     * Low, and honestly so: eight components of thirty have a test. The floor is
+     * here to stop the number sliding while the rest are written, not to claim
+     * the tier is covered.
+     */
+    './components/': {
+      statements: 12,
+      branches: 9,
+      functions: 8,
+      lines: 12,
+    },
+    /**
+     * Higher than it looks, because the hooks are thin: most of a hook is a
+     * query key and a function to call, and the tests that drive the dialogs go
+     * through them on the way. The gap is in the ones no test has opened a
+     * screen for yet — germination stations, the dashboard.
+     */
+    './hooks/': {
+      statements: 55,
+      branches: 50,
+      functions: 30,
+      lines: 55,
     },
   },
 };
