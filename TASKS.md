@@ -6,11 +6,12 @@ what makes it feel finished, tier 4 is what ships and presents it.
 
 Done items have been removed. What's below is open.
 
-**Where it stands (updated 2026-08-07, after phase 2):** 527 tests across 21
-suites, all passing, all covering `lib/` pure logic — the coverage floor CI
-enforces is now 57% of `lib/` (65% of its functions). ESLint, Prettier,
-`tsc --noEmit` over JSDoc and a GitHub Actions run of all four are in place and
-green. Still no component tests.
+**Where it stands (updated 2026-08-07, phase 3 under way):** 575 tests across 30
+suites, all passing. `jest` now runs two projects: `lib` (node preset, the 527
+pure-logic tests) and `app` (jest-expo/android), which renders. The coverage
+floor CI enforces is 57% of `lib/` (65% of its functions); `components/` and
+`hooks/` are collected but have no floor yet. ESLint, Prettier, `tsc --noEmit`
+over JSDoc and a GitHub Actions run of all four are in place and green.
 
 The data layer is done: no screen imports `supabase`, no screen refetches on
 focus. Reads go through `hooks/`, writes through mutations that invalidate by
@@ -30,6 +31,29 @@ set settles: more features are coming, and screenshots, store copy and an
 architecture doc written now would only be rewritten. The point of phases 1–4 is
 that whatever gets built next lands on a foundation that already handles its
 errors, validates its inputs and is testable.
+
+### Pick up here
+
+Phase 3 is half done and **uncommitted** — the working tree holds the whole test
+harness plus 48 new tests. `npm run verify` is green.
+
+The next three flows are the ones _Component and integration tests_ names and
+this session ran out before reaching: **logging a feeding**
+(`screens/calendar/FeedingDialog.js`), **transplanting a cell**
+(`screens/germination/TransplantDialog.js`) and **ticking a scheduled action off
+the dashboard**. All three are the same shape as
+`screens/germination/__tests__/SowingFormDialog.test.js`, which is the one to
+copy: seed the fake, drive the dialog, assert on the rows that ended up in the
+tables. After those, set coverage floors for `components/` and `hooks/` —
+they're collected in `jest.config.js` but only `./lib/` has a threshold.
+
+Still open from phase 2, both written up in _Validation & input safety_ below:
+
+1. **Run `supabase/migrations/0013_value_limits.sql`** in the SQL editor. It has
+   never been executed — it is one transaction, so a row outside a limit rolls
+   the whole thing back and names the constraint that objected.
+2. **The NPK calculator's own fields** are still unvalidated by design; the mix
+   it hands to `FeedingDialog` is what gets checked.
 
 ---
 
@@ -193,11 +217,16 @@ and green; the rest of the tier is still open.
       functions.
 - [ ] **Coverage badge.** Needs a Codecov or Coveralls upload step; the run
       already produces `lcov`.
-- [ ] **Component and integration tests.** All 368 tests are pure functions;
-      not one renders a component. Add `@testing-library/react-native` and
-      cover the paths that matter: login, create a growspace, sow a tray,
-      transplant a cell, log a feeding, tick off a scheduled action. Mock
-      Supabase at the client boundary with MSW or a hand-rolled fake.
+- [ ] **Component and integration tests.** Started, not finished.
+      `@testing-library/react-native` is in, `jest.config.js` runs a second
+      project under the RN preset, and `test/` holds the harness: a hand-rolled
+      Supabase fake at the client boundary (`test/fakeSupabase.js`, installed
+      through `lib/__mocks__/supabase.js`), and `test/render.js` with the
+      providers `App.js` uses. Covered so far: `FormField`, `TextField`,
+      `useForm`, `QueryBoundary`, `ErrorBoundary`, and end to end —
+      `TrayFormDialog`, login, signup and sowing a tray. **Left: log a feeding,
+      transplant a cell, tick off a scheduled action, create a growspace.**
+      Then a floor for `components/` and `hooks/`.
 - [ ] **A pre-commit hook** (husky + lint-staged) so the above can't rot.
 - [ ] **Dependabot or Renovate** — a config file is five lines and shows you
       think about supply chain.
@@ -337,6 +366,37 @@ and green; the rest of the tier is still open.
       the three critical flows, running in CI on an emulator.
 
 ---
+
+## What phase 3 has turned up so far
+
+Three defects, all found by the first tests that rendered anything:
+
+- **The two auth screens showed the database's own words.** `LoginScreen` and
+  `SignupScreen` put `failure.message` straight on screen — so a rejected login
+  read "Invalid login credentials" and a duplicate signup "User already
+  registered", on the two screens where a bad message costs the most. Both go
+  through `messageFor` now, which had the sentences all along.
+- **Text inputs had no accessibility label.** Paper draws a field's label as a
+  separate animated `Text` rather than naming the input, so TalkBack announced an
+  unnamed text field and whatever was typed in it. `TextField` now passes the
+  label through as `accessibilityLabel`, which is also how the tests find fields.
+- **Two components declared required props they treat as optional** — `tray` on
+  `TrayFormDialog` and `onChangeText` on `TextField`. Caught by `tsc` once a test
+  rendered them the way the app does.
+
+Two things about the harness worth knowing before adding to it:
+
+- **Paper's animations outlive a test.** A `Menu` that mounts closed starts a
+  hide animation whose callback un-renders it; in a test that callback lands
+  after the press that opened it, and if the test ends first it lands in the
+  _next_ test and closes that one's menu instead. `test/render.js` answers with
+  an animation scale of zero and a one-frame `settle()` after render, and
+  `pressWhenReady` steps the renderer while waiting. Without them the suite fails
+  in alternating tests, which reads like a race in the app and isn't.
+- **The fake doesn't resolve embeds.** `select('*, light:grow_lights(*)')`
+  returns the seeded row as it stands, so a fixture is written with the embed
+  already on it. Teaching it to join would mean teaching it twenty foreign keys,
+  and the tests would then be testing the fake.
 
 ## What phase 0 turned up
 
