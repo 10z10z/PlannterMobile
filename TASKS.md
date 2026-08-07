@@ -60,11 +60,10 @@ Still open from phase 2, both written up in _Validation & input safety_ below:
 
 ## Carried over
 
-- [ ] **Move "Save as a feeding" to the top of the NPK calculator.** It sits
-      below the micronutrient card at the end of a long scroll
-      (`screens/calculator/NpkCalculatorScreen.js:428`) — the one action the
-      screen exists to produce is the hardest thing on it to reach. Header
-      action or FAB.
+- [x] **Move "Save as a feeding" to the top of the NPK calculator.** Done as a
+      FAB: it floats over the scroll instead of sitting under the micronutrient
+      card at the end of it, stays disabled until the mix has products in it,
+      and doesn't render at all over the empty state.
 - [ ] **Free-text note on the dashboard.** Just jot something down — "the
       chillies look leggy" — dated, editable, deletable. Needs a `notes` table + migration, a card on the dashboard, and a spot in the calendar day view.
 - [x] **Input safety** — done; see _Validation & input safety_ below.
@@ -228,7 +227,10 @@ and green; the rest of the tier is still open.
       `TrayFormDialog`, login, signup, sowing a tray and transplanting out of one.
       **Left: log a feeding, tick off a scheduled action, create a growspace.**
       Floors for both are in place and go up as tests land.
-- [ ] **A pre-commit hook** (husky + lint-staged) so the above can't rot.
+- [x] **A pre-commit hook.** husky + lint-staged: `eslint --fix` and
+      `prettier --write` over staged files only. Typecheck and tests stay out of
+      it — both read the whole project, and a slow hook is one people start
+      skipping with `--no-verify`. CI still runs all four.
 - [ ] **Dependabot or Renovate** — a config file is five lines and shows you
       think about supply chain.
 - [x] **A data layer boundary**, done in phase 1: no screen imports `supabase`.
