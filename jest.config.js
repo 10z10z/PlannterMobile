@@ -90,10 +90,10 @@ module.exports = {
      * screen for yet — germination stations, the dashboard.
      */
     './hooks/': {
-      statements: 55,
+      statements: 58,
       branches: 50,
-      functions: 30,
-      lines: 55,
+      functions: 34,
+      lines: 57,
     },
   },
 };

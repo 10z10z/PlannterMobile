@@ -6,10 +6,10 @@ what makes it feel finished, tier 4 is what ships and presents it.
 
 Done items have been removed. What's below is open.
 
-**Where it stands (updated 2026-08-07, phase 3 under way):** 575 tests across 30
+**Where it stands (updated 2026-08-07, phase 3 under way):** 582 tests across 31
 suites, all passing. `jest` now runs two projects: `lib` (node preset, the 527
 pure-logic tests) and `app` (jest-expo/android), which renders. The coverage
-floors CI enforces are per directory now — 57% of `lib/`, 55% of `hooks/` and an
+floors CI enforces are per directory now — 57% of `lib/`, 58% of `hooks/` and an
 honest 12% of `components/`, where eight files of thirty have a test. ESLint,
 Prettier, `tsc --noEmit` over JSDoc and a GitHub Actions run of all four are in
 place and green.
@@ -35,15 +35,14 @@ errors, validates its inputs and is testable.
 
 ### Pick up here
 
-Phase 3 is half done and committed on `master` (`33be0f5` … `eaaf79b`, six
-commits): the harness, 48 tests, the three defects they found, and the coverage
-floors. Nothing pushed. `npm run verify` is green.
+Phase 3 is half done and committed on `master`, starting at `33be0f5`: the
+harness, 55 tests, the three defects they found, and the coverage floors.
+`npm run verify` is green.
 
-The next three flows are the ones _Component and integration tests_ names and
-this session ran out before reaching: **logging a feeding**
-(`screens/calendar/FeedingDialog.js`), **transplanting a cell**
-(`screens/germination/TransplantDialog.js`) and **ticking a scheduled action off
-the dashboard**. All three are the same shape as
+The next flows are the ones _Component and integration tests_ names and this
+session ran out before reaching: **logging a feeding**
+(`screens/calendar/FeedingDialog.js`), **ticking a scheduled action off the
+dashboard** and **creating a growspace**. Both are the same shape as
 `screens/germination/__tests__/SowingFormDialog.test.js`, which is the one to
 copy: seed the fake, drive the dialog, assert on the rows that ended up in the
 tables. Each one lands, the floor for `components/` in `jest.config.js` goes up
@@ -226,8 +225,8 @@ and green; the rest of the tier is still open.
       through `lib/__mocks__/supabase.js`), and `test/render.js` with the
       providers `App.js` uses. Covered so far: `FormField`, `TextField`,
       `useForm`, `QueryBoundary`, `ErrorBoundary`, and end to end —
-      `TrayFormDialog`, login, signup and sowing a tray. **Left: log a feeding,
-      transplant a cell, tick off a scheduled action, create a growspace.**
+      `TrayFormDialog`, login, signup, sowing a tray and transplanting out of one.
+      **Left: log a feeding, tick off a scheduled action, create a growspace.**
       Floors for both are in place and go up as tests land.
 - [ ] **A pre-commit hook** (husky + lint-staged) so the above can't rot.
 - [ ] **Dependabot or Renovate** — a config file is five lines and shows you
