@@ -7,6 +7,7 @@ import {
   Chip,
   Dialog,
   Divider,
+  FAB,
   Portal,
   SegmentedButtons,
   Text,
@@ -432,18 +433,6 @@ export default function NpkCalculatorScreen() {
         </Card.Content>
       </Card>
 
-      {/* The calculator works out a mix; this is what turns one that was
-          actually poured into a dated entry on the growspace calendar. */}
-      <Button
-        mode="contained-tonal"
-        icon="cup-water"
-        onPress={() => setFeedOpen(true)}
-        disabled={feedPreset.products.length === 0}
-        style={styles.logButton}
-      >
-        Save as a feeding
-      </Button>
-
       <Text variant="bodySmall" style={styles.note}>
         Target bands are typical hydroponic ranges, not advice for a particular plant. Your species,
         medium, water and light will all shift what “on target” really means — treat them as a
@@ -580,6 +569,21 @@ export default function NpkCalculatorScreen() {
         </ScrollView>
       </QueryBoundary>
 
+      {/* The calculator works out a mix; this is what turns one that was
+          actually poured into a dated entry on the growspace calendar. It
+          floats rather than sitting at the end of the scroll, because the one
+          action the screen exists to produce shouldn't be the hardest thing on
+          it to reach. */}
+      {fertilizers.length > 0 && (
+        <FAB
+          icon="cup-water"
+          label="Save as a feeding"
+          onPress={() => setFeedOpen(true)}
+          disabled={feedPreset.products.length === 0}
+          style={styles.fab}
+        />
+      )}
+
       <FeedingDialog
         visible={feedOpen}
         preset={feedPreset}
@@ -668,7 +672,8 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 32,
+    // Clears the floating save button, so the closing note isn't sat on.
+    paddingBottom: 96,
   },
   empty: {
     flex: 1,
@@ -746,8 +751,10 @@ const styles = StyleSheet.create({
   card: {
     marginTop: 16,
   },
-  logButton: {
-    marginTop: 16,
+  fab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
   },
   divider: {
     marginBottom: 12,
