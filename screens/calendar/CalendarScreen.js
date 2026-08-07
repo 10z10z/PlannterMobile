@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Appbar, Button, Divider, List, Menu, Text } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MonthCalendar from '../../components/MonthCalendar';
@@ -11,6 +11,7 @@ import {
   useScheduled,
 } from '../../hooks/useDashboard';
 import { useDataMutation } from '../../hooks/useDataMutation';
+import useRefresh from '../../hooks/useRefresh';
 import ScreenTitle from '../../components/ScreenTitle';
 import { formatDateString, toDateString } from '../../lib/dates';
 import {
@@ -67,6 +68,9 @@ export default function CalendarScreen({ navigation, route }) {
   // questions, and one of them failing shouldn't empty the month of the other.
   const activityQuery = useActivity(range);
   const scheduledQuery = useScheduled(range);
+
+  // Both halves of the month: what was recorded and what is planned.
+  const refresh = useRefresh([activityQuery, scheduledQuery]);
 
   const entries = useMemo(() => activityQuery.data ?? [], [activityQuery.data]);
   const scheduled = useMemo(() => scheduledQuery.data ?? [], [scheduledQuery.data]);
@@ -200,7 +204,10 @@ export default function CalendarScreen({ navigation, route }) {
         </Menu>
       </Appbar.Header>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl {...refresh} />}
+      >
         <CalendarFilterBar
           filters={filters}
           onToggle={(dimension, value) => applyFilters(toggleFilter(filters, dimension, value))}

@@ -113,9 +113,9 @@ module.exports = {
      * detail screen.
      */
     './hooks/': {
-      statements: 84,
+      statements: 85,
       branches: 67,
-      functions: 74,
+      functions: 75,
       lines: 85,
     },
     /**

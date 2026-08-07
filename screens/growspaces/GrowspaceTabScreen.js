@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, FAB, List, Portal, SegmentedButtons, Text } from 'react-native-paper';
 import FormField from '../../components/FormField';
 import useForm from '../../hooks/useForm';
@@ -26,6 +26,7 @@ import {
   useGrowspacePlants,
 } from '../../hooks/useGrowspaces';
 import usePlantMove from '../../hooks/usePlantMove';
+import useRefresh from '../../hooks/useRefresh';
 
 export default function GrowspaceTabScreen({ route }) {
   const { growspaceId } = route.params;
@@ -61,12 +62,7 @@ export default function GrowspaceTabScreen({ route }) {
   const { move, unplace } = usePlantMove({ growspaceId, grids, plants });
 
   /** Pulling down refreshes all four, since they are one screen. */
-  const refreshAll = () => {
-    growspaceQuery.refetch();
-    gridQuery.refetch();
-    plantQuery.refetch();
-    lightQuery.refetch();
-  };
+  const refresh = useRefresh([growspaceQuery, gridQuery, plantQuery, lightQuery]);
 
   const openPlantDetail = (plant) =>
     navigation.navigate('PlantDetail', { plantId: plant.id, plantName: plant.name });
@@ -172,7 +168,13 @@ export default function GrowspaceTabScreen({ route }) {
       {view === 'grid' ? (
         // The grid drags with a PanResponder, so it can't sit in a FlatList
         // without the two fighting over the touch.
-        <ScrollView contentContainerStyle={styles.listContent}>
+        <ScrollView
+          contentContainerStyle={styles.listContent}
+          // The layout view is the one this screen opens on, and it was the one
+          // with no way to refresh — the pull only worked after switching to the
+          // list, which is the tab nobody uses.
+          refreshControl={<RefreshControl {...refresh} />}
+        >
           {header}
           {growspace && (
             <PlantGrid
@@ -188,8 +190,8 @@ export default function GrowspaceTabScreen({ route }) {
         <FlatList
           data={plants}
           keyExtractor={(item) => item.id}
-          refreshing={plantQuery.isRefetching}
-          onRefresh={refreshAll}
+          refreshing={refresh.refreshing}
+          onRefresh={refresh.onRefresh}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={header}
           ListEmptyComponent={

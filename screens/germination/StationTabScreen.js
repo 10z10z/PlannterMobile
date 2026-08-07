@@ -7,6 +7,7 @@ import { useWeather } from '../../contexts/WeatherContext';
 import { formatTemperature, tempUnit } from '../../lib/units';
 import { environmentLabel } from '../../lib/germination';
 import { messageFor } from '../../lib/errors';
+import useRefresh from '../../hooks/useRefresh';
 import ErrorText from '../../components/ErrorText';
 import {
   useDeleteSowing,
@@ -56,11 +57,7 @@ export default function StationTabScreen({ route }) {
   const removeSowing = useDeleteSowing({ onSuccess: () => setPendingDelete(null) });
 
   /** Pulling down refreshes all three, since they are one screen. */
-  const refreshAll = () => {
-    stationQuery.refetch();
-    sowingQuery.refetch();
-    lightQuery.refetch();
-  };
+  const refresh = useRefresh([stationQuery, sowingQuery, lightQuery]);
 
   // The card hands over the cells it means: everything ready by default, or just
   // the ones picked in selection mode.
@@ -92,8 +89,8 @@ export default function StationTabScreen({ route }) {
       <FlatList
         data={sowings}
         keyExtractor={(item) => item.id}
-        refreshing={sowingQuery.isRefetching}
-        onRefresh={refreshAll}
+        refreshing={refresh.refreshing}
+        onRefresh={refresh.onRefresh}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
