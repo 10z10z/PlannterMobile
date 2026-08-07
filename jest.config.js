@@ -67,10 +67,10 @@ module.exports = {
    */
   coverageThreshold: {
     './lib/': {
-      statements: 75,
-      branches: 71,
-      functions: 79,
-      lines: 77,
+      statements: 76,
+      branches: 72,
+      functions: 80,
+      lines: 79,
     },
     /**
      * Low, and honestly so: most of what is counted here is reached on the way
@@ -98,8 +98,8 @@ module.exports = {
     './hooks/': {
       statements: 77,
       branches: 55,
-      functions: 64,
-      lines: 78,
+      functions: 65,
+      lines: 79,
     },
   },
 };

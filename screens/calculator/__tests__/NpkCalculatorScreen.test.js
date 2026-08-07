@@ -146,6 +146,36 @@ describe('NpkCalculatorScreen', () => {
     expect(screen.getByText(/Meter should read ≈ 693 ppm on the 700/)).toBeOnTheScreen();
   });
 
+  it('hands the mix to the feeding dialog already filled in', async () => {
+    await pourTheTank();
+
+    await press('Save as a feeding');
+
+    // The receiving end of this is covered in FeedingDialog's own tests with a
+    // preset written by hand; what is checked here is that the calculator
+    // builds the same shape out of a real mix — the dose it worked out, in the
+    // units it was read in, and the tank it was actually poured into.
+    expect(await screen.findByText('Log a feeding')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Grow A (ml/L)').props.value).toBe('2');
+    expect(screen.getByLabelText('Batch mixed (L, optional)').props.value).toBe('4');
+  });
+
+  it('offers nothing to save until something is in the water', async () => {
+    await renderWithProviders(<NpkCalculatorScreen />);
+    await screen.findAllByText('Grow A');
+
+    // The one bottle picks itself, but at no dose — so there is a mix on screen
+    // with nothing in it. Pressing does nothing rather than opening a dialog
+    // that would have no products to record.
+    await press('Save as a feeding');
+    expect(screen.queryByText('Log a feeding')).toBeNull();
+
+    // Give it a dose and the same button works.
+    await press('Suggest for stage');
+    await press('Save as a feeding');
+    expect(await screen.findByText('Log a feeding')).toBeOnTheScreen();
+  });
+
   it('doses a bottle from the stage it is being grown for', async () => {
     await renderWithProviders(<NpkCalculatorScreen />);
     await screen.findAllByText('Grow A');
