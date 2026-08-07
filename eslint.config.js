@@ -33,7 +33,10 @@ module.exports = [
     },
   },
   {
-    files: ['**/__tests__/**/*.js'],
+    // The tests themselves, the mocks jest swaps in for them, and the harness
+    // in `test/` that renders and fakes — all of it runs under jest and none of
+    // it ships.
+    files: ['**/__tests__/**/*.js', '**/__mocks__/**/*.js', 'test/**/*.js'],
     rules: {
       // A test reads best as "here is what is faked, here is what is under
       // test", and babel-jest hoists `jest.mock` above the imports regardless
